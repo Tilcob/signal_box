@@ -1,5 +1,5 @@
 [package]
-name = "bevy_template_2d"
+name = "signal_box"
 version = "0.1.0"
 edition = "2024"
 description = "2D Bevy template: LDtk level manager, hot-reloadable tunables, dev tools."
