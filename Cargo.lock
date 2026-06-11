@@ -1952,6 +1952,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "cargo"
+version = "0.1.0"
+dependencies = [
+ "ron 0.12.1",
+ "serde",
+]
+
+[[package]]
 name = "cc"
 version = "1.2.63"
 source = "registry+https://github.com/rust-lang/crates.io-index"

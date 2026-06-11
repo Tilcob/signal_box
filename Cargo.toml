@@ -5,6 +5,9 @@ edition = "2024"
 description = "Stellwerk prototype: a Zachlike about routing trains with switches and signals."
 license = "MIT OR Apache-2.0"
 
+[workspace]
+members = ["crates/*"]
+
 [features]
 default = ["dev"]
 # Development tools: asset hot reload (file watcher), egui inspector windows,

@@ -233,7 +233,7 @@ Bausteine frei. Kein Ziel, keine Bewertung — Spielwiese und Quelle für
 Community-Inhalte. Billig, weil Editor und Sim identisch mit der Kampagne sind.
 
 ### 8.3 Level- & Lösungs-Sharing per Code
-- Export/Import als kompakter Text-Code (Base64-komprimiert, versioniert):
+- Export/Import als kompakter Text-Code (Base64-kodiert, versioniert):
   **Lösungs-Codes** (Anlage zu einem Kampagnen-Level) und **Level-Codes**
   (Sandbox-Setups inkl. Fahrplan als spielbares Custom-Puzzle).
 - Kein Server, kein Workshop in v1 — Codes laufen über Discord/Reddit/Foren.
@@ -346,7 +346,7 @@ signal_box/
 
 | Problem | Lösung | Warum keine Dependency |
 |---|---|---|
-| Pathfinding (§7.3) | Eigener Dijkstra/BFS im Sim-Kern | Graphen sind winzig (Puzzle-Level); der deterministische Tie-Breaker ist die eigentliche Arbeit und muss eh selbst geschrieben werden. Kein `petgraph`. |
+| Erreichbarkeits-Check (§7.3) | Simple Graph-Traversierung (BFS) | Die Sim selbst hat kein Pathfinding (Weichen-Routing); BFS dient nur der Editor-Warnung „Ziel unerreichbar". Graphen sind winzig — kein `petgraph`. |
 | Undo/Redo (§9) | Command-Stack über Editier-Operationen | Trivial, wenn jede Bau-Aktion eh als Operation modelliert ist (braucht auch das Sharing-Format). |
 | Zufall | — | Es gibt keinen Zufall in der Sim (Säule 1). Frontend-Juice (Partikel o. Ä.) darf `rand` nutzen, niemals der Kern. |
 | Lokalisierung (EN/DE) | RON-Stringtabelle pro Sprache + Key-Lookup | Wenig Text (§8.1), keine Plural-/Genus-Logik nötig. `fluent` erst, falls FIGS (§16) kommt. |
@@ -358,8 +358,10 @@ signal_box/
    `Cargo.toml` landet — mit Begründung.
 2. Bevy-gekoppelte Plugins (Upgrade-Risiko!) nur, wenn sie hinter einem
    Feature-Flag liegen oder ihr Ausfall das Shipping nicht blockiert.
-   Aktuell genau zwei: egui-Stack (dev-only) und kira (Audio — akzeptiertes
-   Risiko, etablierte Pflege).
+   Aktuell genau drei: egui-Stack (dev-only), `bevy_kira_audio` und
+   `bevy_enhanced_input` — die beiden letzten als akzeptiertes,
+   shipping-relevantes Risiko (etablierte Pflege; ihr Ausfall verzögert ein
+   Bevy-Upgrade, blockiert aber kein Shipping).
 3. `stellwerk_sim` und `stellwerk_codes` halten ihre Dependencies minimal
    (`serde` ja; sonst Einzelfallprüfung) — der Kern muss in CI in Sekunden
    bauen.
@@ -374,12 +376,17 @@ signal_box/
 
 ## 13. Meilensteine (Zielrahmen 5–8 Monate)
 
+> Detaillierte Implementierungspläne pro Meilenstein liegen in `plans/`
+> (aktuell: [plans/M0-sim-kern.md](plans/M0-sim-kern.md)). Sie konkretisieren
+> dieses GDD, ändern es aber nie — Design-Änderungen laufen immer zuerst hier
+> durch (§18).
+
 | Meilenstein | Inhalt | Exit-Kriterium |
 |---|---|---|
-| **M0 – Sim-Kern** (4 Wo) | Deterministischer Tick-Kern: Gleisgraph, Blöcke, beide Signaltypen, Routing, Deadlock-/Kollisionserkennung; Headless-Tests | 20 Sim-Szenarien als Tests grün; Replays bit-identisch |
+| **M0 – Sim-Kern** (4 Wo) | Deterministischer Tick-Kern: Gleisgraph, Blöcke, beide Signaltypen, Weichen-Routing (Grundstellung + Regeln), Deadlock-/Kollisionserkennung; Headless-Tests | 20 Sim-Szenarien als Tests grün; Replays bit-identisch |
 | **M1 – Vertical Slice** (6 Wo) | Editor (Bauen/Undo), Run Mode mit Speed-Controls, Debugging-Report, Bewertung, 8 Level aus Kapitel 1–3, Pult-Look v1 | Fremde Testspieler lösen Kapitel 1 ohne Hilfe; „noch ein Versuch"-Sog spürbar — sonst Design nachschärfen, bevor Content entsteht |
 | **M2 – Content-Maschine** (6 Wo) | Level-Pipeline, Kapitel 1–4 komplett, Sandbox, Sharing-Codes, Lokalisierungs-Setup EN/DE | 30+ Level spielbar; Level bauen kostet < 1 Tag/Stück |
-| **M3 – Demo** (4 Wo) | Kapitel 5–6, Polish-Pass (Audio, Juice, Onboarding), Demo-Build (Kapitel 1–2), Steam-Page | Demo veröffentlicht; Next-Fest-Anmeldung |
+| **M3 – Demo** (4 Wo) | Kapitel 5–6, Polish-Pass (Audio, Juice, Onboarding), Demo-Build (Kapitel 1–3 — der Deadlock-USP muss in der Demo erlebbar sein), Steam-Page | Demo veröffentlicht; Next-Fest-Anmeldung |
 | **M4 – Launch** (4–8 Wo) | Playtest-Feedback, Balancing (Par-Werte!), Achievements, Trailer/GIFs, Bugfixing | 1.0 auf Steam |
 
 **Erst-Validierung (vorgezogen, Teil von M0/M1):** Papier-/Greybox-Check der
@@ -418,10 +425,12 @@ Sim-Kern vollständig.
 - **Community-Histogramme** (Zachtronics-Style) post-launch: Steam-Leaderboards
   reichen evtl. — prüfen, sobald v1 steht.
 - **Tages-Challenge** (v1.x): braucht validierenden Puzzle-Generator.
-- **Dynamisches Umrouten** als Experiment: macht es Puzzles tiefer oder nur
-  unlesbarer? Erst nach M2 prototypen.
-- **Weichen-Prioritätsregeln** als fünfter Baustein (z. B. „Linie A bevorzugt"):
-  nur falls Kapitel 5/6 ohne nicht lösbar interessant zu machen sind.
+- **Bedingte Weichenregeln** (belegungsabhängig: „wenn Ausweichgleis besetzt →
+  Hauptgleis"): v1.x-Kandidat, falls späte Kapitel mehr Ausdruckskraft
+  brauchen. Vorsicht: macht Routen zustandsabhängig — reibt sich mit Säule 1.
+- **Kopfbahnhof-Wenden** (Richtungswechsel an Endgleisen): v1.x-Kandidat —
+  thematisch stark, kostet aber Sim-Komplexität (entschieden: v1 nur
+  vorwärts, §7.2).
 - **Fahrdynamik** (Beschleunigung/Bremswege): nach M1-Playtests bewerten.
 - **Außenwelt-Fenster** (§10 Stretch): Nice-to-have, frühestens M3.
 - Steam-Untertitel final (EN) + Capsule-Konzept: vor Steam-Page (M3).
@@ -432,8 +441,10 @@ Sim-Kern vollständig.
 |---|---|
 | **Block(abschnitt)** | Gleisbereich zwischen Signalen; gehört max. einem Zug |
 | **Blocksignal** | Hält Züge, bis der Folgeblock frei ist |
-| **Kettensignal** | Hält Züge, bis alle Blöcke bis zum nächsten Blocksignal frei sind |
+| **Kettensignal** | Hält Züge, bis alle Blöcke bis einschließlich des nächsten blocksignal-geschützten frei sind (§7.4) |
 | **Fahrstraße** | Reservierte Kette von Blöcken für einen Zug |
+| **Grundstellung** | Standardrichtung einer Weiche; im Edit Mode festgelegt |
+| **Weichenregel** | Ausnahme von der Grundstellung je Ziel/Zugtyp (§7.3) |
 | **Deadlock** | Zyklus von Zügen, die gegenseitig auf ihre Blöcke warten |
 | **Par** | Designer-Referenzwert je Bewertungsachse; Medaille bei Erreichen |
 | **Run** | Ein Simulationsdurchlauf von Start bis Erfolg/Abbruch |
@@ -446,3 +457,4 @@ Sim-Kern vollständig.
 |---|---|
 | 2026-06-11 | Erstfassung. Grundsatzentscheidungen: echtes Zachlike (strikte Phasentrennung), Spieler verlegt Gleise, Bewertung 3 Achsen lokal, v1 = Kampagne + Sandbox + Code-Sharing, Pult-Ästhetik, Titel „Stellwerk", Sprachen EN+DE. |
 | 2026-06-11 | §12 zum Tech-Stack-Kapitel ausgebaut. Entschieden: Workspace mit Bevy-freiem Sim-Kern (`stellwerk_sim`), handgerollte Integer-Arithmetik, `lyon` als Tessellator (Bevy-natives Rendering + Bloom), Spiel-UI in `bevy_ui` (egui nur dev), `bevy_kira_audio`; serde+ron (Levels/Saves), postcard+base64 (Sharing-Codes), handgerollt: Pathfinding, Undo, Lokalisierung, Tweening. Dependency-Politik §12.4. |
+| 2026-06-11 | Review-Runde: Routing-Widerspruch aufgelöst — §7.3 ersetzt durch **Weichen-Routing** (Grundstellung + Regeln je Ziel/Zugtyp, kein Pathfinding; „die Weiche ist das Programm"). Züge fahren nur vorwärts (kein Wenden in v1, §7.2); Kapitel 4 „Rangierbahnhof" → „Sortierwerk"; Demo = Kapitel 1–3 (USP muss erlebbar sein); Einfahrts-FIFO bei belegter Quelle definiert (§7.5); §9 ergänzt um Kamera, Input-Architektur und Barrierefreiheit (Farbe nie alleiniger Träger); `bevy_enhanced_input` als Input-Crate aufgenommen (§12.2, Ausnahmeliste §12.4); Kettensignal-Definition Glossar/§7.4 harmonisiert. |
