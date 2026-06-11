@@ -1,4 +1,4 @@
-#![enable(unwrap_newtypes)]
+#![enable(unwrap_newtypes, implicit_some)]
 // Szenario 2 (Plan §5): Einzelzug über Kurven und Diagonalen.
 // Prüft: Längentabelle (45°-Kurven, Diagonale), Pfad-Intervall.
 //

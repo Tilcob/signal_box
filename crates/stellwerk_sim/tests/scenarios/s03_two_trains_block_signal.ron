@@ -1,0 +1,35 @@
+#![enable(unwrap_newtypes, implicit_some)]
+// Szenario 3 (Plan §5): Zwei Züge nacheinander, Blocksignal verhindert
+// Auffahren. Das Signal sitzt direkt hinter der Quelle: Der schnellere
+// Folgezug (150 LE/Tick) wird dort gehalten, bis der langsame Vordermann
+// (100 LE/Tick) den Streckenblock bei Ankunft (Tick 60) freigibt.
+// t1: grün ~Tick 61, Rest 5000 LE → Ankunft ~Tick 95.
+(
+    level: (
+        name: "S03 — Blocksignal gegen Auffahren",
+        buildable: [(x: 0, y: 0), (x: 1, y: 0), (x: 2, y: 0), (x: 3, y: 0), (x: 4, y: 0), (x: 5, y: 0)],
+        fixed: (pieces: [], switches: [], signals: []),
+        sources: [(id: 0, cell: (x: 0, y: 0), dir: W)],
+        sinks: [(id: 0, cell: (x: 5, y: 0), dir: E, label: "OST")],
+        schedule: [
+            (train: 0, class: 0, length: 800, speed: 100, source: 0, sink: 0, depart: 0, due: 100),
+            (train: 1, class: 0, length: 800, speed: 150, source: 0, sink: 0, depart: 2, due: 150),
+        ],
+        par: (throughput: 100, material: 8, lateness: 0),
+    ),
+    layout: (
+        pieces: [
+            (cell: (x: 0, y: 0), a: W, b: E),
+            (cell: (x: 1, y: 0), a: W, b: E),
+            (cell: (x: 2, y: 0), a: W, b: E),
+            (cell: (x: 3, y: 0), a: W, b: E),
+            (cell: (x: 4, y: 0), a: W, b: E),
+            (cell: (x: 5, y: 0), a: W, b: E),
+        ],
+        switches: [],
+        signals: [
+            (cell: (x: 0, y: 0), at: E, kind: Block),
+        ],
+    ),
+    expect: Success(last_arrival_by: 110, last_arrival_at_least: 80),
+)

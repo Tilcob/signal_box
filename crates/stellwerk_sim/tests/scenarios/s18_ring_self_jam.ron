@@ -1,0 +1,53 @@
+#![enable(unwrap_newtypes, implicit_some)]
+// Szenario 18 (Plan §5): Stillstand OHNE Zyklus — die Denksportaufgabe.
+// Die Strecke führt über eine Schleife zurück zur Kreuzungszelle (2,0):
+// Ein einzelner Schnitt auf einem Ring trennt nichts, also ist fast alles
+// EIN Block. Am Signal (2,1)S ist der „Folgeblock" derselbe Ringblock, in
+// dem der Zug selbst steht — strikte Blockregel: durch den eigenen Schwanz
+// fährt man nicht. Kein anderer Zug ⇒ kein Wait-for-Zyklus ⇒ nach
+// STALL_TICKS (600) endet der Run als Stalled, nicht als Deadlock.
+//
+//   (2,2)──(3,2)
+//     │      │
+//   (2,1)  (3,1)
+//     │sig   │
+//   (2,0)══(3,0)   (2,0) = Kreuzung W↔E + N↔S
+//  ═══╝│
+//   (2,-1) → SUED
+(
+    level: (
+        name: "S18 — Selbstblockade auf dem Ring",
+        buildable: [
+            (x: 0, y: 0), (x: 1, y: 0), (x: 2, y: 0), (x: 3, y: 0),
+            (x: 3, y: 1), (x: 3, y: 2), (x: 2, y: 2), (x: 2, y: 1),
+            (x: 2, y: -1),
+        ],
+        fixed: (pieces: [], switches: [], signals: []),
+        sources: [(id: 0, cell: (x: 0, y: 0), dir: W)],
+        sinks: [(id: 0, cell: (x: 2, y: -1), dir: S, label: "SUED")],
+        schedule: [
+            (train: 0, class: 0, length: 800, speed: 100, source: 0, sink: 0, depart: 0, due: 200),
+        ],
+        par: (throughput: 150, material: 14, lateness: 0),
+    ),
+    layout: (
+        pieces: [
+            (cell: (x: 0, y: 0), a: W, b: E),
+            (cell: (x: 1, y: 0), a: W, b: E),
+            (cell: (x: 2, y: 0), a: W, b: E),
+            (cell: (x: 2, y: 0), a: N, b: S),
+            (cell: (x: 3, y: 0), a: W, b: N),
+            (cell: (x: 3, y: 1), a: N, b: S),
+            (cell: (x: 3, y: 2), a: S, b: W),
+            (cell: (x: 2, y: 2), a: E, b: S),
+            (cell: (x: 2, y: 1), a: N, b: S),
+            (cell: (x: 2, y: -1), a: N, b: S),
+        ],
+        switches: [],
+        signals: [
+            (cell: (x: 0, y: 0), at: E, kind: Block),
+            (cell: (x: 2, y: 1), at: S, kind: Block),
+        ],
+    ),
+    expect: Stalled(waiting: [0]),
+)

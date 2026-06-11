@@ -1,0 +1,32 @@
+#![enable(unwrap_newtypes, implicit_some)]
+// Szenario 12 (Plan §5): Der Editor-Vorabcheck meldet den Zug aus s10 als
+// unerreichbar, OHNE die Sim zu starten (check_reachability statt run).
+(
+    level: (
+        name: "S12 — Erreichbarkeits-Check",
+        buildable: [(x: 0, y: 0), (x: 1, y: 0), (x: 2, y: 0), (x: 2, y: 1)],
+        fixed: (pieces: [], switches: [], signals: []),
+        sources: [(id: 0, cell: (x: 0, y: 0), dir: W)],
+        sinks: [
+            (id: 0, cell: (x: 2, y: 0), dir: E, label: "OST"),
+            (id: 1, cell: (x: 2, y: 1), dir: NE, label: "NORD"),
+        ],
+        schedule: [
+            (train: 0, class: 0, length: 800, speed: 100, source: 0, sink: 1, depart: 0, due: 100),
+            (train: 1, class: 0, length: 800, speed: 100, source: 0, sink: 0, depart: 10, due: 150),
+        ],
+        par: (throughput: 80, material: 7, lateness: 0),
+    ),
+    layout: (
+        pieces: [
+            (cell: (x: 0, y: 0), a: W, b: E),
+            (cell: (x: 2, y: 0), a: W, b: E),
+            (cell: (x: 2, y: 1), a: SW, b: NE),
+        ],
+        switches: [
+            (cell: (x: 1, y: 0), stem: W, branches: (E, NE), default_branch: 0, rules: []),
+        ],
+        signals: [],
+    ),
+    expect: Unreachable(trains: [0]),
+)

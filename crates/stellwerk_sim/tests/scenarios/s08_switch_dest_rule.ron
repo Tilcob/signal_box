@@ -1,0 +1,33 @@
+#![enable(unwrap_newtypes, implicit_some)]
+// Szenario 8 (Plan §5): Zielregel überschreibt Grundstellung. Grundstellung
+// OST (Zweig 0), aber die Regel „Ziel NORD → Zweig 1" greift zuerst.
+(
+    level: (
+        name: "S08 — Zielregel",
+        buildable: [(x: 0, y: 0), (x: 1, y: 0), (x: 2, y: 0), (x: 2, y: 1)],
+        fixed: (pieces: [], switches: [], signals: []),
+        sources: [(id: 0, cell: (x: 0, y: 0), dir: W)],
+        sinks: [
+            (id: 0, cell: (x: 2, y: 0), dir: E, label: "OST"),
+            (id: 1, cell: (x: 2, y: 1), dir: NE, label: "NORD"),
+        ],
+        schedule: [
+            (train: 0, class: 0, length: 800, speed: 100, source: 0, sink: 1, depart: 0, due: 100),
+        ],
+        par: (throughput: 50, material: 7, lateness: 0),
+    ),
+    layout: (
+        pieces: [
+            (cell: (x: 0, y: 0), a: W, b: E),
+            (cell: (x: 2, y: 0), a: W, b: E),
+            (cell: (x: 2, y: 1), a: SW, b: NE),
+        ],
+        switches: [
+            (cell: (x: 1, y: 0), stem: W, branches: (E, NE), default_branch: 0, rules: [
+                (when: DestIs(1), branch: 1),
+            ]),
+        ],
+        signals: [],
+    ),
+    expect: Success(last_arrival_by: 60),
+)

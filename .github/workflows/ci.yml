@@ -1,0 +1,20 @@
+# M0 CI (plan §12.5 / Aufgabe 4.4): the sim core must test green on Windows
+# AND Linux with the same golden replay hashes — that cross-platform match
+# is the determinism proof. Deliberately only `-p stellwerk_sim`: the Bevy
+# frontend joins the pipeline with M1.
+name: ci
+on: [push, pull_request]
+jobs:
+  test:
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - run: cargo test -p stellwerk_sim
+      - run: cargo clippy -p stellwerk_sim --all-targets -- -D warnings
+      - run: cargo fmt -p stellwerk_sim -- --check

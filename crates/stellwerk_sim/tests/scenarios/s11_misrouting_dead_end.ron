@@ -1,0 +1,31 @@
+#![enable(unwrap_newtypes, implicit_some)]
+// Szenario 11 (Plan §5): Fehlleitung — Sackgasse. Die Grundstellung schickt
+// den OST-Zug auf den Stummel (2,1), der im Nichts endet (offene Gleisenden
+// sind seit W1 legal!). Misrouting mit reached = None.
+(
+    level: (
+        name: "S11 — Fehlleitung Sackgasse",
+        buildable: [(x: 0, y: 0), (x: 1, y: 0), (x: 2, y: 0), (x: 2, y: 1)],
+        fixed: (pieces: [], switches: [], signals: []),
+        sources: [(id: 0, cell: (x: 0, y: 0), dir: W)],
+        sinks: [
+            (id: 0, cell: (x: 2, y: 0), dir: E, label: "OST"),
+        ],
+        schedule: [
+            (train: 0, class: 0, length: 800, speed: 100, source: 0, sink: 0, depart: 0, due: 100),
+        ],
+        par: (throughput: 50, material: 7, lateness: 0),
+    ),
+    layout: (
+        pieces: [
+            (cell: (x: 0, y: 0), a: W, b: E),
+            (cell: (x: 2, y: 0), a: W, b: E),
+            (cell: (x: 2, y: 1), a: SW, b: NE),
+        ],
+        switches: [
+            (cell: (x: 1, y: 0), stem: W, branches: (E, NE), default_branch: 1, rules: []),
+        ],
+        signals: [],
+    ),
+    expect: Misrouting(train: 0),
+)

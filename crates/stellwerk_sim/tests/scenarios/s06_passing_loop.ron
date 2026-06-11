@@ -1,0 +1,49 @@
+#![enable(unwrap_newtypes, implicit_some)]
+// Szenario 6 (Plan §5): Gegenverkehr mit Ausweiche — der Kapitel-2-Kernfall.
+// t0 fährt W→O über das Hauptgleis (2,0), t1 O→W über die Schleife (2,1);
+// vier Blocksignale teilen West/Haupt/Schleife/Ost in eigene Blöcke, sodass
+// sich beide Züge mitten im Netz GLEICHZEITIG begegnen (echtes Passieren,
+// keine Serialisierung). Quelle und Senke teilen sich je einen Anschluss.
+//
+//            NE╔══(2,1)══╗NW          Schleife (t1, via S_e default NW)
+//   W──(0,0)──S_w        S_e──(4,0)──E
+//            E ╚══(2,0)══╝W           Hauptgleis (t0, via S_w default E)
+(
+    level: (
+        name: "S06 — Ausweiche",
+        buildable: [(x: 0, y: 0), (x: 1, y: 0), (x: 2, y: 0), (x: 2, y: 1), (x: 3, y: 0), (x: 4, y: 0)],
+        fixed: (pieces: [], switches: [], signals: []),
+        sources: [
+            (id: 0, cell: (x: 0, y: 0), dir: W),
+            (id: 1, cell: (x: 4, y: 0), dir: E),
+        ],
+        sinks: [
+            (id: 0, cell: (x: 4, y: 0), dir: E, label: "OST"),
+            (id: 1, cell: (x: 0, y: 0), dir: W, label: "WEST"),
+        ],
+        schedule: [
+            (train: 0, class: 0, length: 800, speed: 100, source: 0, sink: 0, depart: 0, due: 100),
+            (train: 1, class: 0, length: 800, speed: 100, source: 1, sink: 1, depart: 0, due: 100),
+        ],
+        par: (throughput: 80, material: 22, lateness: 0),
+    ),
+    layout: (
+        pieces: [
+            (cell: (x: 0, y: 0), a: W, b: E),
+            (cell: (x: 2, y: 0), a: W, b: E),
+            (cell: (x: 2, y: 1), a: SW, b: SE),
+            (cell: (x: 4, y: 0), a: W, b: E),
+        ],
+        switches: [
+            (cell: (x: 1, y: 0), stem: W, branches: (E, NE), default_branch: 0, rules: []),
+            (cell: (x: 3, y: 0), stem: E, branches: (W, NW), default_branch: 1, rules: []),
+        ],
+        signals: [
+            (cell: (x: 1, y: 0), at: E, kind: Block),
+            (cell: (x: 2, y: 0), at: E, kind: Block),
+            (cell: (x: 3, y: 0), at: NW, kind: Block),
+            (cell: (x: 2, y: 1), at: SW, kind: Block),
+        ],
+    ),
+    expect: Success(last_arrival_by: 85, last_arrival_at_least: 55),
+)

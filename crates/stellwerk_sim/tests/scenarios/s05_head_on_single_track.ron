@@ -1,0 +1,37 @@
+#![enable(unwrap_newtypes, implicit_some)]
+// Szenario 5 (Plan §5): Gegenverkehr auf eingleisiger Strecke, ungesichert.
+// Beide Züge starten gleichzeitig an den Enden und treffen sich frontal in
+// der Mitte (~Tick 31) — prüft die Kollision über Gegenrichtungs-Kanten.
+(
+    level: (
+        name: "S05 — Frontalkollision",
+        buildable: [(x: 0, y: 0), (x: 1, y: 0), (x: 2, y: 0), (x: 3, y: 0), (x: 4, y: 0), (x: 5, y: 0)],
+        fixed: (pieces: [], switches: [], signals: []),
+        sources: [
+            (id: 0, cell: (x: 0, y: 0), dir: W),
+            (id: 1, cell: (x: 5, y: 0), dir: E),
+        ],
+        sinks: [
+            (id: 0, cell: (x: 5, y: 0), dir: E, label: "OST"),
+            (id: 1, cell: (x: 0, y: 0), dir: W, label: "WEST"),
+        ],
+        schedule: [
+            (train: 0, class: 0, length: 800, speed: 100, source: 0, sink: 0, depart: 0, due: 100),
+            (train: 1, class: 0, length: 800, speed: 100, source: 1, sink: 1, depart: 0, due: 100),
+        ],
+        par: (throughput: 100, material: 6, lateness: 0),
+    ),
+    layout: (
+        pieces: [
+            (cell: (x: 0, y: 0), a: W, b: E),
+            (cell: (x: 1, y: 0), a: W, b: E),
+            (cell: (x: 2, y: 0), a: W, b: E),
+            (cell: (x: 3, y: 0), a: W, b: E),
+            (cell: (x: 4, y: 0), a: W, b: E),
+            (cell: (x: 5, y: 0), a: W, b: E),
+        ],
+        switches: [],
+        signals: [],
+    ),
+    expect: Collision(trains: (0, 1)),
+)

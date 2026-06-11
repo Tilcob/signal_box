@@ -1,0 +1,45 @@
+#![enable(unwrap_newtypes, implicit_some)]
+// Szenario 19 (Plan §5): Bewertung komplett — alle drei Achsen exakt
+// vorausberechnet (Kästchenpapier-Rechnung):
+//
+// Strecke: 4 Zellen = 4000 LE; Signal (1,0)E teilt bei 2000.
+// Material: 4 Gleise × 1 + 1 Blocksignal × 2 = 6.
+// t0: spawnt Tick 1, Kopf = 100·n, Signal Tick 21 grün (Block frei),
+//     Ankunft Kopf 4000 → Tick 40; due 38 → Verspätung 2.
+// t1: depart 5, Quelle frei ab t0-Kopf 1300 (Ende Tick 13) → spawnt 14,
+//     Kopf = 100·(n−13); am Signal (2000) Ende Tick 33, rot bis t0 bei
+//     Tick 40 despawnt → grün Tick 41, Ankunft 2000 Rest → Tick 60;
+//     due 60 → Verspätung 0.
+// Durchsatz = 60, Material = 6, Verspätung = 2.
+(
+    level: (
+        name: "S19 — Bewertung exakt",
+        buildable: [(x: 0, y: 0), (x: 1, y: 0), (x: 2, y: 0), (x: 3, y: 0)],
+        fixed: (pieces: [], switches: [], signals: []),
+        sources: [(id: 0, cell: (x: 0, y: 0), dir: W)],
+        sinks: [(id: 0, cell: (x: 3, y: 0), dir: E, label: "OST")],
+        schedule: [
+            (train: 0, class: 0, length: 800, speed: 100, source: 0, sink: 0, depart: 0, due: 38),
+            (train: 1, class: 0, length: 800, speed: 100, source: 0, sink: 0, depart: 5, due: 60),
+        ],
+        par: (throughput: 60, material: 6, lateness: 2),
+    ),
+    layout: (
+        pieces: [
+            (cell: (x: 0, y: 0), a: W, b: E),
+            (cell: (x: 1, y: 0), a: W, b: E),
+            (cell: (x: 2, y: 0), a: W, b: E),
+            (cell: (x: 3, y: 0), a: W, b: E),
+        ],
+        switches: [],
+        signals: [
+            (cell: (x: 1, y: 0), at: E, kind: Block),
+        ],
+    ),
+    expect: Success(
+        last_arrival_by: 60,
+        throughput: Some(60),
+        material: Some(6),
+        lateness: Some(2),
+    ),
+)

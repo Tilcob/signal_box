@@ -1,25 +1,18 @@
 #![enable(unwrap_newtypes, implicit_some)]
-// Szenario 1 (Plan §5): Einzelzug, gerade Strecke, kommt an.
-// Prüft: Bewegung, Ankunftstick, Durchsatz.
-//
-// Strecke: 6 Zellen W–E = 6000 LE; Speed 100 LE/Tick → Ankunft ≈ Tick 60.
+// Szenario 4 (Plan §5): Wie s03, aber OHNE Signal — der schnelle Folgezug
+// (240 LE/Tick) fährt dem langsamen Vordermann auf (~Tick 17, Position
+// ~950). Genau die Kollision, die der Spieler per Signal verhindern muss.
 (
     level: (
-        name: "S01 — ein Zug, gerade Strecke",
+        name: "S04 — Auffahrunfall ohne Signal",
         buildable: [(x: 0, y: 0), (x: 1, y: 0), (x: 2, y: 0), (x: 3, y: 0), (x: 4, y: 0), (x: 5, y: 0)],
         fixed: (pieces: [], switches: [], signals: []),
         sources: [(id: 0, cell: (x: 0, y: 0), dir: W)],
         sinks: [(id: 0, cell: (x: 5, y: 0), dir: E, label: "OST")],
-        schedule: [(
-            train: 0,
-            class: 0,
-            length: 800,
-            speed: 100,
-            source: 0,
-            sink: 0,
-            depart: 0,
-            due: 150,
-        )],
+        schedule: [
+            (train: 0, class: 0, length: 800, speed: 100, source: 0, sink: 0, depart: 0, due: 100),
+            (train: 1, class: 0, length: 800, speed: 240, source: 0, sink: 0, depart: 2, due: 150),
+        ],
         par: (throughput: 100, material: 6, lateness: 0),
     ),
     layout: (
@@ -34,5 +27,5 @@
         switches: [],
         signals: [],
     ),
-    expect: Success(last_arrival_by: 100),
+    expect: Collision(trains: (0, 1)),
 )

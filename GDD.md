@@ -376,10 +376,13 @@ signal_box/
 
 ## 13. Meilensteine (Zielrahmen 5–8 Monate)
 
-> Detaillierte Implementierungspläne pro Meilenstein liegen in `plans/`
-> (aktuell: [plans/M0-sim-kern.md](plans/M0/M0-sim-kern.md)). Sie konkretisieren
-> dieses GDD, ändern es aber nie — Design-Änderungen laufen immer zuerst hier
-> durch (§18).
+> Detaillierte Implementierungspläne pro Meilenstein liegen in `plans/`:
+> [M0](plans/M0/M0-sim-kern.md) · [M1](plans/M1/M1-vertical-slice.md) ·
+> [M2](plans/M2/M2-content-maschine.md) · [M3](plans/M3/M3-demo.md) ·
+> [M4](plans/M4/M4-launch.md). Sie konkretisieren dieses GDD, ändern es aber
+> nie — Design-Änderungen laufen immer zuerst hier durch (§18). M1–M4 sind
+> Rolling-Wave-Pläne: Sie werden beim jeweiligen Meilenstein-Start gegen den
+> realen Stand geschärft; die zugehörigen Wochen-Angaben entstehen erst dann.
 
 | Meilenstein | Inhalt | Exit-Kriterium |
 |---|---|---|
@@ -458,3 +461,4 @@ Sim-Kern vollständig.
 | 2026-06-11 | Erstfassung. Grundsatzentscheidungen: echtes Zachlike (strikte Phasentrennung), Spieler verlegt Gleise, Bewertung 3 Achsen lokal, v1 = Kampagne + Sandbox + Code-Sharing, Pult-Ästhetik, Titel „Stellwerk", Sprachen EN+DE. |
 | 2026-06-11 | §12 zum Tech-Stack-Kapitel ausgebaut. Entschieden: Workspace mit Bevy-freiem Sim-Kern (`stellwerk_sim`), handgerollte Integer-Arithmetik, `lyon` als Tessellator (Bevy-natives Rendering + Bloom), Spiel-UI in `bevy_ui` (egui nur dev), `bevy_kira_audio`; serde+ron (Levels/Saves), postcard+base64 (Sharing-Codes), handgerollt: Pathfinding, Undo, Lokalisierung, Tweening. Dependency-Politik §12.4. |
 | 2026-06-11 | Review-Runde: Routing-Widerspruch aufgelöst — §7.3 ersetzt durch **Weichen-Routing** (Grundstellung + Regeln je Ziel/Zugtyp, kein Pathfinding; „die Weiche ist das Programm"). Züge fahren nur vorwärts (kein Wenden in v1, §7.2); Kapitel 4 „Rangierbahnhof" → „Sortierwerk"; Demo = Kapitel 1–3 (USP muss erlebbar sein); Einfahrts-FIFO bei belegter Quelle definiert (§7.5); §9 ergänzt um Kamera, Input-Architektur und Barrierefreiheit (Farbe nie alleiniger Träger); `bevy_enhanced_input` als Input-Crate aufgenommen (§12.2, Ausnahmeliste §12.4); Kettensignal-Definition Glossar/§7.4 harmonisiert. |
+| 2026-06-11 | M0 fertig implementiert (20 Szenarien grün, Goldwert-Hashes committed). Sim-Präzisierungen aus der Implementierung (Details: plans/M0/M0-sim-kern.md §9): strikte Blockregel inkl. Selbstbelegung (Selbstblockade auf Ringen endet als Stillstand, nicht Deadlock); Ankunftstick = Kopf erreicht Anker im selben Tick; Erreichen eines fremden Sink-Ankers zählt als Fehlleitung; Einfahrts-FIFO prüft nur die physische Einfahrkante (Auffahrunfälle im Quellblock bleiben möglich — Spielrisiko). |

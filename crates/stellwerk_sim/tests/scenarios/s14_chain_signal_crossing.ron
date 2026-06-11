@@ -1,0 +1,49 @@
+#![enable(unwrap_newtypes, implicit_some)]
+// Szenario 14 (Plan §5): Dieselbe Kreuzungsidee wie s13, aber mit
+// KETTENSIGNALEN vor der Kreuzung — der Kapitel-3-Kernfall. t1 (Süd→Nord)
+// erreicht sein Kettensignal zuerst, reserviert die Fahrstraße durch die
+// Kreuzung und fährt durch; t0 wartet an seinem Kettensignal, bis die
+// Kreuzung wieder frei ist. Beide kommen an — kein Stehenbleiben im
+// Kreuzungsbereich, kein Deadlock.
+(
+    level: (
+        name: "S14 — Kettensignal an der Kreuzung",
+        buildable: [
+            (x: 0, y: 0), (x: 1, y: 0), (x: 2, y: 0), (x: 3, y: 0), (x: 4, y: 0),
+            (x: 2, y: -1), (x: 2, y: 1),
+        ],
+        fixed: (pieces: [], switches: [], signals: []),
+        sources: [
+            (id: 0, cell: (x: 0, y: 0), dir: W),
+            (id: 1, cell: (x: 2, y: -1), dir: S),
+        ],
+        sinks: [
+            (id: 0, cell: (x: 4, y: 0), dir: E, label: "OST"),
+            (id: 1, cell: (x: 2, y: 1), dir: N, label: "NORD"),
+        ],
+        schedule: [
+            (train: 0, class: 0, length: 800, speed: 100, source: 0, sink: 0, depart: 0, due: 200),
+            (train: 1, class: 0, length: 800, speed: 100, source: 1, sink: 1, depart: 0, due: 200),
+        ],
+        par: (throughput: 80, material: 16, lateness: 0),
+    ),
+    layout: (
+        pieces: [
+            (cell: (x: 0, y: 0), a: W, b: E),
+            (cell: (x: 1, y: 0), a: W, b: E),
+            (cell: (x: 2, y: 0), a: W, b: E),
+            (cell: (x: 2, y: 0), a: N, b: S),
+            (cell: (x: 3, y: 0), a: W, b: E),
+            (cell: (x: 4, y: 0), a: W, b: E),
+            (cell: (x: 2, y: -1), a: N, b: S),
+            (cell: (x: 2, y: 1), a: N, b: S),
+        ],
+        switches: [],
+        signals: [
+            (cell: (x: 1, y: 0), at: E, kind: Chain),
+            (cell: (x: 2, y: -1), at: N, kind: Chain),
+            (cell: (x: 3, y: 0), at: E, kind: Block),
+        ],
+    ),
+    expect: Success(last_arrival_by: 80, last_arrival_at_least: 55),
+)

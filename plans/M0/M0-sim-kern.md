@@ -267,10 +267,42 @@ Bug-Nester — W4 enthält bewusst wenig Neues.
 
 ## 8. Definition of Done (M0)
 
-- [ ] `cargo test --workspace` grün auf Windows + Linux (CI)
-- [ ] Alle 20 Szenarien implementiert, Hash-Goldwerte committed
-- [ ] `stellwerk_sim` baut ohne Bevy in < 10 s clean auf CI
-- [ ] Kern-API (§4.1) rustdoc-dokumentiert; Determinismus-Regeln (§4.5) als
-      Modul-Doku in `lib.rs`
-- [ ] GDD-Abgleich: alle während M0 getroffenen Design-Abweichungen sind ins
-      GDD zurückgeflossen (Historie-Eintrag)
+- [x] `cargo test --workspace` grün lokal (Windows: 57 Tests); CI-Workflow
+      liegt in `.github/workflows/ci.yml` — der Windows+Linux-Beweis steht
+      nach dem ersten Push aus
+- [x] Alle 20 Szenarien implementiert, Hash-Goldwerte committed
+      (`tests/scenarios.rs::GOLD`; s07 == s08 ist korrekt: Weichenkonfig ist
+      statisch, nicht Zustand)
+- [x] `stellwerk_sim` baut ohne Bevy in Sekunden (`cargo check` ~1–2 s)
+- [x] Kern-API (§4.1) rustdoc-dokumentiert (`cargo doc` warnungsfrei);
+      Determinismus-Regeln (§4.5) als Modul-Doku in `lib.rs`
+- [x] GDD-Abgleich: Festlegungen aus der Implementierung in der GDD-Historie
+      dokumentiert (Details unten, §9)
+
+## 9. Umsetzungsnotizen (Präzisierungen während der Implementierung)
+
+1. **Strikte Blockregel:** Ein Block gilt am Signal als besetzt, auch wenn
+   nur der eigene Zug ihn berührt. Normal ändert das nichts (der eigene
+   Körper ist nie voraus) — auf einem Ring, den ein einzelner Schnitt nicht
+   teilt, verhindert es aber das Durchfahren des eigenen Schwanzes. Die
+   Selbstblockade endet als `Stalled` (Szenario 18), nicht als Deadlock.
+2. **Kantenende mit Budget 0:** Ankunft/Signal/Querung werden auch bei exakt
+   aufgebrauchtem Tick-Budget verarbeitet (Querungen kosten keine Distanz).
+   Ankunftstick = „Kopf erreicht den Anker", nicht einen Tick später.
+3. **Kopf-Präsenz:** Der Kopf belegt seinen Kanten-Block auch bei 0
+   abgedeckter Länge — sonst „verschwindet" ein Zug, der exakt auf einen
+   Kantenanfang gequert hat, einen Tick lang aus der Belegung (gefunden
+   durch Szenario 15).
+4. **Jeder Sink-Anker zählt:** Erreicht ein Zug irgendeinen Sink-Anker, ist
+   das eine Ankunft — beim falschen Sink also Fehlleitung, auch wenn die
+   Route dahinter weiterginge.
+5. **Spawn-Prüfung ist physisch:** Die FIFO hält nur, solange die
+   Einfahrkante selbst belegt ist (GDD §7.5 „Einfahrtsbereich") — keine
+   Blocklogik. Auffahrunfälle im Quellblock bleiben möglich (Szenario 4:
+   genau das Spielrisiko, das Signale beheben).
+6. **First-come über Ticks:** Signalansprüche werden vor der Bewegung in
+   (Wartebeginn, Zugnummer)-Reihenfolge vergeben (§4.1 Phase 2); gleichzeitige
+   Ansprüche entscheidet die niedrigere Zugnummer (Unit-Test
+   `same_tick_contention_goes_to_lower_id`).
+7. **Signale auf Weichenzellen sind erlaubt** — die im Risiko-Abschnitt (§7)
+   befürchtete Mehrdeutigkeit existiert im Stub-Modell nicht (s06 nutzt sie).
