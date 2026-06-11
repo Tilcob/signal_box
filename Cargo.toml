@@ -2,7 +2,7 @@
 name = "signal_box"
 version = "0.1.0"
 edition = "2024"
-description = "2D Bevy template: LDtk level manager, hot-reloadable tunables, dev tools."
+description = "Stellwerk prototype: a Zachlike about routing trains with switches and signals."
 license = "MIT OR Apache-2.0"
 
 [features]
@@ -19,7 +19,6 @@ dev = [
 
 [dependencies]
 bevy = "0.18.1"
-ldtk_integration = { git = "https://github.com/Tilcob/bevy_ldtk_integration.git", package = "bevy_ldtk_integration" }
 serde = { version = "1.0", features = ["derive"] }
 bevy_common_assets = { version = "0.16", features = ["ron"] }
 bevy-inspector-egui = { version = "0.36", optional = true }

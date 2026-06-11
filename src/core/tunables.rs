@@ -19,62 +19,28 @@ use serde::Deserialize;
 /// conflict.
 pub const TUNABLES_PATH: &str = "config/game.tunables.ron";
 
-#[derive(Resource, Asset, Reflect, Clone, Debug, Default, Deserialize)]
+#[derive(Resource, Asset, Reflect, Clone, Debug, Deserialize)]
 #[reflect(Resource)]
 #[serde(default)]
 pub struct Tunables {
-    pub player: PlayerTunables,
-    pub camera: CameraTunables,
+    /// Train cruise speed in world units (pixels) per second.
+    pub train_speed: f32,
+    /// Two trains closer than this (center to center) collide.
+    pub collision_distance: f32,
+    /// How close a click must be to a signal or switch to toggle it.
+    pub click_radius: f32,
+    /// A departure is held back while another train is within this distance
+    /// of the source node, so trains never spawn on top of each other.
+    pub spawn_clearance: f32,
 }
 
-#[derive(Reflect, Clone, Debug, Deserialize)]
-#[serde(default)]
-pub struct PlayerTunables {
-    /// Walk speed in world units per second.
-    pub walk_speed: f32,
-    /// Speed while Shift is held.
-    pub run_speed: f32,
-    /// Radius of the player's collision circle.
-    pub collider_radius: f32,
-    /// Vertical collider offset from the sprite origin; negative moves it down
-    /// to the feet of tall, centre-anchored sprites.
-    pub collider_offset_y: f32,
-}
-
-impl Default for PlayerTunables {
+impl Default for Tunables {
     fn default() -> Self {
         Self {
-            walk_speed: 100.0,
-            run_speed: 160.0,
-            collider_radius: 6.0,
-            collider_offset_y: 0.0,
-        }
-    }
-}
-
-#[derive(Reflect, Clone, Debug, Deserialize)]
-#[serde(default)]
-pub struct CameraTunables {
-    /// Magnification: 3.0 shows the world at 3× pixel size.
-    pub zoom: f32,
-    /// How quickly the camera catches up (1/seconds; higher = snappier).
-    pub lerp_speed: f32,
-    /// How far the camera leads ahead in the movement direction.
-    pub lead: f32,
-    /// Half-size of the box (in world units) the player can move in without
-    /// the camera following.
-    pub deadzone_x: f32,
-    pub deadzone_y: f32,
-}
-
-impl Default for CameraTunables {
-    fn default() -> Self {
-        Self {
-            zoom: 3.0,
-            lerp_speed: 3.0,
-            lead: 40.0,
-            deadzone_x: 50.0,
-            deadzone_y: 50.0,
+            train_speed: 120.0,
+            collision_distance: 20.0,
+            click_radius: 26.0,
+            spawn_clearance: 70.0,
         }
     }
 }

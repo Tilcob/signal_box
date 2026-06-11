@@ -4,9 +4,6 @@
 pub mod states;
 pub mod tunables;
 
-// Template API — `GameState`/`RunState` are unused until game code adds its
-// first `OnEnter(GameState::Playing)` (or similar) hook.
-#[allow(unused_imports)]
 pub use states::{GameState, GameplaySet, RunState};
 pub use tunables::Tunables;
 
