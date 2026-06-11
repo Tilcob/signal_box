@@ -1,6 +1,6 @@
 # Angabe M0 — Der Sim-Kern `stellwerk_sim`
 
-**Projekt:** Stellwerk · **Spezifikation:** [M0-sim-kern.md](M0-sim-kern.md) + [GDD](../GDD.md) §6/§7/§12
+**Projekt:** Stellwerk · **Spezifikation:** [M0-sim-kern.md](M0-sim-kern.md) + [GDD](../../GDD.md) §6/§7/§12
 **Abgabe:** 4 Teilabgaben (Ende Woche 1–4) · **Punkte:** 40 (+5 Bonus)
 
 ## Lernziele
@@ -59,9 +59,11 @@
 - Eine RON-Beispieldatei (Mini-Level + Mini-Layout) als Test-Fixture —
   sie ist zugleich die erste Dokumentation des Dateiformats.
 - Validierung liefert eine **Liste** aller Fehler (nicht nur den ersten):
-  mindestens offener Anschluss, Signal auf Nicht-Gleis, Weiche mit fehlendem
-  Zweig, Fahrplan-Zug mit unbekannter Quelle/Senke, Speed ≥ kürzeste
-  Segmentlänge (Anti-Tunneling, Plan §4.4).
+  mindestens Knick (< 90°-Paar), Verzweigung ohne Weiche (> 2 Gleisenden an
+  einem Punkt / Anschluss doppelt belegt), Signal auf Nicht-Gleis, Weiche
+  mit fehlendem Zweig, Fahrplan-Zug mit unbekannter Quelle/Senke, Speed ≥
+  kürzeste Segmentlänge (Anti-Tunneling, Plan §4.4). **Offene Gleisenden
+  sind legal** — Sackgassen sind Laufzeit-Fehlleitung (Szenario 11).
 - **Frage:** Warum gehört der Anti-Tunneling-Check in die Validierung statt
   in die Bewegungslogik?
 
@@ -81,6 +83,10 @@
 ---
 
 ## Teilabgabe W2 — Züge rollen (10 Punkte)
+
+> **Detail-Angabe mit Code-Skeletten:**
+> [M0_Woche_02_Tick_Loop_und_Bewegung.md](M0_Woche_02_Tick_Loop_und_Bewegung.md)
+> — die Punkteverteilung unten gilt, die Detail-Angabe sagt dir, *wie*.
 
 ### Aufgabe 2.1 — Tick-Loop & Bewegung (4 Punkte)
 
@@ -119,6 +125,9 @@
 
 ## Teilabgabe W3 — Routing & Kettensignale (10 Punkte)
 
+> **Detail-Angabe mit Code-Skeletten:**
+> [M0_Woche_03_Routing_und_Kettensignale.md](M0_Woche_03_Routing_und_Kettensignale.md)
+
 ### Aufgabe 3.1 — Weichen-Routing (3 Punkte)
 
 - `resolve(switch, train) -> Zweig` als pure Funktion (Plan §4.3): erste
@@ -153,6 +162,9 @@
 ---
 
 ## Teilabgabe W4 — Fehlschläge, Bewertung, Determinismus (10 Punkte)
+
+> **Detail-Angabe mit Code-Skeletten:**
+> [M0_Woche_04_Deadlocks_Score_Determinismus.md](M0_Woche_04_Deadlocks_Score_Determinismus.md)
 
 ### Aufgabe 4.1 — Deadlock & Stillstand (3 Punkte)
 

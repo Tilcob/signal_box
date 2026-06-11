@@ -1,0 +1,38 @@
+#![enable(unwrap_newtypes)]
+// Szenario 2 (Plan §5): Einzelzug über Kurven und Diagonalen.
+// Prüft: Längentabelle (45°-Kurven, Diagonale), Pfad-Intervall.
+//
+// Strecke: Gerade(1000) + 45°-Kurve(1207) + Diagonale(1414) + 45°-Kurve(1207)
+// + Gerade(1000) = 5828 LE; Speed 100 → Ankunft ≈ Tick 59.
+(
+    level: (
+        name: "S02 — Kurven und Diagonalen",
+        buildable: [(x: 0, y: 0), (x: 1, y: 0), (x: 2, y: 1), (x: 3, y: 2), (x: 4, y: 2)],
+        fixed: (pieces: [], switches: [], signals: []),
+        sources: [(id: 0, cell: (x: 0, y: 0), dir: W)],
+        sinks: [(id: 0, cell: (x: 4, y: 2), dir: E, label: "NORDOST")],
+        schedule: [(
+            train: 0,
+            class: 0,
+            length: 800,
+            speed: 100,
+            source: 0,
+            sink: 0,
+            depart: 0,
+            due: 150,
+        )],
+        par: (throughput: 100, material: 5, lateness: 0),
+    ),
+    layout: (
+        pieces: [
+            (cell: (x: 0, y: 0), a: W, b: E),
+            (cell: (x: 1, y: 0), a: W, b: NE),
+            (cell: (x: 2, y: 1), a: SW, b: NE),
+            (cell: (x: 3, y: 2), a: SW, b: E),
+            (cell: (x: 4, y: 2), a: W, b: E),
+        ],
+        switches: [],
+        signals: [],
+    ),
+    expect: Success(last_arrival_by: 100),
+)

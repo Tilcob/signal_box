@@ -377,7 +377,7 @@ signal_box/
 ## 13. Meilensteine (Zielrahmen 5–8 Monate)
 
 > Detaillierte Implementierungspläne pro Meilenstein liegen in `plans/`
-> (aktuell: [plans/M0-sim-kern.md](plans/M0-sim-kern.md)). Sie konkretisieren
+> (aktuell: [plans/M0-sim-kern.md](plans/M0/M0-sim-kern.md)). Sie konkretisieren
 > dieses GDD, ändern es aber nie — Design-Änderungen laufen immer zuerst hier
 > durch (§18).
 

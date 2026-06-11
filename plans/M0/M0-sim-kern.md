@@ -1,6 +1,6 @@
 # M0 — Implementierungsplan Sim-Kern (`stellwerk_sim`)
 
-> Abgeleitet aus [GDD.md](../GDD.md) §6, §7, §12, §13. Das GDD bleibt Single
+> Abgeleitet aus [GDD.md](../../GDD.md) §6, §7, §12, §13. Das GDD bleibt Single
 > Source of Truth: Stößt die Implementierung auf einen Design-Konflikt, wird
 > **zuerst** das GDD geändert (inkl. Historie), dann dieser Plan, dann Code.
 >
@@ -72,20 +72,36 @@ sonst jede Bestzeit/jeden Replay-Hash).
   passende Regel gewinnt, sonst Grundstellung). GDD §7.3.
 - Ein **Signal** = gerichteter Anker an einem Gleisstück-Ende +
   `SignalKind { Block, Chain }`. GDD §6.
-- `Layout` = Liste dieser Elemente. **Validierung** beim Bau des Sim-Graphen:
-  offene Anschlüsse, Weiche ohne erreichbaren Zweig, Signal auf Nicht-Gleis →
-  `ValidationError` (Editor zeigt sie an; die Sim startet nie mit invalidem
-  Layout).
+- `Layout` = Liste dieser Elemente. **Validierung** beim Bau des Sim-Graphen
+  liefert die vollständige Fehlerliste; die Sim startet nie mit invalidem
+  Layout. Regeln (umgesetzt in W1):
+  - **Offene Gleisenden sind legal** — Sackgassen sind Laufzeit-Fehlleitung
+    (Szenario 11), und Quell-/Senken-Anschlüsse sind bauartbedingt offen.
+  - Knicke (< 90°-Anschlusspaare) und doppelte Stücke sind illegal.
+  - **Verzweigung nur per Weiche:** max. 2 Gleisenden je Anschlusspunkt;
+    eine Zelle darf jeden Anschluss nur einmal belegen (keine Haarnadeln).
+  - Signal nur auf vorhandenem Gleisanschluss; Weichen-Zellen sind exklusiv;
+    Quelle/Senke müssen auf Gleis ankern; Fahrplan-Referenzen müssen
+    existieren; `speed < 500 LE/Tick` (Anti-Tunneling, kürzester Stub).
 
 ### 3.3 Abgeleiteter Spurgraph (`graph.rs`)
 
 Aus Level + Layout wird einmalig (bei Sim-Start) ein gerichteter Graph
 gebaut — Zellen sind danach irrelevant:
 
-- Knoten = Anschlusspunkte, Kanten = Gleisstücke mit `Len` und Richtung
-  (jedes befahrbare Stück erzeugt zwei gerichtete Kanten; Züge fahren nur
-  vorwärts, GDD §7.2 — die Richtungskante kodiert das).
-- Weichen werden zu Knoten mit Verzweigungs-Metadaten (Routing-Entscheid §4.3).
+- **Stub-Modell** (umgesetzt in W1): Knoten sind Anschlusspunkte *und*
+  Zellmittelpunkte; jedes Gleisstück = zwei „Stubs" (Anschluss↔Mitte), jeder
+  Stub = zwei gerichtete Kanten. Längen komponieren aus den Halblängen
+  (kardinal 500, diagonal 707) — Weichen (3 Stubs) und Stücke addieren sich
+  dadurch exakt konsistent. Jede Kante kennt ihre Fortsetzung vorab
+  (`Next::Fixed`/`SwitchChoice`/`DeadEnd`); Züge fahren nur vorwärts
+  (GDD §7.2), die Richtungskante kodiert das.
+- Weichen werden zu Mittelknoten mit Verzweigungs-Metadaten: Stamm-Einfahrt →
+  `SwitchChoice` (Routing-Entscheid §4.3), Zweig-Einfahrt → fix zum Stamm.
+- Bekannte M0-Grenze (bewusst): Kreuzen sich zwei Routen in einer Zelle,
+  teilen sie Mittelknoten und damit den Block — Schutz via Blocksignale;
+  eine geometrische Kollision *am* Kreuzungspunkt selbst wird nicht separat
+  erkannt.
 - **Blockableitung** (`blocks.rs`): Signale schneiden den Graphen in Blöcke
   (Flood-Fill zwischen Signalankern). Signallose Teilnetze = ein großer Block
   ohne Schutz — dort sind Kollisionen möglich (gewollt, GDD §7.6).

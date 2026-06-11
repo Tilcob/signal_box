@@ -39,3 +39,6 @@ opt-level = 3
 lto = "fat"
 codegen-units = 1
 panic = "abort"
+# Determinism guard for stellwerk_sim: arithmetic overflow must panic
+# loudly and identically on every platform, never wrap silently.
+overflow-checks = true
