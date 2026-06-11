@@ -1,0 +1,18 @@
+// Hot-reloadable gameplay constants (see src/tunables.rs).
+// Save this file while the game runs (`cargo run`) and the values apply
+// immediately. Fields are optional — missing ones fall back to their defaults.
+(
+    player: (
+        walk_speed: 100.0,
+        run_speed: 160.0,
+        collider_radius: 6.0,
+        collider_offset_y: 0.0,
+    ),
+    camera: (
+        zoom: 3.0,
+        lerp_speed: 3.0,
+        lead: 40.0,
+        deadzone_x: 50.0,
+        deadzone_y: 50.0,
+    ),
+)

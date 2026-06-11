@@ -1,0 +1,39 @@
+[package]
+name = "bevy_template_2d"
+version = "0.1.0"
+edition = "2024"
+description = "2D Bevy template: LDtk level manager, hot-reloadable tunables, dev tools."
+license = "MIT OR Apache-2.0"
+
+[features]
+default = ["dev"]
+# Development tools: asset hot reload (file watcher), egui inspector windows,
+# FPS overlay, debug gizmos and level-switch keys. Ship a release build with
+#   cargo build --release --no-default-features
+# so none of this ends up in the final binary.
+dev = [
+    "bevy/file_watcher",
+    "bevy/bevy_dev_tools",
+    "dep:bevy-inspector-egui",
+]
+
+[dependencies]
+bevy = "0.18.1"
+ldtk_integration = { git = "https://github.com/Tilcob/bevy_ldtk_integration.git", package = "bevy_ldtk_integration" }
+serde = { version = "1.0", features = ["derive"] }
+bevy_common_assets = { version = "0.16", features = ["ron"] }
+bevy-inspector-egui = { version = "0.36", optional = true }
+
+# Fast iteration: light optimization for our code, full optimization for
+# dependencies (Bevy is unusably slow at opt-level 0).
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"
