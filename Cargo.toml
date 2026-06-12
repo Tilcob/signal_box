@@ -23,6 +23,14 @@ ron = "0.12"
 directories = "6"
 bevy-inspector-egui = { version = "0.36", optional = true }
 
+# Vendored bevy_text 0.18.1 with ONE patched constant (font atlas page size
+# 512 → 2048, see vendor/bevy_text/src/font_atlas.rs): texts whose glyphs
+# overflow onto a second atlas page render corrupted glyphs in bevy 0.18.
+# Remove the patch when upgrading to a bevy version that fixes multi-page
+# font atlas rendering.
+[patch.crates-io]
+bevy_text = { path = "vendor/bevy_text" }
+
 # Fast iteration: light optimization for our code, full optimization for
 # dependencies (Bevy is unusably slow at opt-level 0).
 [profile.dev]
