@@ -17,7 +17,28 @@ mod ui;
 mod dev_tools;
 
 use bevy::prelude::*;
-use bevy::window::{PresentMode, WindowMode, WindowResolution};
+use bevy::text::Font;
+use bevy::window::{PresentMode, WindowMode};
+
+/// Replaces Bevy's built-in default font (an ASCII-only Fira Mono subset)
+/// with a full-coverage one. The UI is German-first (umlauts) and uses
+/// symbols like ● ○ ✓ → · — with the subset all of these render as tofu
+/// boxes, and the per-frame HUD texts visibly corrupt the glyph atlas.
+/// Installing under the default handle means every `TextFont` keeps working.
+fn install_ui_font(mut fonts: ResMut<Assets<Font>>) {
+    const PATH: &str = "assets/fonts/DejaVuSansMono.ttf";
+    match std::fs::read(PATH) {
+        Ok(bytes) => match Font::try_from_bytes(bytes) {
+            Ok(font) => {
+                if let Err(e) = fonts.insert(&Handle::<Font>::default(), font) {
+                    warn!("cannot install {PATH} as default font: {e}");
+                }
+            }
+            Err(e) => warn!("{PATH} is not a usable font: {e}"),
+        },
+        Err(e) => warn!("{PATH} missing ({e}) — non-ASCII glyphs will render as boxes"),
+    }
+}
 
 fn main() {
     let mut app = App::new();
@@ -34,6 +55,7 @@ fn main() {
                 ..default()
             }
         ))
+        .add_systems(Startup, install_ui_font)
         .add_plugins((
             state::StatePlugin,
             levels::LevelsPlugin,

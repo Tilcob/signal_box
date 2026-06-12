@@ -4,7 +4,8 @@
 //! gameplay and every replay hash:
 //!
 //! 1. **Spawn:** due schedule entries join their source's FIFO; the queue
-//!    head enters when the entry edge is physically clear (GDD §7.5).
+//!    head enters when the entry edge is physically clear and its block is
+//!    not chain-reserved for another train (GDD §7.5, §7.4).
 //! 2. **Signal claims:** trains standing at a red signal request clearance
 //!    in (waiting-since, id) order — first come, first served (GDD §7.4).
 //!    Granted chain signals reserve their route blocks here.
@@ -223,13 +224,39 @@ impl Sim {
             self.next_departure += 1;
         }
 
+        if self.queues.is_empty() {
+            return;
+        }
+        // Physically busy edges (either direction), computed once per tick —
+        // a per-source scan over all trains would be O(sources × trains).
+        // Same-tick spawns never appear here (zero body length), which keeps
+        // the "one spawn per source per tick" rule below sound.
+        let mut busy: BTreeSet<EdgeId> = BTreeSet::new();
+        for train in &self.trains {
+            for (edge, lo, hi) in train.occupied(&self.graph) {
+                if hi > lo {
+                    busy.insert(edge);
+                    busy.insert(self.graph.edge(edge).opposite);
+                }
+            }
+        }
+
         let sources: Vec<SourceId> = self.queues.keys().copied().collect();
         for source in sources {
             let Some(&index) = self.queues[&source].front() else {
                 continue;
             };
             let entry_edge = self.entry_by_source[&source];
-            if !self.edge_clear(entry_edge) {
+            if busy.contains(&entry_edge) {
+                continue;
+            }
+            // A chain reservation makes the entry block busy (GDD §7.4): its
+            // owner crosses block boundaries without re-checking clearance,
+            // so a train spawning here could not be protected by any signal.
+            if self
+                .reservations
+                .contains_key(&self.graph.blocks.block_of(entry_edge))
+            {
                 continue;
             }
             // At most one spawn per source per tick: the new train has zero
@@ -263,19 +290,6 @@ impl Sim {
         self.queues.retain(|_, q| !q.is_empty());
     }
 
-    /// Physically clear: no train interval on the edge in either direction.
-    fn edge_clear(&self, edge: EdgeId) -> bool {
-        let opposite = self.graph.edge(edge).opposite;
-        for train in &self.trains {
-            for (e, lo, hi) in train.occupied(&self.graph) {
-                if (e == edge || e == opposite) && hi > lo {
-                    return false;
-                }
-            }
-        }
-        true
-    }
-
     // --- Phase 2 -----------------------------------------------------------
 
     /// Trains already standing at a signal request clearance in
@@ -289,16 +303,16 @@ impl Sim {
             .collect();
         order.sort();
         for (_, id) in order {
-            let train = self.train(id).clone();
+            let train = self.train(id);
             let head = train.head_edge();
             // Arrival edges are handled in movement; a signal there is moot.
             if self.sink_by_arrival.contains_key(&head) {
                 continue;
             }
-            let Some(next_edge) = self.continuation(&train, head) else {
+            let Some(next_edge) = self.continuation(train, head) else {
                 continue;
             };
-            if let Some(grant) = self.clearance(&train, head, next_edge, tick) {
+            if let Some(grant) = self.clearance(train, head, next_edge, tick) {
                 match grant {
                     Grant::Block(block) => {
                         tick.claims.insert(block, id);
@@ -343,13 +357,15 @@ impl Sim {
     }
 
     /// Holder of a busy block (for the wait-for graph): smallest *other*
-    /// occupant id; claim/reservation owner as fallback. `None` for a pure
-    /// self-jam — that is no wait-for edge (→ `Stalled`, not `Deadlock`).
+    /// occupant id; claim/reservation owner as fallback — also when the only
+    /// occupant is the train itself but a foreign claim/reservation is the
+    /// actual reason the block is busy. `None` for a pure self-jam — that is
+    /// no wait-for edge (→ `Stalled`, not `Deadlock`).
     fn holder_of(&self, block: BlockId, train: TrainId, tick: &TickState) -> Option<TrainId> {
         if let Some(owners) = tick.occupancy.get(&block)
-            && !owners.is_empty()
+            && let Some(other) = owners.iter().copied().find(|&o| o != train)
         {
-            return owners.iter().copied().find(|&o| o != train);
+            return Some(other);
         }
         match (tick.claims.get(&block), self.reservations.get(&block)) {
             (Some(&o), _) if o != train => Some(o),
@@ -464,9 +480,8 @@ impl Sim {
                 return;
             }
 
-            let Some(next_edge) = self.continuation(&self.train(id).clone(), head) else {
-                let train = self.train(id).clone();
-                let blame = self.blame(&train);
+            let Some(next_edge) = self.continuation(self.train(id), head) else {
+                let blame = self.blame(self.train(id));
                 self.finish(Outcome::Misrouting {
                     train: id,
                     reached: None,
@@ -476,8 +491,7 @@ impl Sim {
             };
 
             if self.graph.edge(head).signal.is_some() {
-                let train = self.train(id).clone();
-                match self.clearance(&train, head, next_edge, tick) {
+                match self.clearance(self.train(id), head, next_edge, tick) {
                     Some(Grant::Block(block)) => {
                         tick.claims.insert(block, id);
                     }
@@ -493,7 +507,7 @@ impl Sim {
                             self.train_mut(id).waiting_since = Some(self.now);
                             self.events.push(SimEvent::SignalBlocked { train: id });
                         }
-                        let needed = self.needed_blocks(&train, head, next_edge);
+                        let needed = self.needed_blocks(self.train(id), head, next_edge);
                         for block in needed {
                             if let Some(holder) = self.holder_of(block, id, tick) {
                                 tick.waits.insert(id, holder);
@@ -521,13 +535,8 @@ impl Sim {
             train.path.push_back(next_edge);
             train.head_dist = Len(0);
         }
-        let graph = &self.graph;
-        let train = self
-            .trains
-            .iter_mut()
-            .find(|t| t.id == id)
-            .expect("alive in this phase");
-        train.trim_path(graph);
+        let index = self.index_of(id);
+        self.trains[index].trim_path(&self.graph);
     }
 
     /// The blocks whose state caused a red signal (for wait-for edges).
@@ -540,9 +549,8 @@ impl Sim {
     }
 
     fn arrive(&mut self, id: TrainId, sink: SinkId) {
-        let train = self.train(id).clone();
-        if sink != train.sink {
-            let blame = self.blame(&train);
+        if sink != self.train(id).sink {
+            let blame = self.blame(self.train(id));
             self.finish(Outcome::Misrouting {
                 train: id,
                 reached: Some(sink),
@@ -550,8 +558,9 @@ impl Sim {
             });
             return;
         }
+        let due = self.train(id).due;
         self.arrivals.push((id, self.now));
-        self.lateness_total += self.now.0.saturating_sub(train.due.0);
+        self.lateness_total += self.now.0.saturating_sub(due.0);
         self.reservations.retain(|_, owner| *owner != id);
         self.trains.retain(|t| t.id != id);
         self.events.push(SimEvent::TrainArrived {
@@ -666,6 +675,14 @@ impl Sim {
     /// Canonical bytes of the complete mutable state, in documented order.
     /// What is missing here is by definition *not* state — this function
     /// answers "what would a savegame have to store?".
+    ///
+    /// Deliberate exception: `passed_switches` (a savegame stores it for
+    /// misrouting blame) is *not* written. It grows with every switch
+    /// crossing and is never trimmed, so hashing it would cost
+    /// O(total crossings) per tick — quadratic over a run. It adds no
+    /// commitment either: each crossing pushes the taken edge onto `path`,
+    /// which IS hashed in the same tick, and the per-tick chain in
+    /// [`Self::advance_hash`] commits to that history permanently.
     fn canonical_bytes(&self, h: &mut Fnv1a64) {
         h.write_u64(self.now.0);
         h.write_u32(self.trains.len() as u32);
@@ -681,12 +698,6 @@ impl Sim {
             h.write_u32(t.path.len() as u32);
             for e in &t.path {
                 h.write_u32(e.0);
-            }
-            h.write_u32(t.passed_switches.len() as u32);
-            for (cell, edge) in &t.passed_switches {
-                h.write(&cell.x.to_le_bytes());
-                h.write(&cell.y.to_le_bytes());
-                h.write_u32(edge.0);
             }
         }
         h.write_u32(self.reservations.len() as u32);
@@ -723,18 +734,20 @@ impl Sim {
 
     // --- Helpers --------------------------------------------------------------
 
-    fn train(&self, id: TrainId) -> &Train {
+    /// `trains` is always sorted by ascending id — lookups binary-search.
+    fn index_of(&self, id: TrainId) -> usize {
         self.trains
-            .iter()
-            .find(|t| t.id == id)
+            .binary_search_by_key(&id, |t| t.id)
             .expect("caller guarantees the train is alive")
     }
 
+    fn train(&self, id: TrainId) -> &Train {
+        &self.trains[self.index_of(id)]
+    }
+
     fn train_mut(&mut self, id: TrainId) -> &mut Train {
-        self.trains
-            .iter_mut()
-            .find(|t| t.id == id)
-            .expect("caller guarantees the train is alive")
+        let index = self.index_of(id);
+        &mut self.trains[index]
     }
 }
 

@@ -10,14 +10,15 @@
 //! round caps are wanted (GDD §12.2 note).
 
 use bevy::prelude::*;
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use stellwerk_sim::Sim;
 use stellwerk_sim::graph::Next;
 use stellwerk_sim::grid::{Cell, Dir8, Point};
 use stellwerk_sim::layout::{Layout, SignalKind};
 use stellwerk_sim::level::Level;
-use stellwerk_sim::units::BlockId;
+use stellwerk_sim::units::{BlockId, EdgeId};
 
+use crate::i18n::dir_label;
 use crate::run::RunCtl;
 use crate::state::{ActiveLevel, Editor, GameState};
 
@@ -116,10 +117,11 @@ impl Plugin for BoardPlugin {
                 )),
             )
             .add_systems(OnExit(GameState::Edit), despawn_all::<BoardGfx>)
-            .add_systems(
-                Update,
-                draw_run_board.run_if(in_state(GameState::Run).or(in_state(GameState::Result))),
-            )
+            .add_systems(Update, draw_run_board.run_if(in_state(GameState::Run)))
+            // Result is a frozen final frame: draw it once on enter instead
+            // of despawning + respawning every sprite every frame while
+            // nothing changes.
+            .add_systems(OnEnter(GameState::Result), draw_run_board)
             .add_systems(OnExit(GameState::Result), despawn_all::<LiveGfx>);
     }
 }
@@ -195,6 +197,17 @@ fn signal_pos(cell: Cell, at: Dir8) -> Vec2 {
     connector + inward.perp() * 16.0
 }
 
+/// Direction tick next to the lamp: a signal gates exactly ONE travel
+/// direction (trains leaving the cell across its connector). Without the
+/// tick a signal placed backwards looks identical to a working one — the
+/// classic "my signal does nothing" trap.
+fn signal_direction_tick(commands: &mut Commands, cell: Cell, at: Dir8, color: Color, tag: Tag) {
+    let connector = connector_world(cell, at);
+    let outward = (connector - cell_world(cell)).normalize_or_zero();
+    let base = signal_pos(cell, at);
+    band(commands, base, base + outward * 16.0, 3.0, color, 5.0, tag);
+}
+
 fn draw_layout(commands: &mut Commands, layout: &Layout, color: Color, tag: Tag) {
     for piece in &layout.pieces {
         let center = cell_world(piece.cell);
@@ -229,7 +242,8 @@ fn draw_layout(commands: &mut Commands, layout: &Layout, color: Color, tag: Tag)
             tag,
         );
         for (i, branch) in switch.branches.iter().enumerate() {
-            let branch_color = if i as u8 == switch.default_branch {
+            let is_default = i as u8 == switch.default_branch;
+            let branch_color = if is_default {
                 col_switch_active()
             } else {
                 col_switch_inactive()
@@ -241,6 +255,22 @@ fn draw_layout(commands: &mut Commands, layout: &Layout, color: Color, tag: Tag)
                 7.0,
                 branch_color,
                 3.0,
+                tag,
+            );
+            // Compass label at the exit — the same name the config panel
+            // uses, so "Ziel OST → O" is locatable on the board.
+            let connector = connector_world(switch.cell, *branch);
+            let outward = (connector - center).normalize_or_zero();
+            label(
+                commands,
+                connector + outward * 14.0,
+                dir_label(*branch),
+                11.0,
+                if is_default {
+                    col_switch_active()
+                } else {
+                    col_label()
+                },
                 tag,
             );
         }
@@ -266,6 +296,7 @@ fn draw_layout(commands: &mut Commands, layout: &Layout, color: Color, tag: Tag)
             5.0,
             tag,
         );
+        signal_direction_tick(commands, signal.cell, signal.at, col_signal_green(), tag);
     }
 }
 
@@ -378,9 +409,7 @@ fn draw_run_board(
         if edge.opposite.0 < i as u32 {
             continue; // canonical direction only
         }
-        let block = graph
-            .blocks
-            .block_of(stellwerk_sim::units::EdgeId(i as u32));
+        let block = graph.blocks.block_of(EdgeId(i as u32));
         // State by color AND width (accessibility: never color alone).
         let (color, width) = if occupied.contains(&block) {
             (col_occupied(), 9.0)
@@ -402,22 +431,33 @@ fn draw_run_board(
 
     // Signal lamps with live state (display heuristic: red while the guarded
     // next block is occupied or reserved; switches judged by default branch).
+    // (center, connector) → gated edge, built once per frame — a linear edge
+    // scan per signal would be O(signals × edges).
+    let mut edge_at: BTreeMap<(Point, Point), EdgeId> = BTreeMap::new();
+    for (i, edge) in graph.edges.iter().enumerate() {
+        edge_at.insert(
+            (graph.node(edge.from).point, graph.node(edge.to).point),
+            EdgeId(i as u32),
+        );
+    }
     let merged = active.level.fixed.merged(&ctl.layout);
     for signal in &merged.signals {
-        let lit = signal_display_state(sim, signal.cell, signal.at, &occupied, &reserved);
+        let lit = signal_display_state(sim, &edge_at, signal.cell, signal.at, &occupied, &reserved);
+        let color = if lit {
+            col_signal_green()
+        } else {
+            col_signal_red()
+        };
         lamp(
             &mut commands,
             signal_pos(signal.cell, signal.at),
             14.0,
-            if lit {
-                col_signal_green()
-            } else {
-                col_signal_red()
-            },
+            color,
             matches!(signal.kind, SignalKind::Chain),
             5.0,
             Tag::Live,
         );
+        signal_direction_tick(&mut commands, signal.cell, signal.at, color, Tag::Live);
     }
 
     // Trains: bright body bands + interpolated head light + number.
@@ -460,23 +500,18 @@ fn draw_run_board(
 
 fn signal_display_state(
     sim: &Sim,
+    edge_at: &BTreeMap<(Point, Point), EdgeId>,
     cell: Cell,
     at: Dir8,
     occupied: &BTreeSet<BlockId>,
     reserved: &BTreeSet<BlockId>,
 ) -> bool {
     let graph = sim.graph();
-    // Find the gated edge: cell center → connector.
-    let center = cell.center_point();
-    let connector = cell.connector_point(at);
-    let Some((index, edge)) =
-        graph.edges.iter().enumerate().find(|(_, e)| {
-            graph.node(e.from).point == center && graph.node(e.to).point == connector
-        })
-    else {
+    // The gated edge runs cell center → anchored connector.
+    let Some(&gated) = edge_at.get(&(cell.center_point(), cell.connector_point(at))) else {
         return true;
     };
-    let _ = index;
+    let edge = graph.edge(gated);
     let next = match edge.next {
         Next::Fixed(e) => e,
         Next::SwitchChoice { switch } => {

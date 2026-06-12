@@ -1,6 +1,6 @@
 //! Dev-only tooling (feature `dev`): F12 world inspector, F3 FPS overlay.
 
-use bevy::dev_tools::fps_overlay::{FpsOverlayConfig, FpsOverlayPlugin};
+use bevy::dev_tools::fps_overlay::{FpsOverlayConfig, FpsOverlayPlugin, FrameTimeGraphConfig};
 use bevy::input::common_conditions::input_toggle_active;
 use bevy::prelude::*;
 use bevy_inspector_egui::bevy_egui::EguiPlugin;
@@ -17,6 +17,13 @@ impl Plugin for DevToolsPlugin {
             .add_plugins(FpsOverlayPlugin {
                 config: FpsOverlayConfig {
                     enabled: false,
+                    // The graph has its own flag and DEFAULTS TO ON — without
+                    // this it renders its red/orange bars in the top-left
+                    // corner even though the overlay is "disabled".
+                    frame_time_graph_config: FrameTimeGraphConfig {
+                        enabled: false,
+                        ..default()
+                    },
                     ..default()
                 },
             })
@@ -27,5 +34,6 @@ impl Plugin for DevToolsPlugin {
 fn toggle_fps(input: Res<ButtonInput<KeyCode>>, mut config: ResMut<FpsOverlayConfig>) {
     if input.just_pressed(KeyCode::F3) {
         config.enabled = !config.enabled;
+        config.frame_time_graph_config.enabled = config.enabled;
     }
 }

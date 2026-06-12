@@ -6,6 +6,7 @@
 
 use std::collections::BTreeMap;
 use std::sync::RwLock;
+use stellwerk_sim::grid::Dir8;
 
 static TABLE: RwLock<Option<Table>> = RwLock::new(None);
 
@@ -31,11 +32,28 @@ fn load_table(lang: &str) -> BTreeMap<String, String> {
 
 /// Switches the active language ("de" / "en") and (re)loads the tables.
 pub fn set_lang(lang: &str) {
-    let table = Table {
-        active: load_table(lang),
-        fallback: load_table("de"),
+    let fallback = load_table("de");
+    let active = if lang == "de" {
+        fallback.clone()
+    } else {
+        load_table(lang)
     };
-    *TABLE.write().expect("i18n lock") = Some(table);
+    *TABLE.write().expect("i18n lock") = Some(Table { active, fallback });
+}
+
+/// Localized compass label of a connector direction ("O" in German is "E"
+/// in English) — used at switch exits and in the switch panel.
+pub fn dir_label(dir: Dir8) -> String {
+    t(match dir {
+        Dir8::N => "dir.N",
+        Dir8::NE => "dir.NE",
+        Dir8::E => "dir.E",
+        Dir8::SE => "dir.SE",
+        Dir8::S => "dir.S",
+        Dir8::SW => "dir.SW",
+        Dir8::W => "dir.W",
+        Dir8::NW => "dir.NW",
+    })
 }
 
 pub fn t(key: &str) -> String {

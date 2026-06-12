@@ -125,11 +125,20 @@ impl Progress {
         let text = match std::fs::read_to_string(&path) {
             Ok(text) => text,
             // One-time migration: read (not move) the M1 file from the
-            // working directory.
-            Err(_) => match std::fs::read_to_string("stellwerk_progress.ron") {
-                Ok(text) => text,
-                Err(_) => return Progress::default(),
-            },
+            // working directory — but only when the new file genuinely
+            // does not exist. Any other error (permissions, lock) must
+            // not silently fall back: the next save() would overwrite
+            // the real progress with defaults.
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                match std::fs::read_to_string("stellwerk_progress.ron") {
+                    Ok(text) => text,
+                    Err(_) => return Progress::default(),
+                }
+            }
+            Err(e) => {
+                warn!("progress file {path:?} unreadable ({e}), starting with defaults");
+                return Progress::default();
+            }
         };
         // Robustness contract: corrupt file → defaults plus warning, never a
         // panic, never overwriting on mere read.

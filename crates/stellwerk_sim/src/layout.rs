@@ -104,7 +104,8 @@ impl Layout {
     }
 
     /// Does any piece or switch in this layout use the given connector?
-    pub(crate) fn has_stub(&self, cell: Cell, dir: Dir8) -> bool {
+    /// Public: frontends use it to gate signal placement on existing track.
+    pub fn has_stub(&self, cell: Cell, dir: Dir8) -> bool {
         self.pieces
             .iter()
             .any(|p| p.cell == cell && (p.a == dir || p.b == dir))

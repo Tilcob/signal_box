@@ -11,7 +11,7 @@ use stellwerk_sim::level::ScheduleEntry;
 use stellwerk_sim::units::{Len, SinkId, Speed, Tick, TrainClass, TrainId};
 
 use crate::editor::{EditOp, do_op};
-use crate::i18n::{set_lang, t};
+use crate::i18n::{dir_label, set_lang, t};
 use crate::levels::{Catalog, Progress, SANDBOX_ID, SOLUTION_SLOTS, load_sandbox, save_sandbox};
 use crate::run::{RunCtl, TrainInfo};
 use crate::state::{ActiveLevel, Diagnostics, Editor, GameState, LastOutcome, Tool};
@@ -55,6 +55,11 @@ struct ExportLevelButton;
 /// Status line on the level select (import results etc.).
 #[derive(Resource, Default)]
 struct UiStatus(String);
+
+/// Resting background color of a button — [`button_feedback`] lightens it on
+/// hover/press and restores it on release.
+#[derive(Component)]
+struct ButtonBase(Color);
 
 #[derive(Component, Clone, Copy)]
 enum SlotAction {
@@ -103,7 +108,14 @@ impl Plugin for UiPlugin {
                 (click_level, select_buttons, update_status)
                     .run_if(in_state(GameState::LevelSelect)),
             )
-            .add_systems(OnEnter(GameState::Edit), spawn_edit_hud)
+            // Chained so the panel roots spawned by the HUD exist (deferred
+            // commands flush between ordered systems) before the initial
+            // fill — otherwise the panels stay empty when re-entering Edit
+            // without an Editor/ActiveLevel change (e.g. back from Result).
+            .add_systems(
+                OnEnter(GameState::Edit),
+                (spawn_edit_hud, rebuild_switch_panel, rebuild_schedule_panel).chain(),
+            )
             .add_systems(OnExit(GameState::Edit), despawn_all::<UiEdit>)
             .add_systems(
                 Update,
@@ -127,13 +139,51 @@ impl Plugin for UiPlugin {
             )
             .add_systems(OnEnter(GameState::Result), spawn_result)
             .add_systems(OnExit(GameState::Result), despawn_all::<UiResult>)
-            .add_systems(Update, result_clicks.run_if(in_state(GameState::Result)));
+            .add_systems(Update, result_clicks.run_if(in_state(GameState::Result)))
+            // All states: hover/press feedback for every button.
+            .add_systems(Update, button_feedback);
+    }
+}
+
+/// Mixes a color toward white — visible feedback on the near-black theme.
+fn lift(color: Color, amount: f32) -> Color {
+    let c = color.to_srgba();
+    Color::srgba(
+        c.red + (1.0 - c.red) * amount,
+        c.green + (1.0 - c.green) * amount,
+        c.blue + (1.0 - c.blue) * amount,
+        c.alpha,
+    )
+}
+
+/// Buttons whose visual state needs a refresh this frame.
+type ChangedButton = (With<Button>, Or<(Changed<Interaction>, Changed<ButtonBase>)>);
+
+fn button_feedback(
+    mut buttons: Query<(&Interaction, &ButtonBase, &mut BackgroundColor), ChangedButton>,
+) {
+    for (interaction, base, mut bg) in &mut buttons {
+        let color = match interaction {
+            Interaction::Pressed => lift(base.0, 0.25),
+            Interaction::Hovered => lift(base.0, 0.10),
+            Interaction::None => base.0,
+        };
+        *bg = BackgroundColor(color);
     }
 }
 
 fn despawn_all<C: Component>(mut commands: Commands, q: Query<Entity, With<C>>) {
     for e in &q {
         commands.entity(e).despawn();
+    }
+}
+
+/// Writes `value` only when it differs — these HUD texts are recomputed
+/// every frame, and unconditional assignment forces a re-shape (and glyph
+/// atlas churn) per frame even though nothing changed.
+fn set_text(text: &mut Text, value: String) {
+    if text.0 != value {
+        text.0 = value;
     }
 }
 
@@ -162,6 +212,7 @@ fn button<M: Component>(parent: &mut ChildSpawnerCommands, label: &str, bg: Colo
                 ..default()
             },
             BackgroundColor(bg),
+            ButtonBase(bg),
             marker,
         ))
         .with_children(|b| {
@@ -179,6 +230,7 @@ fn small_button<M: Component>(parent: &mut ChildSpawnerCommands, label: &str, ma
                 ..default()
             },
             BackgroundColor(BUTTON_BG),
+            ButtonBase(BUTTON_BG),
             marker,
         ))
         .with_children(|b| {
@@ -238,7 +290,7 @@ fn spawn_select(mut commands: Commands, catalog: Res<Catalog>, progress: Res<Pro
 
 fn update_status(status: Res<UiStatus>, mut texts: Query<&mut Text, With<StatusText>>) {
     if let Ok(mut text) = texts.single_mut() {
-        text.0 = status.0.clone();
+        set_text(&mut text, status.0.clone());
     }
 }
 
@@ -365,6 +417,8 @@ fn spawn_edit_hud(mut commands: Commands, active: Option<Res<ActiveLevel>>) {
     let (name, sandbox) = active
         .map(|a| (a.level.name.clone(), a.sandbox))
         .unwrap_or_default();
+    // The container nodes carry `Interaction` so the board pointer can tell
+    // "this click landed on UI" — also for clicks BETWEEN the buttons.
     commands
         .spawn((
             Node {
@@ -374,6 +428,7 @@ fn spawn_edit_hud(mut commands: Commands, active: Option<Res<ActiveLevel>>) {
                 flex_direction: FlexDirection::Column,
                 ..default()
             },
+            Interaction::default(),
             UiEdit,
         ))
         .with_children(|c| {
@@ -426,6 +481,7 @@ fn spawn_edit_hud(mut commands: Commands, active: Option<Res<ActiveLevel>>) {
                 top: Val::Px(8.0),
                 ..default()
             },
+            Interaction::default(),
             UiEdit,
         ))
         .with_children(|c| {
@@ -441,24 +497,27 @@ fn spawn_edit_hud(mut commands: Commands, active: Option<Res<ActiveLevel>>) {
             ..default()
         },
         BackgroundColor(Color::NONE),
+        Interaction::default(),
         SwitchPanelRoot,
         UiEdit,
     ));
-    if sandbox {
-        commands.spawn((
-            Node {
-                position_type: PositionType::Absolute,
-                left: Val::Px(10.0),
-                bottom: Val::Px(10.0),
-                flex_direction: FlexDirection::Column,
-                padding: UiRect::all(Val::Px(8.0)),
-                ..default()
-            },
-            BackgroundColor(PANEL_BG),
-            SchedulePanelRoot,
-            UiEdit,
-        ));
-    }
+    // Always present: campaign levels show the timetable read-only — who
+    // must go where is part of the puzzle statement, not something to
+    // discover from a failed run. The sandbox panel is editable.
+    commands.spawn((
+        Node {
+            position_type: PositionType::Absolute,
+            left: Val::Px(10.0),
+            bottom: Val::Px(10.0),
+            flex_direction: FlexDirection::Column,
+            padding: UiRect::all(Val::Px(8.0)),
+            ..default()
+        },
+        BackgroundColor(PANEL_BG),
+        Interaction::default(),
+        SchedulePanelRoot,
+        UiEdit,
+    ));
 }
 
 fn update_edit_texts(
@@ -485,7 +544,10 @@ fn update_edit_texts(
         } else {
             String::new()
         };
-        text.0 = format!("{}{extra}   |   Werkzeug: {tool}", t("edit.tools"));
+        set_text(
+            &mut text,
+            format!("{}{extra}   |   Werkzeug: {tool}", t("edit.tools")),
+        );
     }
     if let Ok(mut text) = diag_texts.single_mut() {
         let mut lines = Vec::new();
@@ -501,33 +563,41 @@ fn update_edit_texts(
         for unreachable in diagnostics.unreachable.iter().take(2) {
             lines.push(format!("{}{}", t("edit.unreachable"), unreachable.train.0));
         }
-        text.0 = lines.join("\n");
+        set_text(&mut text, lines.join("\n"));
     }
 }
 
 fn start_button(
-    mut interactions: Query<(&Interaction, &mut BackgroundColor, &Children), With<StartButton>>,
+    mut interactions: Query<(&Interaction, &mut ButtonBase, &Children), With<StartButton>>,
     mut texts: Query<&mut Text>,
     keys: Res<ButtonInput<KeyCode>>,
     diagnostics: Res<Diagnostics>,
     mut next: ResMut<NextState<GameState>>,
 ) {
     let allowed = diagnostics.start_allowed();
-    let mut clicked = keys.just_pressed(KeyCode::Enter);
-    for (interaction, mut bg, children) in &mut interactions {
-        *bg = BackgroundColor(if allowed {
+    let mut clicked = keys.just_pressed(KeyCode::Enter) || keys.just_pressed(KeyCode::Space);
+    for (interaction, mut base, children) in &mut interactions {
+        let target = if allowed {
             BUTTON_BG_PRIMARY
         } else {
             BUTTON_BG_BLOCKED
-        });
+        };
+        // Write through ButtonBase (not BackgroundColor directly) so the
+        // hover/press feedback keeps working — and only on actual change.
+        if base.0 != target {
+            base.0 = target;
+        }
         if let Some(&child) = children.first()
             && let Ok(mut text) = texts.get_mut(child)
         {
-            text.0 = if allowed {
-                t("edit.start")
-            } else {
-                t("edit.start_blocked")
-            };
+            set_text(
+                &mut text,
+                if allowed {
+                    t("edit.start")
+                } else {
+                    t("edit.start_blocked")
+                },
+            );
         }
         if *interaction == Interaction::Pressed {
             clicked = true;
@@ -601,8 +671,37 @@ fn rebuild_schedule_panel(
     let Some(active) = active else { return };
     commands.entity(root).despawn_children();
     let level = active.level.clone();
+    let sandbox = active.sandbox;
+    let sink_label = |level: &stellwerk_sim::Level, id: SinkId| {
+        level
+            .sinks
+            .iter()
+            .find(|s| s.id == id)
+            .map(|s| s.label.clone())
+            .unwrap_or_else(|| format!("Z{}", id.0))
+    };
     commands.entity(root).with_children(|panel| {
-        panel.spawn(text_bundle("FAHRPLAN".into(), 15.0, TEXT_BRIGHT));
+        panel.spawn(text_bundle(t("schedule.title"), 15.0, TEXT_BRIGHT));
+        if !sandbox {
+            for entry in &level.schedule {
+                panel.spawn(text_bundle(
+                    format!(
+                        "Zug {} · K{} · Q{} → {} · ab {} · soll {} · v{} · L{}",
+                        entry.train.0,
+                        entry.class.0,
+                        entry.source.0,
+                        sink_label(&level, entry.sink),
+                        entry.depart.0,
+                        entry.due.0,
+                        entry.speed.0,
+                        entry.length.0,
+                    ),
+                    13.0,
+                    TEXT_DIM,
+                ));
+            }
+            return;
+        }
         for (row, entry) in level.schedule.iter().enumerate() {
             panel
                 .spawn(Node {
@@ -621,13 +720,11 @@ fn rebuild_schedule_panel(
                         &format!("Q{}", entry.source.0),
                         SchedAction::CycleSource(row),
                     );
-                    let sink_label = level
-                        .sinks
-                        .iter()
-                        .find(|s| s.id == entry.sink)
-                        .map(|s| s.label.clone())
-                        .unwrap_or_else(|| format!("Z{}", entry.sink.0));
-                    small_button(r, &format!("→{sink_label}"), SchedAction::CycleSink(row));
+                    small_button(
+                        r,
+                        &format!("→{}", sink_label(&level, entry.sink)),
+                        SchedAction::CycleSink(row),
+                    );
                     small_button(
                         r,
                         &format!("K{}", entry.class.0),
@@ -672,9 +769,14 @@ fn schedule_clicks(
             continue;
         }
         let level = &mut active.level;
+        // Unknown current value (e.g. imported level) → start at the first
+        // entry instead of silently skipping it.
         let cycle = |current: u32, list: &[u32]| -> u32 {
-            let pos = list.iter().position(|&v| v == current).unwrap_or(0);
-            list[(pos + 1) % list.len()]
+            let pos = list
+                .iter()
+                .position(|&v| v == current)
+                .map_or(0, |p| (p + 1) % list.len());
+            list[pos]
         };
         match *action {
             SchedAction::Add => {
@@ -788,6 +890,9 @@ fn rebuild_switch_panel(
 
     let switch = switch.clone();
     let sinks = active.level.sinks.clone();
+    // Branches are named by their compass exit ("→ O"), not by index —
+    // matches the labels drawn at the switch itself and follows rotation.
+    let exit = |branch: u8| dir_label(switch.branches[branch as usize]);
     commands.entity(root).with_children(|panel| {
         panel.spawn(text_bundle(
             format!("{} ({}, {})", t("panel.switch_title"), cell.x, cell.y),
@@ -796,27 +901,27 @@ fn rebuild_switch_panel(
         ));
         button(
             panel,
-            &format!("{}{}", t("panel.default"), switch.default_branch),
+            &format!("{}{}", t("panel.default"), exit(switch.default_branch)),
             BUTTON_BG,
             PanelAction::ToggleDefault,
         );
         panel.spawn(text_bundle(t("panel.rule_hint"), 12.0, TEXT_DIM));
         for sink in &sinks {
             let state = rule_state(&switch, &RuleWhen::DestIs(sink.id));
-            let suffix = state.map_or(t("panel.rule_none"), |b| format!("Zweig {b}"));
+            let suffix = state.map_or(t("panel.rule_none"), |b| format!("→ {}", exit(b)));
             button(
                 panel,
-                &format!("{}{} → {suffix}", t("panel.dest"), sink.label),
+                &format!("{}{} {suffix}", t("panel.dest"), sink.label),
                 BUTTON_BG,
                 PanelAction::CycleDest(sink.id),
             );
         }
         for class in &classes {
             let state = rule_state(&switch, &RuleWhen::ClassIs(*class));
-            let suffix = state.map_or(t("panel.rule_none"), |b| format!("Zweig {b}"));
+            let suffix = state.map_or(t("panel.rule_none"), |b| format!("→ {}", exit(b)));
             button(
                 panel,
-                &format!("{}{} → {suffix}", t("panel.class"), class.0),
+                &format!("{}{} {suffix}", t("panel.class"), class.0),
                 BUTTON_BG,
                 PanelAction::CycleClass(*class),
             );
@@ -956,10 +1061,10 @@ fn update_run_texts(
         } else {
             format!("×{}", ctl.speed)
         };
-        text.0 = format!("Tick {}   {speed}", ctl.sim.now().0);
+        set_text(&mut text, format!("Tick {}   {speed}", ctl.sim.now().0));
     }
     if let Ok(mut text) = info_texts.single_mut() {
-        text.0 = info.0.clone().unwrap_or_default();
+        set_text(&mut text, info.0.clone().unwrap_or_default());
     }
 }
 

@@ -19,7 +19,10 @@ pub struct Train {
     /// Head position on `path.back()`, measured from that edge's start.
     pub head_dist: Len,
     /// Switches passed via `SwitchChoice`, with the taken outgoing edge —
-    /// the data misrouting blame is reconstructed from.
+    /// the data misrouting blame is reconstructed from. Grows with every
+    /// crossing and is deliberately NOT part of the per-tick replay hash
+    /// (see `Sim::canonical_bytes`); it is derivable from the hashed path
+    /// history.
     pub passed_switches: Vec<(Cell, EdgeId)>,
     /// Tick since when the train waits at its current red signal (first-come
     /// priority, GDD §7.4). Cleared on every crossing.

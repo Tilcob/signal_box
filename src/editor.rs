@@ -9,11 +9,12 @@
 //! Sandbox note (M2-minimal): source/sink placement and the schedule editor
 //! mutate the LEVEL, not the layout — they sit outside the undo stack.
 
+use bevy::input::keyboard::Key;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use stellwerk_sim::grid::{Cell, Dir8, pair_len};
 use stellwerk_sim::layout::{Layout, SignalDef, SignalKind, SwitchDef, TrackPiece};
-use stellwerk_sim::level::{SinkDef, SourceDef};
+use stellwerk_sim::level::{Level, SinkDef, SourceDef};
 use stellwerk_sim::units::{SinkId, SourceId};
 use stellwerk_sim::{ValidationError, check_reachability, validate};
 
@@ -45,14 +46,23 @@ pub enum EditOp {
     Group(Vec<EditOp>),
 }
 
+/// Removes the FIRST matching element only: duplicates are transiently
+/// legal (validation flags them), and removing all copies at once would
+/// break Place/Remove inversion symmetry for undo/redo.
+fn remove_first<T: PartialEq>(items: &mut Vec<T>, target: &T) {
+    if let Some(index) = items.iter().position(|x| x == target) {
+        items.remove(index);
+    }
+}
+
 fn apply(layout: &mut Layout, op: &EditOp) {
     match op {
         EditOp::Place(Element::Piece(p)) => layout.pieces.push(*p),
         EditOp::Place(Element::Switch(s)) => layout.switches.push(s.clone()),
         EditOp::Place(Element::Signal(s)) => layout.signals.push(*s),
-        EditOp::Remove(Element::Piece(p)) => layout.pieces.retain(|x| x != p),
-        EditOp::Remove(Element::Switch(s)) => layout.switches.retain(|x| x != s),
-        EditOp::Remove(Element::Signal(s)) => layout.signals.retain(|x| x != s),
+        EditOp::Remove(Element::Piece(p)) => remove_first(&mut layout.pieces, p),
+        EditOp::Remove(Element::Switch(s)) => remove_first(&mut layout.switches, s),
+        EditOp::Remove(Element::Signal(s)) => remove_first(&mut layout.signals, s),
         EditOp::Configure { cell, after, .. } => {
             if let Some(s) = layout.switches.iter_mut().find(|s| s.cell == *cell) {
                 *s = after.clone();
@@ -117,6 +127,37 @@ fn switch_variants() -> Vec<(Dir8, [Dir8; 2])> {
     out
 }
 
+// --- Placement gates ----------------------------------------------------------
+//
+// Hard placement rules (occupied/off-board) are rejected at the tool instead
+// of being placed and flagged: stacking a switch on a switch is never a
+// puzzle state worth inspecting. Cross-cell problems (junction without
+// switch, reachability) stay non-modal — they glow as diagnostics.
+
+/// Buildable cell, no switch there, and both connectors still free —
+/// crossings with disjoint connectors stay legal.
+fn can_place_piece(level: &Level, merged: &Layout, piece: &TrackPiece) -> bool {
+    level.buildable.contains(&piece.cell)
+        && !merged.switches.iter().any(|s| s.cell == piece.cell)
+        && !merged.pieces.iter().any(|p| {
+            p.cell == piece.cell && [p.a, p.b].iter().any(|d| *d == piece.a || *d == piece.b)
+        })
+}
+
+/// Switch cells are exclusive: buildable and completely empty.
+fn can_place_switch(level: &Level, merged: &Layout, cell: Cell) -> bool {
+    level.buildable.contains(&cell)
+        && !merged.pieces.iter().any(|p| p.cell == cell)
+        && !merged.switches.iter().any(|s| s.cell == cell)
+}
+
+/// Signals need track under their connector and may not stack.
+fn can_place_signal(level: &Level, merged: &Layout, cell: Cell, at: Dir8) -> bool {
+    level.buildable.contains(&cell)
+        && merged.has_stub(cell, at)
+        && !merged.signals.iter().any(|s| s.cell == cell && s.at == at)
+}
+
 pub struct EditorPlugin;
 
 impl Plugin for EditorPlugin {
@@ -132,6 +173,7 @@ impl Plugin for EditorPlugin {
 
 fn hotkeys(
     keys: Res<ButtonInput<KeyCode>>,
+    logical: Res<ButtonInput<Key>>,
     active: Option<Res<ActiveLevel>>,
     mut editor: ResMut<Editor>,
 ) {
@@ -165,8 +207,14 @@ fn hotkeys(
         bypass.variant = bypass.variant.wrapping_add(1);
     }
 
+    // Undo/redo match the LOGICAL key, not the physical KeyCode: KeyCode
+    // names US positions, so on a German QWERTZ layout the key labeled "Z"
+    // arrives as KeyCode::KeyY — Ctrl+Z would silently trigger redo.
+    let chr = |s: &str| Key::Character(s.into());
     let ctrl = keys.pressed(KeyCode::ControlLeft) || keys.pressed(KeyCode::ControlRight);
-    if ctrl && keys.just_pressed(KeyCode::KeyZ) {
+    let undo = logical.just_pressed(chr("z")) || logical.just_pressed(chr("Z"));
+    let redo = logical.just_pressed(chr("y")) || logical.just_pressed(chr("Y"));
+    if ctrl && undo {
         let editor = &mut *editor; // re-borrow WITH change detection
         if let Some(op) = editor.undo.pop() {
             let inverse = invert(&op);
@@ -174,7 +222,7 @@ fn hotkeys(
             editor.redo.push(op);
         }
     }
-    if ctrl && keys.just_pressed(KeyCode::KeyY) {
+    if ctrl && redo {
         let editor = &mut *editor;
         if let Some(op) = editor.redo.pop() {
             apply(&mut editor.layout, &op);
@@ -188,6 +236,7 @@ fn pointer(
     buttons: Res<ButtonInput<MouseButton>>,
     windows: Query<&Window, With<PrimaryWindow>>,
     cameras: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
+    ui: Query<&Interaction>,
     active: Option<ResMut<ActiveLevel>>,
     mut editor: ResMut<Editor>,
 ) {
@@ -195,12 +244,17 @@ fn pointer(
     let Some(cursor) = cursor_world(&windows, &cameras) else {
         return;
     };
+    // Clicks that land on UI (switch panel, slot buttons, start button)
+    // must not fall through to the board: clicking the just-opened switch
+    // panel would deselect the switch again, and tools would edit track
+    // hidden behind the panel.
+    let over_ui = ui.iter().any(|i| *i != Interaction::None);
     let cell = board::world_cell(cursor);
     let merged = active.level.fixed.merged(&editor.layout);
 
     // Track drag: collect cells while held.
     if editor.tool == Tool::Track {
-        if buttons.just_pressed(MouseButton::Left) {
+        if buttons.just_pressed(MouseButton::Left) && !over_ui {
             editor.bypass_change_detection().drag = Some(vec![cell]);
         }
         if buttons.pressed(MouseButton::Left) {
@@ -217,18 +271,21 @@ fn pointer(
                 .drag
                 .take()
                 .unwrap_or_default();
-            finish_track_drag(&mut editor, &merged, &path);
+            finish_track_drag(&mut editor, &active.level, &merged, &path);
         }
         return;
     }
 
-    if !buttons.just_pressed(MouseButton::Left) {
+    if !buttons.just_pressed(MouseButton::Left) || over_ui {
         return;
     }
 
     match editor.tool {
         Tool::Track => unreachable!("handled above"),
         Tool::Switch => {
+            if !can_place_switch(&active.level, &merged, cell) {
+                return;
+            }
             let variants = switch_variants();
             let (stem, branches) = variants[editor.variant % variants.len()];
             do_op(
@@ -243,12 +300,15 @@ fn pointer(
             );
         }
         Tool::SignalBlock | Tool::SignalChain => {
+            let at = board::nearest_connector(cell, cursor);
+            if !can_place_signal(&active.level, &merged, cell, at) {
+                return;
+            }
             let kind = if editor.tool == Tool::SignalBlock {
                 SignalKind::Block
             } else {
                 SignalKind::Chain
             };
-            let at = board::nearest_connector(cell, cursor);
             do_op(
                 &mut editor,
                 EditOp::Place(Element::Signal(SignalDef { cell, at, kind })),
@@ -284,7 +344,7 @@ fn next_id(used: impl Iterator<Item = u32>) -> u32 {
 
 /// Interior cells of the drag path get the piece connecting entry and exit
 /// direction; start/end cells stay open (drags begin/end on existing track).
-fn finish_track_drag(editor: &mut Editor, merged: &Layout, path: &[Cell]) {
+fn finish_track_drag(editor: &mut Editor, level: &Level, merged: &Layout, path: &[Cell]) {
     let dir_between = |from: Cell, to: Cell| -> Option<Dir8> {
         let delta = (to.x - from.x, to.y - from.y);
         Dir8::ALL.into_iter().find(|d| d.cell_offset() == delta)
@@ -306,12 +366,12 @@ fn finish_track_drag(editor: &mut Editor, merged: &Layout, path: &[Cell]) {
             (exit, entry)
         };
         let piece = TrackPiece { cell: cur, a, b };
-        let exists = |l: &Layout| {
-            l.pieces
-                .iter()
-                .any(|p| p.cell == cur && sorted(p) == (a, b))
-        };
-        if exists(merged) || placed.contains(&piece) {
+        // Same gate as click placement, plus connector clashes against
+        // pieces from earlier in this very drag.
+        let drag_conflict = placed
+            .iter()
+            .any(|p| p.cell == cur && [p.a, p.b].iter().any(|d| *d == a || *d == b));
+        if !can_place_piece(level, merged, &piece) || drag_conflict {
             continue;
         }
         placed.push(piece);
@@ -327,19 +387,13 @@ fn finish_track_drag(editor: &mut Editor, merged: &Layout, path: &[Cell]) {
             a,
             b,
         };
-        do_op(editor, EditOp::Place(Element::Piece(piece)));
+        if can_place_piece(level, merged, &piece) {
+            do_op(editor, EditOp::Place(Element::Piece(piece)));
+        }
         return;
     }
     if !ops.is_empty() {
         do_op(editor, EditOp::Group(ops));
-    }
-}
-
-fn sorted(p: &TrackPiece) -> (Dir8, Dir8) {
-    if p.a.index() <= p.b.index() {
-        (p.a, p.b)
-    } else {
-        (p.b, p.a)
     }
 }
 
@@ -410,11 +464,13 @@ fn erase_at(editor: &mut Editor, active: &mut ActiveLevel, cell: Cell, cursor: V
     }
 }
 
-/// Hover highlight, ghost preview and error markers via gizmos.
+/// Hover highlight, ghost preview (red when placement is blocked) and error
+/// markers via gizmos.
 fn draw_overlays(
     mut gizmos: Gizmos,
     windows: Query<&Window, With<PrimaryWindow>>,
     cameras: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
+    active: Option<Res<ActiveLevel>>,
     editor: Res<Editor>,
     diagnostics: Res<Diagnostics>,
 ) {
@@ -426,24 +482,66 @@ fn draw_overlays(
             Vec2::splat(CELL - 4.0),
             Color::srgba(0.6, 0.7, 0.9, 0.35),
         );
+        let merged = active
+            .as_ref()
+            .map(|a| a.level.fixed.merged(&editor.layout));
+        let blocked = Color::srgba(1.0, 0.35, 0.3, 0.6);
         match editor.tool {
             Tool::Track => {
                 let variants = piece_variants();
                 let (a, b) = variants[editor.variant % variants.len()];
-                let ghost = Color::srgba(0.7, 0.8, 1.0, 0.5);
+                let ok = match (&active, &merged) {
+                    (Some(active), Some(merged)) => {
+                        can_place_piece(&active.level, merged, &TrackPiece { cell, a, b })
+                    }
+                    _ => true,
+                };
+                let ghost = if ok {
+                    Color::srgba(0.7, 0.8, 1.0, 0.5)
+                } else {
+                    blocked
+                };
                 gizmos.line_2d(board::connector_world(cell, a), center, ghost);
                 gizmos.line_2d(board::connector_world(cell, b), center, ghost);
             }
             Tool::Switch => {
                 let variants = switch_variants();
                 let (stem, branches) = variants[editor.variant % variants.len()];
-                let ghost = Color::srgba(1.0, 0.9, 0.4, 0.5);
+                let ok = match (&active, &merged) {
+                    (Some(active), Some(merged)) => can_place_switch(&active.level, merged, cell),
+                    _ => true,
+                };
+                let ghost = if ok {
+                    Color::srgba(1.0, 0.9, 0.4, 0.5)
+                } else {
+                    blocked
+                };
                 gizmos.line_2d(board::connector_world(cell, stem), center, ghost);
                 for b in branches {
                     gizmos.line_2d(board::connector_world(cell, b), center, ghost);
                 }
             }
-            Tool::SignalBlock | Tool::SignalChain | Tool::Source | Tool::Sink => {
+            Tool::SignalBlock | Tool::SignalChain => {
+                let at = board::nearest_connector(cell, cursor);
+                let connector = board::connector_world(cell, at);
+                let ok = match (&active, &merged) {
+                    (Some(active), Some(merged)) => {
+                        can_place_signal(&active.level, merged, cell, at)
+                    }
+                    _ => true,
+                };
+                let ghost = if ok {
+                    Color::srgba(0.4, 1.0, 0.6, 0.6)
+                } else {
+                    blocked
+                };
+                gizmos.circle_2d(Isometry2d::from_translation(connector), 10.0, ghost);
+                // Gated travel direction (out of the cell across `at`) —
+                // shown before placing, so a backwards signal is no surprise.
+                let outward = (connector - center).normalize_or_zero();
+                gizmos.line_2d(connector, connector + outward * 26.0, ghost);
+            }
+            Tool::Source | Tool::Sink => {
                 let at = board::nearest_connector(cell, cursor);
                 gizmos.circle_2d(
                     Isometry2d::from_translation(board::connector_world(cell, at)),
