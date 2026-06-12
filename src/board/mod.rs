@@ -42,6 +42,12 @@ impl Plugin for BoardPlugin {
             // of despawning + respawning every sprite every frame while
             // nothing changes.
             .add_systems(OnEnter(GameState::Result), run_board::draw_run_board)
-            .add_systems(OnExit(GameState::Result), despawn_all::<LiveGfx>);
+            // Cleanup on ENTERING Edit/LevelSelect, not on leaving Result:
+            // Esc skips Result entirely (Run → Edit → LevelSelect), and an
+            // OnExit(Result)-only despawn leaks frozen trains, labels and
+            // bands into the editor — zoomed Text2d ghosts looked like
+            // giant corrupted glyphs. Run → Result keeps everything.
+            .add_systems(OnEnter(GameState::Edit), despawn_all::<LiveGfx>)
+            .add_systems(OnEnter(GameState::LevelSelect), despawn_all::<LiveGfx>);
     }
 }

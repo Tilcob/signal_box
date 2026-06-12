@@ -20,8 +20,13 @@ pub(super) struct RunHudPlugin;
 impl Plugin for RunHudPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(GameState::Run), spawn_run_hud)
-            // The HUD stays visible behind the result overlay.
-            .add_systems(OnExit(GameState::Result), despawn_all::<UiRun>)
+            // Cleanup on ENTERING Edit/LevelSelect, not on leaving Result:
+            // Esc skips Result entirely (Run → Edit → LevelSelect), and an
+            // OnExit(Result)-only despawn leaks the HUD as a ghost overlay —
+            // re-entering Run then even stacks a second copy. Run → Result
+            // has no despawn, so the HUD stays visible behind the overlay.
+            .add_systems(OnEnter(GameState::Edit), despawn_all::<UiRun>)
+            .add_systems(OnEnter(GameState::LevelSelect), despawn_all::<UiRun>)
             .add_systems(
                 Update,
                 update_run_texts.run_if(in_state(GameState::Run).or(in_state(GameState::Result))),
