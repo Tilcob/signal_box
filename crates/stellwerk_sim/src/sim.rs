@@ -148,6 +148,12 @@ impl Sim {
         self.hash
     }
 
+    /// Active chain-signal reservations (read-only, for the frontend's
+    /// block lighting — GDD §9 "Reservierungen permanent sichtbar").
+    pub fn reservations(&self) -> &BTreeMap<BlockId, TrainId> {
+        &self.reservations
+    }
+
     /// Headless run until an outcome or `max` ticks. Hitting the cap with an
     /// unfinished schedule ends as `Stalled` (e.g. an endless runaway) — a
     /// run always terminates with a diagnosable outcome.

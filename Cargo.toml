@@ -2,7 +2,7 @@
 name = "signal_box"
 version = "0.1.0"
 edition = "2024"
-description = "Stellwerk prototype: a Zachlike about routing trains with switches and signals."
+description = "Stellwerk — a Zachlike about routing trains with switches and signals."
 license = "MIT OR Apache-2.0"
 
 [workspace]
@@ -10,20 +10,17 @@ members = ["crates/*"]
 
 [features]
 default = ["dev"]
-# Development tools: asset hot reload (file watcher), egui inspector windows,
-# FPS overlay, debug gizmos and level-switch keys. Ship a release build with
-#   cargo build --release --no-default-features
-# so none of this ends up in the final binary.
-dev = [
-    "bevy/file_watcher",
-    "bevy/bevy_dev_tools",
-    "dep:bevy-inspector-egui",
-]
+# Development tools: egui world inspector + FPS overlay. Ship a release build
+# with `cargo build --release --no-default-features`.
+dev = ["bevy/bevy_dev_tools", "dep:bevy-inspector-egui"]
 
 [dependencies]
 bevy = "0.18.1"
+stellwerk_sim = { path = "crates/stellwerk_sim" }
+stellwerk_codes = { path = "crates/stellwerk_codes" }
 serde = { version = "1.0", features = ["derive"] }
-bevy_common_assets = { version = "0.16", features = ["ron"] }
+ron = "0.12"
+directories = "6"
 bevy-inspector-egui = { version = "0.36", optional = true }
 
 # Fast iteration: light optimization for our code, full optimization for

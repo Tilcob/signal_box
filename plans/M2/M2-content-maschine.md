@@ -113,9 +113,34 @@
 
 ## 7. Definition of Done (M2)
 
-- [ ] 30+ Level, alle mit CI-geprüften Pars und EN/DE-Texten
-- [ ] Sharing-Codes: Roundtrip-Tests + Goldcodes; Import übersteht Fuzz-Müll
-- [ ] Sandbox erstellt ein Level, das als Code exportiert/importiert/gespielt werden kann
-- [ ] Save-Migration M1→M2 getestet; Lösungs-Slots funktionieren
-- [ ] Content-Log zeigt < 1 Tag/Level über die letzten 10 Level
-- [ ] GDD-Abgleich (Historie), Plan M3 geschärft
+- [~] **15 von 30+ Leveln** (K1: 5, K2: 4, K3: 3, K4: 3), ALLE mit
+      CI-bewiesenen Pars (`tests/par_proof.rs` + Lösungen in
+      `assets/levels/solutions/`). Rest ist Fleißarbeit über die Pipeline —
+      siehe `content-log.md`. UI ist EN/DE-lokalisiert; **Level-Namen/-Texte
+      sind noch direkte Strings** (Key-Lokalisierung der Level: offen)
+- [x] Sharing-Codes (`stellwerk_codes`): Roundtrip-Tests, eingefrorener
+      Goldcode, Versions-Ablehnung, Müll-Eingaben panic-frei; Import-UI
+      zeigt Fehler statt zu crashen
+- [x] Sandbox: Quelle/Ziel-Werkzeuge (6/7), Fahrplan-Editor (Zeilen mit
+      Zyklus-Knöpfen), Persistenz im Konfigverzeichnis, Export als
+      Level-Code, Import via Streckenwahl
+- [~] Save v2: `directories`-Konfigpfad, 3 Lösungs-Slots, M1-Migration
+      (altes Format wird gelesen) — Migration funktioniert, ein
+      automatisierter Migrationstest mit eingefrorenem M1-Save fehlt noch
+- [~] Content-Log liegt vor und zeigt deutlich < 1 Tag/Level — aber erst
+      über 7 neue Level statt der geforderten 10
+- [x] GDD-Abgleich (Historie-Eintrag); M3-Schärfung steht bei M3-Start an
+
+## 8. Umsetzungsnotizen (Abweichungen)
+
+1. **Codes über Dateien statt Zwischenablage:** Export schreibt
+   `stellwerk_code.txt`, Import liest `stellwerk_import.txt` — Clipboard
+   hätte eine neue Dependency gebraucht (`arboard`); Entscheidung bei
+   M3-Polish (GDD §12.4-Eintrag dann nötig).
+2. **Sandbox-Level-Änderungen (Quellen/Ziele/Fahrplan) sind nicht im
+   Undo-Stack** — nur Layout-Bauaktionen. Dokumentierte M2-Minimal-Grenze.
+3. **Fahrplan-Editor ist bewusst grob** (Zyklus-Knöpfe statt Eingabefelder);
+   reicht für Community-Puzzles, Politur nach Playtest-Feedback.
+4. **Level-Inhalte (Namen) nicht über i18n-Keys** — bei aktuellem
+   Levelbestand bewusst verschoben, sonst doppelte Pflege vor dem
+   Format-Feinschliff.

@@ -1,49 +1,46 @@
-//! Stellwerk prototype — a Zachlike about routing trains with switches and
-//! signals. Bring every train of the timetable to the station matching its
-//! cargo color, without collisions.
+//! Stellwerk — M1 vertical slice (plan: plans/M1/M1-vertical-slice.md).
 //!
-//! Run with dev tools (default): `cargo run`
-//! Ship a release build:         `cargo build --release --no-default-features`
+//! Composition root: window, HDR camera + bloom (the Pult glow), one plugin
+//! per module. The simulation lives entirely in `stellwerk_sim`; this app is
+//! editor UX, rendering and UI on top of its public API (GDD §12.1).
 
-mod core;
-mod interaction;
-mod render;
-mod sim;
+mod board;
+mod camera;
+mod editor;
+mod i18n;
+mod levels;
+mod run;
+mod state;
 mod ui;
 
 #[cfg(feature = "dev")]
 mod dev_tools;
 
 use bevy::prelude::*;
-use bevy::window::{PresentMode, WindowResolution};
+use bevy::window::{PresentMode, WindowMode, WindowResolution};
 
 fn main() {
     let mut app = App::new();
 
-    app.insert_resource(ClearColor(Color::srgb(0.07, 0.08, 0.10)))
-        .add_plugins(
-            DefaultPlugins
-                .set(AssetPlugin {
-                    // With the `dev` feature the file watcher hot-reloads the
-                    // tunables RON file at runtime.
-                    watch_for_changes_override: cfg!(feature = "dev").then_some(true),
-                    ..default()
-                })
-                .set(WindowPlugin {
-                    primary_window: Some(Window {
-                        title: "Stellwerk — signal_box".into(),
-                        resolution: WindowResolution::new(1280, 720),
-                        present_mode: PresentMode::AutoVsync,
-                        ..default()
-                    }),
+    app.insert_resource(ClearColor(Color::srgb(0.013, 0.016, 0.022)))
+        .add_plugins(DefaultPlugins.set(
+            WindowPlugin {
+                primary_window: Some(Window {
+                    title: "Stellwerk".into(),
+                    mode: WindowMode::BorderlessFullscreen(MonitorSelection::Current),
+                    present_mode: PresentMode::AutoVsync,
                     ..default()
                 }),
-        )
+                ..default()
+            }
+        ))
         .add_plugins((
-            core::CorePlugin,
-            sim::SimPlugin,
-            interaction::InteractionPlugin,
-            render::RenderPlugin,
+            state::StatePlugin,
+            levels::LevelsPlugin,
+            camera::CameraPlugin,
+            board::BoardPlugin,
+            editor::EditorPlugin,
+            run::RunPlugin,
             ui::UiPlugin,
         ));
 

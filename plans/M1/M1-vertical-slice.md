@@ -119,9 +119,39 @@ Grundsätze:
 
 ## 7. Definition of Done (M1)
 
-- [ ] Alle 8 Level im Frontend lösbar; Bewertung + Medaillen korrekt gegen Par
-- [ ] Alle drei Fehlschlag-Typen erzeugen verständliche Reports (Zyklus sichtbar)
-- [ ] Undo/Redo vollständig (auch über Runs); kein bekannter Weg, den Editor zu desyncen
-- [ ] Workspace-CI grün (jetzt inkl. Frontend-Build: `cargo build --workspace`)
-- [ ] Playtest-Protokolle liegen in `plans/M1/playtest/`; Exit-Entscheid dokumentiert
-- [ ] GDD-Abgleich: neue Entscheidungen (z. B. `directories`-Crate, Zeitleisten-Minimalismus) eingetragen
+- [x] Code-Stand: 8 Level laden + validieren (Test `tests/levels.rs`); Editor
+      (Werkzeuge, Drag-Zeichnen, Undo/Redo, Weichen-Panel, Live-Validierung,
+      Erreichbarkeits-Warnung), Run-Mode (Pause/1×/4×/16×, Einzel-Tick),
+      Ergebnis-Overlay mit Par-Vergleich + Medaillen, Fortschritts-Autosave
+- [ ] **Manuell verifizieren:** alle 8 Level im Frontend durchspielen;
+      Par-Werte sind angesetzt, nicht bewiesen (Harness kommt in M2)
+- [x] Alle Fehlschlag-Typen erzeugen Reports (Kollision/Deadlock-Zyklus/
+      Fehlleitung mit Schuld-Weiche/Stillstand) — Texte im Ergebnis-Overlay
+- [x] Undo/Redo über invertierbare `EditOp`s (auch `Group` für Drags und
+      `Configure` fürs Weichen-Panel); Layout überlebt Runs
+- [x] Workspace-CI erweitert (`app`-Job: `cargo test --workspace` + clippy
+      auf Windows/Linux) — Beweis steht nach dem ersten Push aus
+- [ ] **Offen: Playtest-Runde** (≥ 3 fremde Tester, Protokolle nach
+      `plans/M1/playtest/`, Exit-Entscheid) — das Exit-Kriterium ist NICHT
+      bewertet; ohne bestandenen Test startet M2 nicht
+- [x] GDD-Abgleich: Abweichungen dokumentiert (§8 unten + GDD-Historie)
+
+## 8. Umsetzungsnotizen (Abweichungen des Slice)
+
+1. **`bevy_enhanced_input` noch nicht integriert** — Kamera/Hotkeys laufen
+   über Bevys eingebautes Input-API. Die Action-Maps kommen zusammen mit dem
+   Rebinding-UI (GDD §9); bis dahin eine Dependency weniger im Risiko.
+2. **`lyon` noch nicht nötig:** Im Stub-Modell ist jede Kante geradlinig —
+   rotierte Quads + HDR-Bloom ergeben den Pult-Look ohne Tessellation.
+   Wieder prüfen, wenn Kurvenoptik/runde Kappen gewünscht sind.
+3. **Fortschritt** liegt in `./stellwerk_progress.ron` (Arbeitsverzeichnis);
+   Umzug ins Plattform-Konfigverzeichnis (`directories`) mit Save v2 in M2.
+4. **i18n-Shim** steht (alle UI-Texte über `i18n::t`), gefüllt mit DE-Strings;
+   EN/DE-RON-Tabellen kommen in M2 (GDD-Reihenfolge EN primär gilt ab dann).
+5. **Weichen-Panel:** Regel-Reihenfolge fix (Ziel-Regeln vor Klassen-Regeln)
+   statt frei sortierbar — M1-minimal laut §3, freie Ordnung in M2.
+6. **Interpolation:** Zugkörper tick-genau, Kopflicht zwischen Ticks
+   interpoliert — bewusste Vereinfachung; bei 10 Ticks/s im Playtest prüfen.
+7. **Kein Kantenbau per Klick auf Endzellen:** Drag-Zeichnen füllt nur
+   Innenzellen des Pfads; Anschluss an festes Gleis durch Start/Ende AUF dem
+   festen Gleis. Einzelklick platziert die R-Variante.
