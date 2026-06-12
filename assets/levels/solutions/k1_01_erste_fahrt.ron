@@ -1,0 +1,8 @@
+#![enable(unwrap_newtypes, implicit_some)]
+(
+    pieces: [
+        (cell: (x: 1, y: 0), a: W, b: E), (cell: (x: 2, y: 0), a: W, b: E),
+        (cell: (x: 3, y: 0), a: W, b: E), (cell: (x: 4, y: 0), a: W, b: E),
+    ],
+    switches: [], signals: [],
+)

@@ -1,0 +1,31 @@
+#![enable(unwrap_newtypes, implicit_some)]
+// Kapitel 4, Level 1 — das Sortierwerk: Güterzüge (Klasse 1, lang, langsam)
+// nach GÜTER, S-Bahnen nach STADT. Eine Klassenregel an der Weiche sortiert.
+(
+    name: "4.1 Sortierwerk",
+    buildable: [
+        (x: 0, y: 0), (x: 1, y: 0), (x: 2, y: 0), (x: 3, y: 0), (x: 4, y: 0),
+        (x: 1, y: 1), (x: 2, y: 1), (x: 3, y: 1),
+        (x: 1, y: 2), (x: 2, y: 2), (x: 3, y: 2),
+    ],
+    fixed: (
+        pieces: [
+            (cell: (x: 0, y: 0), a: W, b: E),
+            (cell: (x: 4, y: 0), a: W, b: E),
+            (cell: (x: 3, y: 2), a: N, b: S),
+        ],
+        switches: [], signals: [],
+    ),
+    sources: [(id: 0, cell: (x: 0, y: 0), dir: W)],
+    sinks: [
+        (id: 0, cell: (x: 4, y: 0), dir: E, label: "STADT"),
+        (id: 1, cell: (x: 3, y: 2), dir: N, label: "GÜTER"),
+    ],
+    schedule: [
+        (train: 0, class: 0, length: 800, speed: 100, source: 0, sink: 0, depart: 0, due: 60),
+        (train: 1, class: 1, length: 1800, speed: 60, source: 0, sink: 1, depart: 10, due: 200),
+        (train: 2, class: 0, length: 800, speed: 100, source: 0, sink: 0, depart: 60, due: 170),
+        (train: 3, class: 1, length: 1800, speed: 60, source: 0, sink: 1, depart: 70, due: 280),
+    ],
+    par: (throughput: 231, material: 11, lateness: 0),
+)

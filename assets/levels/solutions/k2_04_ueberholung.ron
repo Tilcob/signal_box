@@ -1,0 +1,18 @@
+#![enable(unwrap_newtypes, implicit_some)]
+(
+    pieces: [
+        (cell: (x: 2, y: 0), a: W, b: E),
+        (cell: (x: 2, y: 1), a: SW, b: SE),
+    ],
+    switches: [
+        (cell: (x: 1, y: 0), stem: W, branches: (E, NE), default_branch: 0, rules: [
+            (when: ClassIs(1), branch: 1),
+        ]),
+        (cell: (x: 3, y: 0), stem: E, branches: (W, NW), default_branch: 0, rules: []),
+    ],
+    signals: [
+        (cell: (x: 0, y: 0), at: E, kind: Block),
+        (cell: (x: 1, y: 0), at: NE, kind: Block),
+        (cell: (x: 2, y: 1), at: SE, kind: Block),
+    ],
+)

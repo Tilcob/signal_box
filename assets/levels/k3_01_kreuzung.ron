@@ -1,0 +1,33 @@
+#![enable(unwrap_newtypes, implicit_some)]
+// Kapitel 3, Level 1 — Lehre: Kettensignale sichern die Kreuzung — kein Zug
+// bleibt im Kreuzungsbereich stehen.
+(
+    name: "3.1 Die Kreuzung",
+    buildable: [
+        (x: 0, y: 0), (x: 1, y: 0), (x: 2, y: 0), (x: 3, y: 0), (x: 4, y: 0),
+        (x: 2, y: -1), (x: 2, y: 1),
+    ],
+    fixed: (
+        pieces: [
+            (cell: (x: 0, y: 0), a: W, b: E),
+            (cell: (x: 4, y: 0), a: W, b: E),
+            (cell: (x: 2, y: -1), a: N, b: S),
+            (cell: (x: 2, y: 1), a: N, b: S),
+        ],
+        switches: [],
+        signals: [],
+    ),
+    sources: [
+        (id: 0, cell: (x: 0, y: 0), dir: W),
+        (id: 1, cell: (x: 2, y: -1), dir: S),
+    ],
+    sinks: [
+        (id: 0, cell: (x: 4, y: 0), dir: E, label: "OST"),
+        (id: 1, cell: (x: 2, y: 1), dir: N, label: "NORD"),
+    ],
+    schedule: [
+        (train: 0, class: 0, length: 800, speed: 100, source: 0, sink: 0, depart: 0, due: 70),
+        (train: 1, class: 0, length: 800, speed: 100, source: 1, sink: 1, depart: 0, due: 45),
+    ],
+    par: (throughput: 70, material: 12, lateness: 0),
+)

@@ -1,0 +1,12 @@
+[package]
+name = "stellwerk_codes"
+version = "0.1.0"
+edition = "2024"
+description = "Sharing codes for Stellwerk: level and solution codes as versioned text (GDD §8.3)."
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+stellwerk_sim = { path = "../stellwerk_sim" }
+serde = { version = "1.0", features = ["derive"] }
+postcard = { version = "1", features = ["alloc"] }
+base64 = "0.22"

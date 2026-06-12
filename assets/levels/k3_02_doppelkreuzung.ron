@@ -1,0 +1,43 @@
+#![enable(unwrap_newtypes, implicit_some)]
+// Kapitel 3, Level 2 — Die Doppelkreuzung: Das Gleisnetz steht fest, du
+// platzierst NUR Signale. Mit Blocksignalen allein verklemmen sich die
+// Züge (probiere es!) — Kettensignale vor den Kreuzungen lösen es.
+(
+    name: "3.2 Doppelkreuzung",
+    buildable: [
+        (x: 0, y: 0), (x: 1, y: 0), (x: 2, y: 0), (x: 3, y: 0), (x: 4, y: 0),
+        (x: 1, y: 1), (x: 2, y: 1), (x: 3, y: 1),
+        (x: 1, y: -1), (x: 3, y: -1),
+    ],
+    fixed: (
+        pieces: [
+            (cell: (x: 0, y: 0), a: W, b: E),
+            (cell: (x: 1, y: 0), a: W, b: E),
+            (cell: (x: 1, y: 0), a: N, b: S),
+            (cell: (x: 2, y: 0), a: W, b: E),
+            (cell: (x: 3, y: 0), a: W, b: E),
+            (cell: (x: 3, y: 0), a: N, b: S),
+            (cell: (x: 4, y: 0), a: W, b: E),
+            (cell: (x: 1, y: -1), a: N, b: S),
+            (cell: (x: 3, y: -1), a: N, b: S),
+            (cell: (x: 1, y: 1), a: E, b: S),
+            (cell: (x: 2, y: 1), a: W, b: E),
+            (cell: (x: 3, y: 1), a: S, b: W),
+        ],
+        switches: [],
+        signals: [],
+    ),
+    sources: [
+        (id: 0, cell: (x: 0, y: 0), dir: W),
+        (id: 1, cell: (x: 3, y: -1), dir: S),
+    ],
+    sinks: [
+        (id: 0, cell: (x: 4, y: 0), dir: E, label: "OST"),
+        (id: 1, cell: (x: 1, y: -1), dir: S, label: "SUED"),
+    ],
+    schedule: [
+        (train: 0, class: 0, length: 800, speed: 100, source: 0, sink: 0, depart: 0, due: 60),
+        (train: 1, class: 0, length: 800, speed: 100, source: 1, sink: 1, depart: 0, due: 135),
+    ],
+    par: (throughput: 125, material: 6, lateness: 0),
+)
