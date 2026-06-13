@@ -182,8 +182,10 @@ impl Sim {
             waits: BTreeMap::new(),
             progressed: false,
         };
+        let mut occ_buf = Vec::new();
         for train in &self.trains {
-            for (edge, lo, hi) in train.occupied(&self.graph) {
+            train.occupied_into(&self.graph, &mut occ_buf);
+            for &(edge, lo, hi) in &occ_buf {
                 if hi > lo {
                     tick.occupancy
                         .entry(self.graph.blocks.block_of(edge))
@@ -232,8 +234,10 @@ impl Sim {
         // Same-tick spawns never appear here (zero body length), which keeps
         // the "one spawn per source per tick" rule below sound.
         let mut busy: BTreeSet<EdgeId> = BTreeSet::new();
+        let mut occ_buf = Vec::new();
         for train in &self.trains {
-            for (edge, lo, hi) in train.occupied(&self.graph) {
+            train.occupied_into(&self.graph, &mut occ_buf);
+            for &(edge, lo, hi) in &occ_buf {
                 if hi > lo {
                     busy.insert(edge);
                     busy.insert(self.graph.edge(edge).opposite);
@@ -597,8 +601,10 @@ impl Sim {
     fn phase_checks(&mut self, tick: &mut TickState) {
         // Collision: strict interval overlap on canonical edges.
         let mut per_edge: BTreeMap<EdgeId, Vec<(TrainId, i64, i64)>> = BTreeMap::new();
+        let mut occ_buf = Vec::new();
         for train in &self.trains {
-            for (edge, lo, hi) in train.occupied(&self.graph) {
+            train.occupied_into(&self.graph, &mut occ_buf);
+            for &(edge, lo, hi) in &occ_buf {
                 let data = self.graph.edge(edge);
                 let (canonical, lo, hi) = if edge <= data.opposite {
                     (edge, lo.0, hi.0)

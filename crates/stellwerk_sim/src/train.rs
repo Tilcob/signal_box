@@ -39,8 +39,19 @@ impl Train {
     /// at the latest — a freshly spawned train therefore grows into the
     /// world (plan §3.5).
     pub fn occupied(&self, graph: &TrackGraph) -> Vec<(EdgeId, Len, Len)> {
-        let mut rest = self.length.0;
         let mut out = Vec::new();
+        self.occupied_into(graph, &mut out);
+        out
+    }
+
+    /// Like [`Train::occupied`] but fills `out` (cleared first) instead of
+    /// allocating — hot paths (the per-tick occupancy build, collision check,
+    /// the per-frame board render) reuse a single buffer across all trains.
+    /// Output is bit-identical to `occupied`; do not let the two drift, or
+    /// the replay hash changes.
+    pub fn occupied_into(&self, graph: &TrackGraph, out: &mut Vec<(EdgeId, Len, Len)>) {
+        out.clear();
+        let mut rest = self.length.0;
         for (i, &edge) in self.path.iter().rev().enumerate() {
             let edge_len = graph.edge(edge).len.0;
             let (lo, hi) = if i == 0 {
@@ -56,7 +67,6 @@ impl Train {
                 break;
             }
         }
-        out
     }
 
     /// Drops tail edges the train has fully left — otherwise the path (and

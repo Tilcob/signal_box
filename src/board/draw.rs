@@ -27,7 +27,7 @@ pub(super) enum Tag {
 }
 
 impl Tag {
-    pub(super) fn apply(self, mut entity: bevy::ecs::system::EntityCommands) {
+    pub(super) fn apply(self, entity: &mut bevy::ecs::system::EntityCommands) {
         match self {
             Tag::Board => entity.insert(BoardGfx),
             Tag::Live => entity.insert(LiveGfx),
@@ -41,6 +41,8 @@ pub(super) fn despawn_all<C: Component>(mut commands: Commands, q: Query<Entity,
     }
 }
 
+/// Spawns a coloured band and returns its entity, so run-board callers can
+/// attach state markers (`BlockBand`) for per-frame in-place recolouring.
 pub(super) fn band(
     commands: &mut Commands,
     a: Vec2,
@@ -49,15 +51,16 @@ pub(super) fn band(
     color: Color,
     z: f32,
     tag: Tag,
-) {
+) -> Entity {
     let mid = (a + b) / 2.0;
     let delta = b - a;
-    let entity = commands.spawn((
+    let mut entity = commands.spawn((
         Sprite::from_color(color, Vec2::new(delta.length().max(1.0), width)),
         Transform::from_translation(mid.extend(z))
             .with_rotation(Quat::from_rotation_z(delta.y.atan2(delta.x))),
     ));
-    tag.apply(entity);
+    tag.apply(&mut entity);
+    entity.id()
 }
 
 pub(super) fn lamp(
@@ -68,17 +71,18 @@ pub(super) fn lamp(
     diamond: bool,
     z: f32,
     tag: Tag,
-) {
+) -> Entity {
     let rot = if diamond {
         Quat::from_rotation_z(std::f32::consts::FRAC_PI_4)
     } else {
         Quat::IDENTITY
     };
-    let entity = commands.spawn((
+    let mut entity = commands.spawn((
         Sprite::from_color(color, Vec2::splat(size)),
         Transform::from_translation(pos.extend(z)).with_rotation(rot),
     ));
-    tag.apply(entity);
+    tag.apply(&mut entity);
+    entity.id()
 }
 
 pub(super) fn label(
@@ -89,8 +93,8 @@ pub(super) fn label(
     size: f32,
     color: Color,
     tag: Tag,
-) {
-    let entity = commands.spawn((
+) -> Entity {
+    let mut entity = commands.spawn((
         Text2d::new(text),
         TextFont {
             font: font.clone(),
@@ -100,7 +104,8 @@ pub(super) fn label(
         TextColor(color),
         Transform::from_translation(pos.extend(6.0)),
     ));
-    tag.apply(entity);
+    tag.apply(&mut entity);
+    entity.id()
 }
 
 /// Signal lamp position: at the connector, offset perpendicular to the stub.
@@ -120,11 +125,11 @@ pub(super) fn signal_direction_tick(
     at: Dir8,
     color: Color,
     tag: Tag,
-) {
+) -> Entity {
     let connector = connector_world(cell, at);
     let outward = (connector - cell_world(cell)).normalize_or_zero();
     let base = signal_pos(cell, at);
-    band(commands, base, base + outward * 16.0, 3.0, color, 5.0, tag);
+    band(commands, base, base + outward * 16.0, 3.0, color, 5.0, tag)
 }
 
 pub(super) fn draw_layout(

@@ -34,14 +34,31 @@ impl Plugin for BoardPlugin {
                 )),
             )
             .add_systems(OnExit(GameState::Edit), despawn_all::<BoardGfx>)
+            // Static board built once (first Run frame, after RunCtl exists),
+            // then per-frame only in-place state updates + train redraw.
             .add_systems(
                 Update,
-                run_board::draw_run_board.run_if(in_state(GameState::Run)),
+                (
+                    run_board::spawn_run_board_static,
+                    run_board::update_run_board,
+                    run_board::redraw_trains,
+                )
+                    .chain()
+                    .run_if(in_state(GameState::Run)),
             )
-            // Result is a frozen final frame: draw it once on enter instead
-            // of despawning + respawning every sprite every frame while
-            // nothing changes.
-            .add_systems(OnEnter(GameState::Result), run_board::draw_run_board)
+            // Result is a frozen final frame: the Run board persists (not
+            // despawned), so refresh its state + trains once to the final
+            // tick. `spawn_run_board_static` is a guarded no-op unless the run
+            // ended before its first Update frame ever built the board.
+            .add_systems(
+                OnEnter(GameState::Result),
+                (
+                    run_board::spawn_run_board_static,
+                    run_board::update_run_board,
+                    run_board::redraw_trains,
+                )
+                    .chain(),
+            )
             // Cleanup on ENTERING Edit/LevelSelect, not on leaving Result:
             // Esc skips Result entirely (Run → Edit → LevelSelect), and an
             // OnExit(Result)-only despawn leaks frozen trains, labels and

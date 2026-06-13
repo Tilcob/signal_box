@@ -22,15 +22,15 @@ pub(super) fn rebuild_edit_board(
         commands.entity(e).despawn();
     }
     for cell in &active.level.buildable {
-        let entity = commands.spawn((
+        let mut entity = commands.spawn((
             Sprite::from_color(col_grid(), Vec2::splat(CELL - 4.0)),
             Transform::from_translation(cell_world(*cell).extend(0.0)),
         ));
-        Tag::Board.apply(entity);
+        Tag::Board.apply(&mut entity);
         // Cell index, top-left corner: errors and the switch panel talk in
         // coordinates — make them locatable on the board.
         let corner = cell_world(*cell) + Vec2::new(-CELL / 2.0 + 5.0, CELL / 2.0 - 5.0);
-        let entity = commands.spawn((
+        let mut entity = commands.spawn((
             Text2d::new(format!("({},{})", cell.x, cell.y)),
             TextFont {
                 font: font.clone(),
@@ -41,7 +41,7 @@ pub(super) fn rebuild_edit_board(
             bevy::sprite::Anchor::TOP_LEFT,
             Transform::from_translation(corner.extend(0.5)),
         ));
-        Tag::Board.apply(entity);
+        Tag::Board.apply(&mut entity);
     }
     draw_stations(&mut commands, &font, &active.level, Tag::Board);
     draw_layout(
