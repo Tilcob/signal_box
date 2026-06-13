@@ -202,7 +202,20 @@ pub fn get_outlined_glyph_texture(
     // is turned off, but for fonts that are specifically designed for pixel art, it works well.
     //
     // See: https://github.com/pop-os/cosmic-text/issues/279
-    let image = swash_cache
+    // STELLWERK FIX: under heavy text churn (e.g. rapid menu switching) the
+    // shared swash `ScaleContext` inside the app-wide `SwashCache` drifts
+    // into a bad state and rasterizes glyphs at the WRONG SIZE (too big OR
+    // too small) for the requested cache key. That wrong-sized raster is
+    // then cached in the glyph atlas permanently → corrupt UI text.
+    //
+    // We sidestep the drift entirely by rasterizing through a throwaway
+    // `SwashCache` with a pristine `ScaleContext`. This is cheap: a unique
+    // glyph (cache key) is rasterized exactly ONCE and then served from the
+    // atlas forever, so this path runs a few hundred times total, never per
+    // frame. The shared `swash_cache` is intentionally left unused here.
+    let _ = &swash_cache;
+    let mut isolated = cosmic_text::SwashCache::new();
+    let image = isolated
         .get_image_uncached(font_system, physical_glyph.cache_key)
         .ok_or(TextError::FailedToGetGlyphImage(physical_glyph.cache_key))?;
 

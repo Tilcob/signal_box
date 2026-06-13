@@ -18,23 +18,38 @@ mod ui;
 mod dev_tools;
 
 use bevy::prelude::*;
-use bevy::window::{PresentMode, WindowMode};
+use bevy::window::{PresentMode, WindowMode, WindowPosition};
 
 fn main() {
     let mut app = App::new();
 
+    // Debug aid: STELLWERK_WINDOWED=1 starts in a fixed window on the
+    // primary monitor instead of borderless fullscreen — fullscreen on
+    // multi-monitor setups is awkward for screenshots and automation.
+    let windowed = std::env::var_os("STELLWERK_WINDOWED").is_some();
+    let window = if windowed {
+        Window {
+            title: "Stellwerk".into(),
+            mode: WindowMode::Windowed,
+            position: WindowPosition::At(IVec2::new(80, 80)),
+            resolution: (1600, 900).into(),
+            present_mode: PresentMode::AutoVsync,
+            ..default()
+        }
+    } else {
+        Window {
+            title: "Stellwerk".into(),
+            mode: WindowMode::BorderlessFullscreen(MonitorSelection::Current),
+            present_mode: PresentMode::AutoVsync,
+            ..default()
+        }
+    };
+
     app.insert_resource(ClearColor(Color::srgb(0.013, 0.016, 0.022)))
-        .add_plugins(DefaultPlugins.set(
-            WindowPlugin {
-                primary_window: Some(Window {
-                    title: "Stellwerk".into(),
-                    mode: WindowMode::BorderlessFullscreen(MonitorSelection::Current),
-                    present_mode: PresentMode::AutoVsync,
-                    ..default()
-                }),
-                ..default()
-            }
-        ))
+        .add_plugins(DefaultPlugins.set(WindowPlugin {
+            primary_window: Some(window),
+            ..default()
+        }))
         .add_plugins((
             font::FontPlugin,
             state::StatePlugin,
