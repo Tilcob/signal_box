@@ -4,6 +4,7 @@
 //! export (M2 plan §2). Shared theme + widget helpers live in [`widgets`].
 
 mod edit_hud;
+mod main_menu;
 mod result;
 mod run_hud;
 mod schedule_panel;
@@ -21,6 +22,7 @@ pub struct UiPlugin;
 impl Plugin for UiPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins((
+            main_menu::MainMenuPlugin,
             select::SelectUiPlugin,
             edit_hud::EditHudPlugin,
             switch_panel::SwitchPanelPlugin,

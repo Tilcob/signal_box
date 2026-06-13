@@ -10,6 +10,7 @@ mod editor;
 mod font;
 mod i18n;
 mod levels;
+mod loading;
 mod run;
 mod state;
 mod ui;
@@ -54,6 +55,7 @@ fn main() {
             font::FontPlugin,
             state::StatePlugin,
             levels::LevelsPlugin,
+            loading::LoadingPlugin,
             camera::CameraPlugin,
             board::BoardPlugin,
             editor::EditorPlugin,

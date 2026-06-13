@@ -1,4 +1,9 @@
 {
+    "menu.title": "STELLWERK",
+    "menu.subtitle": "Ein Zachlike über Weichen, Signale und Fahrpläne",
+    "menu.start": "▶  SPIEL STARTEN",
+    "menu.quit": "BEENDEN",
+    "loading.text": "Lädt …",
     "select.title": "STELLWERK — STRECKENWAHL",
     "select.hint": "Level anklicken · Medaillen: Durchsatz / Material / Pünktlichkeit",
     "select.sandbox": "SANDBOX",

@@ -10,7 +10,12 @@ use stellwerk_sim::level::Level;
 
 #[derive(States, Default, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum GameState {
+    /// Title screen — the app boots here. "Start" leads into [`Loading`].
     #[default]
+    MainMenu,
+    /// Asset/catalog load gate, shown as a loading screen. Auto-advances to
+    /// [`LevelSelect`] once everything is resident (see `crate::loading`).
+    Loading,
     LevelSelect,
     Edit,
     Run,

@@ -207,7 +207,10 @@ pub fn save_sandbox(level: &Level) {
     }
 }
 
-fn load_catalog() -> Catalog {
+/// Reads every `assets/levels/*.ron` into the catalog. Called from the
+/// `Loading` state (not at plugin build) so the on-demand load gate has real
+/// work — see [`crate::loading`]. Public for that module.
+pub fn load_catalog() -> Catalog {
     let dir = PathBuf::from("assets/levels");
     let mut entries: Vec<LevelEntry> = Vec::new();
     let read_dir = match std::fs::read_dir(&dir) {
@@ -244,6 +247,10 @@ pub struct LevelsPlugin;
 
 impl Plugin for LevelsPlugin {
     fn build(&self, app: &mut App) {
+        // Progress + language are needed EAGERLY: the main menu and loading
+        // screen render translated text from frame one. The level catalog,
+        // by contrast, is only needed from `LevelSelect` on and is therefore
+        // loaded later in the `Loading` state (see `crate::loading`).
         let progress = Progress::load();
         let lang = if progress.lang.is_empty() {
             "de"
@@ -251,7 +258,6 @@ impl Plugin for LevelsPlugin {
             &progress.lang
         };
         crate::i18n::set_lang(lang);
-        app.insert_resource(load_catalog())
-            .insert_resource(progress);
+        app.insert_resource(progress);
     }
 }

@@ -56,7 +56,7 @@ fn toggle_fps(input: Res<ButtonInput<KeyCode>>, mut config: ResMut<FpsOverlayCon
 fn auto_cycle(
     time: Res<Time>,
     state: Res<State<GameState>>,
-    catalog: Res<Catalog>,
+    catalog: Option<Res<Catalog>>,
     progress: Res<Progress>,
     mut editor: ResMut<Editor>,
     ctl: Option<ResMut<RunCtl>>,
@@ -77,11 +77,18 @@ fn auto_cycle(
         return;
     }
     match state.get() {
+        // Drive the boot flow once: MainMenu → Loading → (auto) LevelSelect.
+        GameState::MainMenu => {
+            *timer = 0.0;
+            next.set(GameState::Loading);
+        }
+        // Loading hands off to LevelSelect on its own (see crate::loading).
+        GameState::Loading => {}
         GameState::LevelSelect => {
             *timer = 0.0;
-            if catalog.0.is_empty() {
+            let Some(catalog) = catalog.as_ref().filter(|c| !c.0.is_empty()) else {
                 return;
-            }
+            };
             let entry = &catalog.0[*round % catalog.0.len()];
             *round += 1;
             editor.layout = progress

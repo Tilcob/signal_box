@@ -1,4 +1,9 @@
 {
+    "menu.title": "STELLWERK",
+    "menu.subtitle": "A Zachlike about switches, signals and timetables",
+    "menu.start": "▶  START GAME",
+    "menu.quit": "QUIT",
+    "loading.text": "Loading …",
     "select.title": "STELLWERK — ROUTE SELECT",
     "select.hint": "Click a level · medals: throughput / material / punctuality",
     "select.sandbox": "SANDBOX",

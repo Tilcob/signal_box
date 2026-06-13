@@ -38,9 +38,16 @@ impl Plugin for SelectUiPlugin {
             .add_systems(OnExit(GameState::LevelSelect), despawn_all::<UiSelect>)
             .add_systems(
                 Update,
-                (click_level, select_buttons, update_status)
+                (click_level, select_buttons, update_status, leave_to_menu)
                     .run_if(in_state(GameState::LevelSelect)),
             );
+    }
+}
+
+/// Esc returns to the main menu.
+fn leave_to_menu(keys: Res<ButtonInput<KeyCode>>, mut next: ResMut<NextState<GameState>>) {
+    if keys.just_pressed(KeyCode::Escape) {
+        next.set(GameState::MainMenu);
     }
 }
 
