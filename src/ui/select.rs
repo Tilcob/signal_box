@@ -2,7 +2,7 @@
 //! import and the language toggle.
 
 use bevy::prelude::*;
-use stellwerk_codes::Payload;
+use stellwerk_codes::{DecodeError, Payload};
 
 use super::enter_level;
 use super::widgets::{
@@ -208,22 +208,46 @@ fn select_buttons(
         match std::fs::read_to_string("stellwerk_import.txt") {
             Err(e) => status.0 = format!("stellwerk_import.txt: {e}"),
             Ok(text) => match stellwerk_codes::decode(&text) {
-                Err(e) => status.0 = format!("{e}"),
+                Err(e) => status.0 = decode_error_text(&e),
                 Ok(Payload::Solution { level_id, layout }) => {
                     if level_id == SANDBOX_ID || catalog.0.iter().any(|entry| entry.id == level_id)
                     {
                         progress.entry(&level_id).layout = layout;
                         progress.save();
-                        status.0 = format!("Lösung importiert: {level_id}");
+                        status.0 = format!("{}{level_id}", t("select.import_ok"));
                     } else {
-                        status.0 = format!("Unbekanntes Level: {level_id}");
+                        status.0 = format!("{}{level_id}", t("select.import_unknown"));
                     }
                 }
                 Ok(Payload::Level { level }) => {
                     save_sandbox(&level);
-                    status.0 = format!("Level importiert (Sandbox): {}", level.name);
+                    status.0 = format!("{}{}", t("select.import_sandbox"), level.name);
                 }
             },
         }
+    }
+}
+
+/// Every key [`decode_error_text`] can emit — kept beside the match so the
+/// i18n coverage checker (see `crate::i18n` tests) asserts all of them resolve
+/// in both languages. Adding a [`DecodeError`] variant breaks the exhaustive
+/// match below and reminds you to extend this.
+#[cfg(test)]
+pub(crate) const DECODE_ERROR_KEYS: &[&str] = &[
+    "import.error.prefix",
+    "import.error.base64",
+    "import.error.version",
+    "import.error.corrupt",
+];
+
+/// Localized import-failure text. `DecodeError`'s own `Display` stays English
+/// (logs); the player-facing message is translated here — same split as
+/// `edit_hud::valerr_text` for `ValidationError`.
+pub(crate) fn decode_error_text(e: &DecodeError) -> String {
+    match e {
+        DecodeError::Prefix => t("import.error.prefix"),
+        DecodeError::Base64 => t("import.error.base64"),
+        DecodeError::Version(v) => format!("{} ({v})", t("import.error.version")),
+        DecodeError::Corrupt => t("import.error.corrupt"),
     }
 }

@@ -9,7 +9,7 @@ mod result;
 mod run_hud;
 mod sandbox_setup;
 mod schedule_panel;
-mod select;
+pub(crate) mod select;
 mod switch_panel;
 mod widgets;
 

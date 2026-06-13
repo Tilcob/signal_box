@@ -50,16 +50,16 @@ pub enum DecodeError {
 
 impl std::fmt::Display for DecodeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // English on purpose: this is the engine-/locale-agnostic Display for
+        // logs and Debug. The player-facing, translated message is built in the
+        // frontend (see `ui::select::decode_error_text`).
         match self {
-            DecodeError::Prefix => write!(f, "kein Stellwerk-Code (Präfix {PREFIX} fehlt)"),
-            DecodeError::Base64 => write!(f, "Code beschädigt (Base64 unlesbar)"),
+            DecodeError::Prefix => write!(f, "not a Stellwerk code (prefix {PREFIX} missing)"),
+            DecodeError::Base64 => write!(f, "code damaged (base64 unreadable)"),
             DecodeError::Version(v) => {
-                write!(
-                    f,
-                    "Code-Version {v} wird nicht unterstützt (erwartet {VERSION})"
-                )
+                write!(f, "code version {v} is unsupported (expected {VERSION})")
             }
-            DecodeError::Corrupt => write!(f, "Code beschädigt (Inhalt unlesbar)"),
+            DecodeError::Corrupt => write!(f, "code damaged (contents unreadable)"),
         }
     }
 }

@@ -129,6 +129,7 @@ mod tests {
     fn dynamic_keys_present_in_both_tables() {
         use crate::state::Tool;
         use crate::ui::edit_hud::{VALERR_KEYS, tool_key};
+        use crate::ui::select::DECODE_ERROR_KEYS;
 
         fn table(lang: &str) -> BTreeMap<String, String> {
             let path = format!("{}/assets/i18n/{lang}.ron", env!("CARGO_MANIFEST_DIR"));
@@ -146,11 +147,15 @@ mod tests {
             "run.train_due",
             "run.train_waiting",
             "result.export_failed",
+            "select.import_ok",
+            "select.import_unknown",
+            "select.import_sandbox",
         ]
         .into_iter()
         .map(String::from)
         .collect();
         keys.extend(VALERR_KEYS.iter().map(|k| k.to_string()));
+        keys.extend(DECODE_ERROR_KEYS.iter().map(|k| k.to_string()));
         keys.extend(Tool::ALL.iter().map(|&tool| tool_key(tool).to_string()));
 
         for key in keys {
