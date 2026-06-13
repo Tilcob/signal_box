@@ -11,7 +11,7 @@ use super::widgets::{
     despawn_all, set_text, small_button, text_bundle,
 };
 use crate::font::UiFont;
-use crate::i18n::t;
+use crate::i18n::{level_name, t};
 use crate::levels::{Progress, SOLUTION_SLOTS, save_sandbox};
 use crate::state::{ActiveLevel, Diagnostics, Editor, GameState, Tool};
 
@@ -67,7 +67,7 @@ fn spawn_edit_hud(
 ) {
     let font = ui_font.0.clone();
     let (name, sandbox) = active
-        .map(|a| (a.level.name.clone(), a.sandbox))
+        .map(|a| (level_name(&a.id, &a.level.name), a.sandbox))
         .unwrap_or_default();
     // The container nodes carry `Interaction` so the board pointer can tell
     // "this click landed on UI" — also for clicks BETWEEN the buttons.

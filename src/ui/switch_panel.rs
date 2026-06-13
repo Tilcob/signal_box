@@ -8,7 +8,7 @@ use stellwerk_sim::units::{SinkId, TrainClass};
 use super::widgets::{BUTTON_BG, PANEL_BG, TEXT_BRIGHT, TEXT_DIM, button, small_button, text_bundle};
 use crate::editor::{EditOp, do_op};
 use crate::font::UiFont;
-use crate::i18n::{dir_label, t};
+use crate::i18n::{dir_label, station_label, t};
 use crate::state::{ActiveLevel, Editor, GameState};
 
 /// Root node, spawned by the edit HUD (it owns the Edit screen layout).
@@ -97,7 +97,7 @@ pub(super) fn rebuild_switch_panel(
             button(
                 panel,
                 &font,
-                &format!("{}{} {suffix}", t("panel.dest"), sink.label),
+                &format!("{}{} {suffix}", t("panel.dest"), station_label(&sink.label)),
                 BUTTON_BG,
                 PanelAction::CycleDest(sink.id),
             );

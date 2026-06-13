@@ -10,7 +10,7 @@ use super::widgets::{
     set_text, text_bundle,
 };
 use crate::font::UiFont;
-use crate::i18n::{set_lang, t};
+use crate::i18n::{level_name, set_lang, t};
 use crate::levels::{Catalog, Progress, SANDBOX_ID, load_sandbox, save_sandbox};
 use crate::state::{Editor, GameState};
 
@@ -87,7 +87,10 @@ fn spawn_select(
                 button(
                     root,
                     &font,
-                    &format!("{check}{}  {medal_str}", entry.level.name),
+                    &format!(
+                        "{check}{}  {medal_str}",
+                        level_name(&entry.id, &entry.level.name)
+                    ),
                     BUTTON_BG,
                     LevelButton(index),
                 );

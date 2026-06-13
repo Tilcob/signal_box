@@ -9,7 +9,7 @@ use stellwerk_sim::level::Level;
 
 use super::geometry::{cell_world, connector_world};
 use super::palette::*;
-use crate::i18n::dir_label;
+use crate::i18n::{dir_label, station_label};
 
 /// Static board sprites (rebuilt on layout change / mode entry).
 #[derive(Component)]
@@ -272,7 +272,7 @@ pub(super) fn draw_stations(commands: &mut Commands, font: &Handle<Font>, level:
             commands,
             font,
             connector + outward * 26.0 + Vec2::new(0.0, 26.0),
-            sink.label.clone(),
+            station_label(&sink.label),
             14.0,
             col_label(),
             tag,

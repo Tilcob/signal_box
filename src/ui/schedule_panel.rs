@@ -7,7 +7,7 @@ use stellwerk_sim::units::{Len, SinkId, Speed, Tick, TrainClass, TrainId};
 
 use super::widgets::{TEXT_BRIGHT, TEXT_DIM, small_button, text_bundle};
 use crate::font::UiFont;
-use crate::i18n::t;
+use crate::i18n::{station_label, t};
 use crate::state::{ActiveLevel, GameState};
 
 /// Root node, spawned by the edit HUD (it owns the Edit screen layout).
@@ -59,7 +59,7 @@ pub(super) fn rebuild_schedule_panel(
             .sinks
             .iter()
             .find(|s| s.id == id)
-            .map(|s| s.label.clone())
+            .map(|s| station_label(&s.label))
             .unwrap_or_else(|| format!("Z{}", id.0))
     };
     commands.entity(root).with_children(|panel| {

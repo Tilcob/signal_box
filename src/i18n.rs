@@ -68,3 +68,45 @@ pub fn t(key: &str) -> String {
     }
     key.to_string()
 }
+
+/// Like [`t`], but on a missing key returns `fallback` instead of the key
+/// itself — for data-driven strings (level names, station labels) whose
+/// authored (German) value is the natural fallback.
+pub fn t_or(key: &str, fallback: &str) -> String {
+    let guard = TABLE.read().expect("i18n lock");
+    if let Some(table) = guard.as_ref() {
+        if let Some(value) = table.active.get(key) {
+            return value.clone();
+        }
+        if let Some(value) = table.fallback.get(key) {
+            return value.clone();
+        }
+    }
+    fallback.to_string()
+}
+
+/// Localized level name (fallback = authored `level.name`). `id` is the level
+/// file stem, e.g. `k1_01_erste_fahrt`.
+pub fn level_name(id: &str, authored: &str) -> String {
+    t_or(&format!("level.{id}.name"), authored)
+}
+
+/// Localized station label (fallback = authored `sink.label`). Unknown labels
+/// (e.g. dynamic `Z{n}` sandbox labels) fall back cleanly to the raw value.
+pub fn station_label(authored: &str) -> String {
+    t_or(&format!("station.{authored}"), authored)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn t_or_falls_back_to_authored() {
+        // Without a loaded table (or with a missing key) t_or returns the
+        // fallback, NOT the key.
+        let got = t_or("level.unbekannt.name", "1.1 Erste Fahrt");
+        assert_eq!(got, "1.1 Erste Fahrt");
+        assert_ne!(got, "level.unbekannt.name");
+    }
+}

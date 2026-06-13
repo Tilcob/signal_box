@@ -4,7 +4,7 @@ use bevy::prelude::*;
 
 use super::widgets::{TEXT_BRIGHT, TEXT_DIM, despawn_all, set_text, text_bundle};
 use crate::font::UiFont;
-use crate::i18n::t;
+use crate::i18n::{level_name, t};
 use crate::run::{RunCtl, TrainInfo};
 use crate::state::{ActiveLevel, GameState};
 
@@ -40,7 +40,9 @@ fn spawn_run_hud(
     active: Option<Res<ActiveLevel>>,
 ) {
     let font = ui_font.0.clone();
-    let name = active.map(|a| a.level.name.clone()).unwrap_or_default();
+    let name = active
+        .map(|a| level_name(&a.id, &a.level.name))
+        .unwrap_or_default();
     commands
         .spawn((
             Node {
