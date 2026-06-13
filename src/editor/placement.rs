@@ -57,3 +57,66 @@ pub(super) fn can_place_signal(level: &Level, merged: &Layout, cell: Cell, at: D
         && merged.has_stub(cell, at)
         && !merged.signals.iter().any(|s| s.cell == cell && s.at == at)
 }
+
+/// Sandbox sources/sinks: a buildable cell's connector, not already occupied
+/// by another station (a connector hosts at most one entry/exit). Like the
+/// other gates this is enforced at the tool, not left for validation.
+pub(super) fn can_place_station(level: &Level, cell: Cell, at: Dir8) -> bool {
+    level.buildable.contains(&cell)
+        && !level.sources.iter().any(|s| s.cell == cell && s.dir == at)
+        && !level.sinks.iter().any(|s| s.cell == cell && s.dir == at)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use stellwerk_sim::level::{Level, Par, SinkDef, SourceDef};
+    use stellwerk_sim::units::{SinkId, SourceId, Tick};
+
+    fn cell(x: i32, y: i32) -> Cell {
+        Cell { x, y }
+    }
+
+    fn level() -> Level {
+        Level {
+            name: "t".into(),
+            buildable: vec![cell(0, 0), cell(1, 0)],
+            fixed: Layout::default(),
+            sources: vec![SourceDef {
+                id: SourceId(0),
+                cell: cell(0, 0),
+                dir: Dir8::W,
+            }],
+            sinks: vec![SinkDef {
+                id: SinkId(0),
+                cell: cell(1, 0),
+                dir: Dir8::E,
+                label: "OST".into(),
+            }],
+            schedule: vec![],
+            par: Par {
+                throughput: Tick(0),
+                material: 0,
+                lateness: 0,
+            },
+        }
+    }
+
+    #[test]
+    fn station_only_on_buildable() {
+        let lvl = level();
+        assert!(can_place_station(&lvl, cell(1, 0), Dir8::N));
+        // Outside the buildable strip is rejected.
+        assert!(!can_place_station(&lvl, cell(5, 5), Dir8::W));
+    }
+
+    #[test]
+    fn station_connector_not_double_booked() {
+        let lvl = level();
+        // The existing source sits on (0,0) W and the sink on (1,0) E.
+        assert!(!can_place_station(&lvl, cell(0, 0), Dir8::W));
+        assert!(!can_place_station(&lvl, cell(1, 0), Dir8::E));
+        // A free connector on the same buildable cell is fine.
+        assert!(can_place_station(&lvl, cell(0, 0), Dir8::E));
+    }
+}

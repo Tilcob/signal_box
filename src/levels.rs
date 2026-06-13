@@ -9,7 +9,7 @@ use bevy::prelude::*;
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use stellwerk_sim::Score;
 use stellwerk_sim::grid::Cell;
 use stellwerk_sim::layout::Layout;
@@ -82,6 +82,13 @@ pub struct Progress {
     /// UI language ("de"/"en"), persisted with the save.
     #[serde(default)]
     pub lang: String,
+    /// Set when [`Progress::load`] had to fall back to defaults because an
+    /// EXISTING file could not be read/parsed. The next [`Progress::save`]
+    /// then preserves that original file as a `.bak` before overwriting, so a
+    /// transient lock or a corrupt file never silently destroys real data.
+    /// Not persisted.
+    #[serde(skip)]
+    degraded: bool,
 }
 
 fn config_dir() -> Option<PathBuf> {
@@ -106,13 +113,30 @@ impl Progress {
     }
 
     pub fn save(&self) {
-        let path = progress_path();
+        self.save_to(&progress_path());
+    }
+
+    /// Writes the progress to `path`. If this instance is [`Progress::degraded`]
+    /// (a previous load could not read/parse an existing file), the existing
+    /// file is first preserved as `<path>.bak` — but only once, so the very
+    /// first (original) version is the one kept.
+    fn save_to(&self, path: &Path) {
         if let Some(parent) = path.parent() {
             let _ = std::fs::create_dir_all(parent);
         }
+        if self.degraded {
+            let backup = path.with_extension("ron.bak");
+            if path.exists() && !backup.exists() {
+                if let Err(e) = std::fs::copy(path, &backup) {
+                    warn!("cannot back up unreadable progress to {backup:?}: {e}");
+                } else {
+                    warn!("preserved unreadable progress as {backup:?} before overwriting");
+                }
+            }
+        }
         match ron::ser::to_string_pretty(self, Default::default()) {
             Ok(text) => {
-                if let Err(e) = std::fs::write(&path, text) {
+                if let Err(e) = std::fs::write(path, text) {
                     warn!("cannot write progress {path:?}: {e}");
                 }
             }
@@ -126,37 +150,54 @@ impl Progress {
             Ok(text) => text,
             // One-time migration: read (not move) the M1 file from the
             // working directory — but only when the new file genuinely
-            // does not exist. Any other error (permissions, lock) must
-            // not silently fall back: the next save() would overwrite
-            // the real progress with defaults.
+            // does not exist.
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
                 match std::fs::read_to_string("stellwerk_progress.ron") {
                     Ok(text) => text,
                     Err(_) => return Progress::default(),
                 }
             }
+            // The file exists but cannot be read (lock, permissions). Start
+            // with defaults but mark degraded: the next save preserves the
+            // original instead of clobbering it.
             Err(e) => {
                 warn!("progress file {path:?} unreadable ({e}), starting with defaults");
-                return Progress::default();
+                return Progress {
+                    degraded: true,
+                    ..Progress::default()
+                };
             }
         };
-        // Robustness contract: corrupt file → defaults plus warning, never a
-        // panic, never overwriting on mere read.
-        match ron::from_str::<Progress>(&text) {
-            Ok(progress) => progress,
-            Err(_) => match ron::from_str::<BTreeMap<String, LevelProgress>>(&text) {
-                // M1 format: bare map without the wrapper struct.
-                Ok(levels) => Progress {
-                    levels,
-                    lang: String::new(),
-                },
-                Err(e) => {
-                    warn!("progress file unreadable, starting fresh: {e}");
-                    Progress::default()
+        // Corrupt file → defaults, but degraded so the original is preserved
+        // on the next save. Never panic, never overwrite on a mere read.
+        match parse_progress(&text) {
+            Some(progress) => progress,
+            None => {
+                warn!("progress file unreadable, starting fresh (original kept as .bak)");
+                Progress {
+                    degraded: true,
+                    ..Progress::default()
                 }
-            },
+            }
         }
     }
+}
+
+/// Parses progress text, accepting the current wrapped format and the bare M1
+/// map (one-time migration). `None` = neither parses. Pure (no filesystem) so
+/// the format/migration contract is unit-testable.
+fn parse_progress(text: &str) -> Option<Progress> {
+    if let Ok(progress) = ron::from_str::<Progress>(text) {
+        return Some(progress);
+    }
+    // M1 format: bare map without the wrapper struct.
+    ron::from_str::<BTreeMap<String, LevelProgress>>(text)
+        .ok()
+        .map(|levels| Progress {
+            levels,
+            lang: String::new(),
+            degraded: false,
+        })
 }
 
 // --- Sandbox ----------------------------------------------------------------
@@ -259,5 +300,110 @@ impl Plugin for LevelsPlugin {
         };
         crate::i18n::set_lang(lang);
         app.insert_resource(progress);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Unique scratch directory for the filesystem tests; removed by the
+    /// caller. Avoids `tempfile` as a dependency.
+    fn scratch() -> PathBuf {
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let dir = std::env::temp_dir().join(format!("stellwerk_test_{}_{nanos}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn parse_current_format_roundtrips() {
+        let mut p = Progress {
+            lang: "en".into(),
+            ..Progress::default()
+        };
+        p.entry("k1_01").solved = true;
+        let text = ron::ser::to_string_pretty(&p, Default::default()).unwrap();
+        let back = parse_progress(&text).expect("parses");
+        assert_eq!(back.lang, "en");
+        assert!(back.levels.get("k1_01").is_some_and(|l| l.solved));
+    }
+
+    /// Save-v2 migration: an M1 file is a BARE map without the wrapper struct.
+    /// Frozen string — must keep migrating forever (it is what real M1 saves
+    /// on disk look like).
+    #[test]
+    fn parse_migrates_m1_bare_map() {
+        let m1 = r#"{
+            "k1_01_erste_fahrt": (
+                solved: true,
+                best_throughput: Some(120),
+                best_material: Some(8),
+                best_lateness: Some(0),
+                layout: (pieces: [], switches: [], signals: []),
+            ),
+        }"#;
+        let p = parse_progress(m1).expect("M1 bare map migrates");
+        assert_eq!(p.lang, "", "M1 had no language field");
+        let entry = p.levels.get("k1_01_erste_fahrt").expect("level migrated");
+        assert!(entry.solved);
+        assert_eq!(entry.best_throughput, Some(120));
+    }
+
+    #[test]
+    fn parse_rejects_garbage() {
+        assert!(parse_progress("this is not ron").is_none());
+        assert!(parse_progress("").is_none());
+    }
+
+    #[test]
+    fn degraded_save_backs_up_original_once() {
+        let dir = scratch();
+        let path = dir.join("progress.ron");
+        std::fs::write(&path, "ORIGINAL CORRUPT CONTENT").unwrap();
+
+        // A degraded load (corrupt file) → next save preserves the original.
+        let degraded = Progress {
+            degraded: true,
+            lang: "de".into(),
+            ..Progress::default()
+        };
+        degraded.save_to(&path);
+
+        let bak = path.with_extension("ron.bak");
+        assert!(bak.exists(), "original preserved as .bak");
+        assert_eq!(
+            std::fs::read_to_string(&bak).unwrap(),
+            "ORIGINAL CORRUPT CONTENT"
+        );
+        // The new file was written and is valid progress.
+        assert!(parse_progress(&std::fs::read_to_string(&path).unwrap()).is_some());
+
+        // A SECOND degraded save must not overwrite the preserved original.
+        std::fs::write(&path, "second version").unwrap();
+        degraded.save_to(&path);
+        assert_eq!(
+            std::fs::read_to_string(&bak).unwrap(),
+            "ORIGINAL CORRUPT CONTENT",
+            "first backup is kept"
+        );
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn clean_save_makes_no_backup() {
+        let dir = scratch();
+        let path = dir.join("progress.ron");
+        std::fs::write(&path, "EXISTING").unwrap();
+
+        // A normal (non-degraded) save just overwrites, no .bak.
+        Progress::default().save_to(&path);
+        assert!(!path.with_extension("ron.bak").exists());
+
+        std::fs::remove_dir_all(&dir).ok();
     }
 }

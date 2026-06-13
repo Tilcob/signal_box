@@ -7,7 +7,8 @@ use stellwerk_sim::ValidationError;
 use stellwerk_sim::layout::TrackPiece;
 
 use super::placement::{
-    can_place_piece, can_place_signal, can_place_switch, piece_variants, switch_variants,
+    can_place_piece, can_place_signal, can_place_station, can_place_switch, piece_variants,
+    switch_variants,
 };
 use crate::board::{self, CELL};
 use crate::camera::{MainCamera, cursor_world};
@@ -90,10 +91,18 @@ pub(super) fn draw_overlays(
             }
             Tool::Source | Tool::Sink => {
                 let at = board::nearest_connector(cell, cursor);
+                let ok = active
+                    .as_ref()
+                    .is_none_or(|a| can_place_station(&a.level, cell, at));
+                let ghost = if ok {
+                    Color::srgba(0.4, 1.0, 0.6, 0.6)
+                } else {
+                    blocked
+                };
                 gizmos.circle_2d(
                     Isometry2d::from_translation(board::connector_world(cell, at)),
                     10.0,
-                    Color::srgba(0.4, 1.0, 0.6, 0.6),
+                    ghost,
                 );
             }
             _ => {}

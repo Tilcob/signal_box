@@ -10,7 +10,9 @@ use stellwerk_sim::level::Level;
 use stellwerk_sim::units::{SinkId, SourceId};
 
 use super::ops::{EditOp, Element, apply, do_op, invert};
-use super::placement::{can_place_piece, can_place_signal, can_place_switch, switch_variants};
+use super::placement::{
+    can_place_piece, can_place_signal, can_place_station, can_place_switch, switch_variants,
+};
 use crate::board;
 use crate::camera::{MainCamera, cursor_world};
 use crate::levels::{Progress, save_sandbox};
@@ -161,6 +163,9 @@ pub(super) fn pointer(
         }
         Tool::Source if active.sandbox => {
             let dir = board::nearest_connector(cell, cursor);
+            if !can_place_station(&active.level, cell, dir) {
+                return;
+            }
             let id = SourceId(next_id(active.level.sources.iter().map(|s| s.id.0)));
             active
                 .level
@@ -169,6 +174,9 @@ pub(super) fn pointer(
         }
         Tool::Sink if active.sandbox => {
             let dir = board::nearest_connector(cell, cursor);
+            if !can_place_station(&active.level, cell, dir) {
+                return;
+            }
             let id = SinkId(next_id(active.level.sinks.iter().map(|s| s.id.0)));
             active.level.sinks.push(stellwerk_sim::level::SinkDef {
                 id,
