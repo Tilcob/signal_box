@@ -14,6 +14,18 @@ default = ["dev"]
 # with `cargo build --release --no-default-features`.
 dev = ["bevy/bevy_dev_tools", "dep:bevy-inspector-egui"]
 
+# Authoring CLIs (optimierung/07 #3+#4), dev-only — never in a ship build.
+# They use only stellwerk_sim + ron, so they don't link Bevy.
+[[bin]]
+name = "par_suggest"
+path = "tools/par_suggest.rs"
+required-features = ["dev"]
+
+[[bin]]
+name = "i18n_fill"
+path = "tools/i18n_fill.rs"
+required-features = ["dev"]
+
 [dependencies]
 bevy = "0.18.1"
 stellwerk_sim = { path = "crates/stellwerk_sim" }

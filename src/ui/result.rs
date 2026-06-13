@@ -27,6 +27,12 @@ enum ResultAction {
     ExportCode,
 }
 
+/// Dev authoring (optimierung/07 #2): saves the just-succeeded build straight
+/// into `solutions/<id>.ron` — no export/import detour.
+#[cfg(feature = "dev")]
+#[derive(Component)]
+struct SaveSolutionButton;
+
 pub(super) struct ResultPlugin;
 
 impl Plugin for ResultPlugin {
@@ -34,6 +40,11 @@ impl Plugin for ResultPlugin {
         app.add_systems(OnEnter(GameState::Result), spawn_result)
             .add_systems(OnExit(GameState::Result), despawn_all::<UiResult>)
             .add_systems(Update, result_clicks.run_if(in_state(GameState::Result)));
+        #[cfg(feature = "dev")]
+        app.add_systems(
+            Update,
+            save_solution_click.run_if(in_state(GameState::Result)),
+        );
     }
 }
 
@@ -138,6 +149,17 @@ fn spawn_result(
                     BUTTON_BG,
                     ResultAction::LevelSelect,
                 );
+                // Dev authoring: stash the winning build as a designer solution.
+                #[cfg(feature = "dev")]
+                if success && !active.sandbox {
+                    button(
+                        row,
+                        &font,
+                        "DEV: Lösung sichern",
+                        BUTTON_BG,
+                        SaveSolutionButton,
+                    );
+                }
             });
             root.spawn((text_bundle(&font, String::new(), 14.0, TEXT_DIM), StatusText));
         });
@@ -252,5 +274,25 @@ fn result_clicks(
                 }
             }
         }
+    }
+}
+
+#[cfg(feature = "dev")]
+fn save_solution_click(
+    interactions: Query<&Interaction, (Changed<Interaction>, With<SaveSolutionButton>)>,
+    active: Option<Res<ActiveLevel>>,
+    editor: Res<Editor>,
+    mut status_texts: Query<&mut Text, With<StatusText>>,
+) {
+    if !interactions.iter().any(|i| *i == Interaction::Pressed) {
+        return;
+    }
+    let Some(active) = active else { return };
+    let msg = match crate::authoring::write_solution(&active.id, None, &editor.layout) {
+        Ok(path) => format!("Designer-Lösung gesichert: {}", path.display()),
+        Err(e) => format!("Sichern fehlgeschlagen: {e}"),
+    };
+    if let Ok(mut text) = status_texts.single_mut() {
+        text.0 = msg;
     }
 }

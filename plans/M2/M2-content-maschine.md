@@ -115,21 +115,37 @@
 
 - [~] **15 von 30+ Leveln** (K1: 5, K2: 4, K3: 3, K4: 3), ALLE mit
       CI-bewiesenen Pars (`tests/par_proof.rs` + Lösungen in
-      `assets/levels/solutions/`). Rest ist Fleißarbeit über die Pipeline —
-      siehe `content-log.md`. UI ist EN/DE-lokalisiert; **Level-Namen/-Texte
-      sind noch direkte Strings** (Key-Lokalisierung der Level: offen)
+      `assets/levels/solutions/`). Der Rest ist Fleißarbeit über die Pipeline
+      (`content-log.md`) — **der einzige verbliebene große M2-Block.**
+      Werkzeuge zur Beschleunigung: Plan `optimierung/07`.
+- [x] **Lokalisierung EN/DE vollständig:** UI, Level-Namen, Stationslabels
+      und Briefings laufen über i18n-Keys (authored DE = Fallback); ALLE
+      dynamischen Strings (Werkzeug-Anzeige, Ergebnis-, Validierungs- und
+      Import-Texte) über `t()`. Abgesichert durch den Paritäts-Test PLUS
+      `dynamic_keys_present_in_both_tables` (prüft Key-*Abdeckung* des Codes,
+      nicht nur Tabellen-Gleichheit) und die Level-Name-/Briefing-Key-Tests.
+- [x] **Level-Metadaten (§2.3):** `LevelMeta`/`LevelDef` mit Kapitel,
+      Reihenfolge, optional-schwer und Briefing — sauber getrennt vom
+      eingefrorenen `Level`-Sim-Kern, mit eigener `LEVEL_SCHEMA_VERSION`
+      (Sharing-Codes unberührt). Plan `optimierung/05`.
 - [x] Sharing-Codes (`stellwerk_codes`): Roundtrip-Tests, eingefrorener
       Goldcode, Versions-Ablehnung, Müll-Eingaben panic-frei; Import-UI
-      zeigt Fehler statt zu crashen
+      zeigt (lokalisierte) Fehler statt zu crashen
 - [x] Sandbox: Quelle/Ziel-Werkzeuge (6/7), Fahrplan-Editor (Zeilen mit
       Zyklus-Knöpfen), Persistenz im Konfigverzeichnis, Export als
-      Level-Code, Import via Streckenwahl
-- [~] Save v2: `directories`-Konfigpfad, 3 Lösungs-Slots, M1-Migration
-      (altes Format wird gelesen) — Migration funktioniert, ein
-      automatisierter Migrationstest mit eingefrorenem M1-Save fehlt noch
+      Level-Code, Import via Streckenwahl; **wählbare Flächengröße (§2.2)**
+      über den Sandbox-Setup-Screen, an das Code-Budget gekoppelt. Plan
+      `optimierung/06`.
+- [x] Save v2: `directories`-Konfigpfad, 3 Lösungs-Slots, M1-Migration inkl.
+      **Beförderung M1-Autosave → Slot 1** und automatisiertem Migrationstest
+      mit eingefrorenem M1-Save (`m1_autosave_is_promoted_to_slot_one`).
 - [~] Content-Log liegt vor und zeigt deutlich < 1 Tag/Level — aber erst
       über 7 neue Level statt der geforderten 10
 - [x] GDD-Abgleich (Historie-Eintrag); M3-Schärfung steht bei M3-Start an
+
+**M2-Stand:** Pipeline, Format, Lokalisierung, Save v2 und Sandbox sind
+vollständig. Offen ist allein die **Content-Menge (15 → 30+)** — siehe Plan
+`optimierung/07` für die Autorenwerkzeuge, die den Nachschub beschleunigen.
 
 ## 8. Umsetzungsnotizen (Abweichungen)
 
@@ -141,6 +157,7 @@
    Undo-Stack** — nur Layout-Bauaktionen. Dokumentierte M2-Minimal-Grenze.
 3. **Fahrplan-Editor ist bewusst grob** (Zyklus-Knöpfe statt Eingabefelder);
    reicht für Community-Puzzles, Politur nach Playtest-Feedback.
-4. **Level-Inhalte (Namen) nicht über i18n-Keys** — bei aktuellem
-   Levelbestand bewusst verschoben, sonst doppelte Pflege vor dem
-   Format-Feinschliff.
+4. **Level-Inhalte über i18n-Keys (inzwischen erledigt):** Level-Namen,
+   Stationslabels und Briefings laufen seit `optimierung/03`+`04` über
+   `level.*`/`station.*`-Keys mit dem authored (deutschen) Wert als Fallback.
+   Ursprünglich verschoben, nun nachgezogen.

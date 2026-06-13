@@ -3,6 +3,8 @@
 //! config panel, schedule panel, run HUD and the result overlay with code
 //! export (M2 plan §2). Shared theme + widget helpers live in [`widgets`].
 
+#[cfg(feature = "dev")]
+mod campaign_save;
 pub(crate) mod edit_hud;
 mod main_menu;
 mod result;
@@ -34,6 +36,8 @@ impl Plugin for UiPlugin {
         ))
         // All states: hover/press feedback for every button.
         .add_systems(Update, widgets::button_feedback);
+        #[cfg(feature = "dev")]
+        app.add_plugins(campaign_save::CampaignSavePlugin);
     }
 }
 

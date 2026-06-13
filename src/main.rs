@@ -16,6 +16,8 @@ mod state;
 mod ui;
 
 #[cfg(feature = "dev")]
+mod authoring;
+#[cfg(feature = "dev")]
 mod dev_tools;
 
 use bevy::prelude::*;
