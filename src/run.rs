@@ -12,6 +12,7 @@ use stellwerk_sim::{Layout, Outcome, Sim, TrackGraph};
 
 use crate::board::point_world;
 use crate::camera::{MainCamera, cursor_world};
+use crate::i18n::{station_label, t};
 use crate::levels::Progress;
 use crate::state::{ActiveLevel, Editor, GameState, LastOutcome};
 
@@ -230,15 +231,18 @@ fn click_train(
                 .sinks
                 .iter()
                 .find(|s| s.id == train.sink)
-                .map(|s| s.label.clone())
-                .unwrap_or_else(|| format!("Sink {}", train.sink.0));
+                .map(|s| station_label(&s.label))
+                .unwrap_or_else(|| format!("{} {}", t("common.sink"), train.sink.0));
             let waiting = match train.waiting_since {
-                Some(since) => format!(" · wartet am Signal seit Tick {}", since.0),
+                Some(since) => format!(" · {} {}", t("run.train_waiting"), since.0),
                 None => String::new(),
             };
             info.0 = Some(format!(
-                "Zug {} → {sink} · Soll: Tick {}{waiting}",
-                train.id.0, train.due.0
+                "{} {} → {sink} · {} {}{waiting}",
+                t("common.train"),
+                train.id.0,
+                t("run.train_due"),
+                train.due.0
             ));
             return;
         }

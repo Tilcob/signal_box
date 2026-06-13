@@ -109,4 +109,44 @@ mod tests {
         assert_eq!(got, "1.1 Erste Fahrt");
         assert_ne!(got, "level.unbekannt.name");
     }
+
+    /// The real localization checker: every dynamic string the UI can build
+    /// at runtime must have its key in BOTH language tables. The existing
+    /// `language_tables_cover_identical_keys` only proves the two tables agree
+    /// with each other — never that the CODE routes a string through `t()`.
+    /// Reads the tables directly (not via `t`) so a key present only in the
+    /// German fallback cannot mask a missing English entry.
+    #[test]
+    fn dynamic_keys_present_in_both_tables() {
+        use crate::state::Tool;
+        use crate::ui::edit_hud::{VALERR_KEYS, tool_key};
+
+        fn table(lang: &str) -> BTreeMap<String, String> {
+            let path = format!("{}/assets/i18n/{lang}.ron", env!("CARGO_MANIFEST_DIR"));
+            let text = std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {path}: {e}"));
+            ron::from_str(&text).unwrap_or_else(|e| panic!("parse {path}: {e}"))
+        }
+        let de = table("de");
+        let en = table("en");
+
+        let mut keys: Vec<String> = [
+            "common.train",
+            "common.sink",
+            "edit.tool_label",
+            "edit.more_errors",
+            "run.train_due",
+            "run.train_waiting",
+            "result.export_failed",
+        ]
+        .into_iter()
+        .map(String::from)
+        .collect();
+        keys.extend(VALERR_KEYS.iter().map(|k| k.to_string()));
+        keys.extend(Tool::ALL.iter().map(|&tool| tool_key(tool).to_string()));
+
+        for key in keys {
+            assert!(de.contains_key(&key), "de.ron fehlt dynamischer Key: {key}");
+            assert!(en.contains_key(&key), "en.ron fehlt dynamischer Key: {key}");
+        }
+    }
 }

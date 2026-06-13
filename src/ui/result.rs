@@ -153,15 +153,20 @@ fn describe(outcome: &Outcome) -> (String, String, Color) {
         Outcome::Collision { trains, .. } => (
             t("result.collision"),
             format!(
-                "{}Zug {} und Zug {}.",
+                "{}{} {}, {} {}.",
                 t("result.collision_detail"),
+                t("common.train"),
                 trains.0.0,
+                t("common.train"),
                 trains.1.0
             ),
             Color::srgb(1.0, 0.3, 0.25),
         ),
         Outcome::Deadlock { cycle } => {
-            let ids: Vec<String> = cycle.iter().map(|t| format!("Zug {}", t.0)).collect();
+            let ids: Vec<String> = cycle
+                .iter()
+                .map(|id| format!("{} {}", t("common.train"), id.0))
+                .collect();
             (
                 t("result.deadlock"),
                 format!("{}{}.", t("result.deadlock_detail"), ids.join(" → ")),
@@ -183,7 +188,7 @@ fn describe(outcome: &Outcome) -> (String, String, Color) {
                 .unwrap_or_default();
             (
                 t("result.misrouting"),
-                format!("Zug {}: {what}{blame_str}", train.0),
+                format!("{} {}: {what}{blame_str}", t("common.train"), train.0),
                 Color::srgb(1.0, 0.7, 0.25),
             )
         }
@@ -221,7 +226,7 @@ fn result_clicks(
                     });
                     let message = match std::fs::write("stellwerk_code.txt", code) {
                         Ok(()) => t("result.exported"),
-                        Err(e) => format!("Export fehlgeschlagen: {e}"),
+                        Err(e) => format!("{}: {e}", t("result.export_failed")),
                     };
                     if let Ok(mut text) = status_texts.single_mut() {
                         text.0 = message;

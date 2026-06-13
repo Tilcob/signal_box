@@ -67,6 +67,22 @@ pub enum Tool {
     Sink,
 }
 
+impl Tool {
+    /// Every variant, for exhaustive iteration (the i18n coverage checker
+    /// walks these to assert each tool name resolves in both languages).
+    #[cfg(test)]
+    pub const ALL: [Tool; 8] = [
+        Tool::Select,
+        Tool::Track,
+        Tool::Switch,
+        Tool::SignalBlock,
+        Tool::SignalChain,
+        Tool::Erase,
+        Tool::Source,
+        Tool::Sink,
+    ];
+}
+
 /// Live validation + reachability results for the current build.
 #[derive(Resource, Default)]
 pub struct Diagnostics {

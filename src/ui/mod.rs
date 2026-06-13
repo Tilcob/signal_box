@@ -3,7 +3,7 @@
 //! config panel, schedule panel, run HUD and the result overlay with code
 //! export (M2 plan §2). Shared theme + widget helpers live in [`widgets`].
 
-mod edit_hud;
+pub(crate) mod edit_hud;
 mod main_menu;
 mod result;
 mod run_hud;

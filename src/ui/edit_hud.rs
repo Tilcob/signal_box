@@ -3,6 +3,7 @@
 
 use bevy::prelude::*;
 use stellwerk_codes::Payload;
+use stellwerk_sim::ValidationError;
 
 use super::schedule_panel::{SchedAction, SchedulePanelRoot, rebuild_schedule_panel};
 use super::switch_panel::{SwitchPanelRoot, rebuild_switch_panel};
@@ -183,16 +184,6 @@ fn update_edit_texts(
 ) {
     let sandbox = active.as_ref().is_some_and(|a| a.sandbox);
     if let Ok(mut text) = tool_texts.single_mut() {
-        let tool = match editor.tool {
-            Tool::Select => "Auswahl",
-            Tool::Track => "Gleis",
-            Tool::Switch => "Weiche",
-            Tool::SignalBlock => "Blocksignal",
-            Tool::SignalChain => "Kettensignal",
-            Tool::Erase => "Abriss",
-            Tool::Source => "Quelle",
-            Tool::Sink => "Ziel",
-        };
         let extra = if sandbox {
             t("edit.tools_sandbox")
         } else {
@@ -200,18 +191,24 @@ fn update_edit_texts(
         };
         set_text(
             &mut text,
-            format!("{}{extra}   |   Werkzeug: {tool}", t("edit.tools")),
+            format!(
+                "{}{extra}   |   {}{}",
+                t("edit.tools"),
+                t("edit.tool_label"),
+                t(tool_key(editor.tool))
+            ),
         );
     }
     if let Ok(mut text) = diag_texts.single_mut() {
         let mut lines = Vec::new();
         for error in diagnostics.errors.iter().take(3) {
-            lines.push(format!("✗ {error}"));
+            lines.push(format!("✗ {}", valerr_text(error)));
         }
         if diagnostics.errors.len() > 3 {
             lines.push(format!(
-                "… +{} weitere Fehler",
-                diagnostics.errors.len() - 3
+                "… +{} {}",
+                diagnostics.errors.len() - 3,
+                t("edit.more_errors")
             ));
         }
         for unreachable in diagnostics.unreachable.iter().take(2) {
@@ -311,5 +308,100 @@ fn export_level_click(
             info!("level code written to stellwerk_code.txt");
         }
         save_sandbox(&active.level);
+    }
+}
+
+/// i18n key for a tool's display name. Exhaustive — a new [`Tool`] variant
+/// will not compile until it gets a key here.
+pub(crate) fn tool_key(tool: Tool) -> &'static str {
+    match tool {
+        Tool::Select => "tool.select",
+        Tool::Track => "tool.track",
+        Tool::Switch => "tool.switch",
+        Tool::SignalBlock => "tool.signal_block",
+        Tool::SignalChain => "tool.signal_chain",
+        Tool::Erase => "tool.erase",
+        Tool::Source => "tool.source",
+        Tool::Sink => "tool.sink",
+    }
+}
+
+/// Every key [`valerr_text`] can emit — kept beside the match so the i18n
+/// coverage checker (see `crate::i18n` tests) can assert all of them resolve
+/// in both languages. MUST stay in sync with the arms below; adding a
+/// [`ValidationError`] variant breaks the exhaustive match and reminds you.
+#[cfg(test)]
+pub(crate) const VALERR_KEYS: &[&str] = &[
+    "valerr.illegal_pair",
+    "valerr.duplicate_piece",
+    "valerr.switch_clash",
+    "valerr.switch_angle",
+    "valerr.switch_default",
+    "valerr.switch_rule_branch",
+    "valerr.switch_rule_sink",
+    "valerr.switch_not_exclusive",
+    "valerr.duplicate_switch",
+    "valerr.signal_off_track",
+    "valerr.duplicate_signal",
+    "valerr.junction_no_switch",
+    "valerr.connector_reused",
+    "valerr.outside_buildable",
+    "valerr.dup_source_id",
+    "valerr.dup_sink_id",
+    "valerr.source_off_track",
+    "valerr.sink_off_track",
+    "valerr.dup_train_id",
+    "valerr.unknown_source",
+    "valerr.unknown_sink",
+    "valerr.non_positive_length",
+    "valerr.non_positive_speed",
+    "valerr.speed_too_high",
+    "valerr.due_before_depart",
+];
+
+/// Localized validation-error line. The sim crate's `Display` stays English
+/// (logs/tests); the player-facing text is translated here, with the
+/// concrete cell/id appended in Rust (the i18n shim has no placeholders).
+fn valerr_text(error: &ValidationError) -> String {
+    use ValidationError::*;
+    let at = |cell: &stellwerk_sim::grid::Cell| format!("({}, {})", cell.x, cell.y);
+    match error {
+        IllegalPiecePair { cell, .. } => format!("{} {}", t("valerr.illegal_pair"), at(cell)),
+        DuplicatePiece { cell, .. } => format!("{} {}", t("valerr.duplicate_piece"), at(cell)),
+        SwitchConnectorClash { cell } => format!("{} {}", t("valerr.switch_clash"), at(cell)),
+        SwitchBranchAngle { cell, .. } => format!("{} {}", t("valerr.switch_angle"), at(cell)),
+        SwitchDefaultOutOfRange { cell } => format!("{} {}", t("valerr.switch_default"), at(cell)),
+        SwitchRuleBranchOutOfRange { cell } => {
+            format!("{} {}", t("valerr.switch_rule_branch"), at(cell))
+        }
+        SwitchRuleUnknownSink { cell, .. } => {
+            format!("{} {}", t("valerr.switch_rule_sink"), at(cell))
+        }
+        SwitchCellNotExclusive { cell } => {
+            format!("{} {}", t("valerr.switch_not_exclusive"), at(cell))
+        }
+        DuplicateSwitch { cell } => format!("{} {}", t("valerr.duplicate_switch"), at(cell)),
+        SignalOffTrack { cell, .. } => format!("{} {}", t("valerr.signal_off_track"), at(cell)),
+        DuplicateSignal { cell, .. } => format!("{} {}", t("valerr.duplicate_signal"), at(cell)),
+        JunctionWithoutSwitch { point } => {
+            format!("{} ({}, {})", t("valerr.junction_no_switch"), point.x, point.y)
+        }
+        ConnectorReused { cell, .. } => format!("{} {}", t("valerr.connector_reused"), at(cell)),
+        OutsideBuildable { cell } => format!("{} {}", t("valerr.outside_buildable"), at(cell)),
+        DuplicateSourceId { id } => format!("{} {}", t("valerr.dup_source_id"), id.0),
+        DuplicateSinkId { id } => format!("{} {}", t("valerr.dup_sink_id"), id.0),
+        SourceOffTrack { id } => format!("{} {}", t("valerr.source_off_track"), id.0),
+        SinkOffTrack { id } => format!("{} {}", t("valerr.sink_off_track"), id.0),
+        DuplicateTrainId { train } => format!("{} {}", t("valerr.dup_train_id"), train.0),
+        UnknownSource { train, source } => {
+            format!("{} {} ({})", t("valerr.unknown_source"), train.0, source.0)
+        }
+        UnknownSink { train, sink } => {
+            format!("{} {} ({})", t("valerr.unknown_sink"), train.0, sink.0)
+        }
+        NonPositiveLength { train } => format!("{} {}", t("valerr.non_positive_length"), train.0),
+        NonPositiveSpeed { train } => format!("{} {}", t("valerr.non_positive_speed"), train.0),
+        SpeedTooHigh { train } => format!("{} {}", t("valerr.speed_too_high"), train.0),
+        DueBeforeDepart { train } => format!("{} {}", t("valerr.due_before_depart"), train.0),
     }
 }

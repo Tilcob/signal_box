@@ -107,7 +107,7 @@ pub(super) fn rebuild_schedule_panel(
                 .with_children(|r| {
                     r.spawn(text_bundle(
                         &font,
-                        format!("Zug {}", entry.train.0),
+                        format!("{} {}", t("common.train"), entry.train.0),
                         13.0,
                         TEXT_DIM,
                     ));
