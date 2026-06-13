@@ -21,6 +21,8 @@ struct LevelButton(usize);
 #[derive(Component)]
 struct SandboxButton;
 #[derive(Component)]
+struct NewSandboxButton;
+#[derive(Component)]
 struct ImportButton;
 #[derive(Component)]
 struct LangButton;
@@ -84,11 +86,16 @@ fn spawn_select(
                 let solved = progress_entry.is_some_and(|p| p.solved);
                 let medal_str: String = medals.iter().map(|m| if *m { '●' } else { '○' }).collect();
                 let check = if solved { "✓ " } else { "   " };
+                let hard = if entry.meta.optional_hard {
+                    format!("  {}", t("select.optional_hard"))
+                } else {
+                    String::new()
+                };
                 button(
                     root,
                     &font,
                     &format!(
-                        "{check}{}  {medal_str}",
+                        "{check}{}  {medal_str}{hard}",
                         level_name(&entry.id, &entry.level.name)
                     ),
                     BUTTON_BG,
@@ -107,6 +114,13 @@ fn spawn_select(
                     &t("select.sandbox"),
                     BUTTON_BG_PRIMARY,
                     SandboxButton,
+                );
+                button(
+                    row,
+                    &font,
+                    &t("select.new_sandbox"),
+                    BUTTON_BG,
+                    NewSandboxButton,
                 );
                 button(row, &font, &t("select.import"), BUTTON_BG, ImportButton);
                 button(row, &font, &t("select.lang"), BUTTON_BG, LangButton);
@@ -138,6 +152,7 @@ fn click_level(
             level_button.0,
             entry.id.clone(),
             entry.level.clone(),
+            entry.meta.briefing.clone(),
             false,
             &progress,
             &mut commands,
@@ -150,6 +165,7 @@ fn click_level(
 #[allow(clippy::too_many_arguments)]
 fn select_buttons(
     sandbox: Query<&Interaction, (Changed<Interaction>, With<SandboxButton>)>,
+    new_sandbox: Query<&Interaction, (Changed<Interaction>, With<NewSandboxButton>)>,
     import: Query<&Interaction, (Changed<Interaction>, With<ImportButton>)>,
     lang: Query<&Interaction, (Changed<Interaction>, With<LangButton>)>,
     catalog: Res<Catalog>,
@@ -165,12 +181,17 @@ fn select_buttons(
             usize::MAX,
             SANDBOX_ID.to_string(),
             level,
+            String::new(),
             true,
             &progress,
             &mut commands,
             &mut editor,
             &mut next,
         );
+        return;
+    }
+    if new_sandbox.iter().any(|i| *i == Interaction::Pressed) {
+        next.set(GameState::SandboxSetup);
         return;
     }
     if lang.iter().any(|i| *i == Interaction::Pressed) {

@@ -67,8 +67,14 @@ fn spawn_edit_hud(
     active: Option<Res<ActiveLevel>>,
 ) {
     let font = ui_font.0.clone();
-    let (name, sandbox) = active
-        .map(|a| (level_name(&a.id, &a.level.name), a.sandbox))
+    let (name, brief, sandbox) = active
+        .map(|a| {
+            (
+                level_name(&a.id, &a.level.name),
+                crate::i18n::briefing(&a.id, &a.briefing),
+                a.sandbox,
+            )
+        })
         .unwrap_or_default();
     // The container nodes carry `Interaction` so the board pointer can tell
     // "this click landed on UI" — also for clicks BETWEEN the buttons.
@@ -86,6 +92,11 @@ fn spawn_edit_hud(
         ))
         .with_children(|c| {
             c.spawn(text_bundle(&font, name, 22.0, TEXT_BRIGHT));
+            // Operating order (GDD §8.1): the puzzle statement, shown right on
+            // the desk. Campaign levels carry one; the sandbox does not.
+            if !brief.is_empty() {
+                c.spawn(text_bundle(&font, brief, 14.0, TEXT_BRIGHT));
+            }
             c.spawn((text_bundle(&font, String::new(), 14.0, TEXT_DIM), ToolText));
             c.spawn(text_bundle(&font, t("edit.hints"), 13.0, TEXT_DIM));
             c.spawn((

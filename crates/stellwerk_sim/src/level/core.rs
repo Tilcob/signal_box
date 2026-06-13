@@ -1,5 +1,9 @@
-//! Level definition: what the designer provides and the player must serve.
-//! See GDD §7.5 (schedule), §7.7 (par values) and plan §3.4.
+//! The frozen simulation core of a level. **Byte-stable on purpose:** these
+//! types are serialized into sharing codes via postcard (`stellwerk_codes`),
+//! which is positional and has no field names — any change reorders the bytes
+//! and invalidates every code in the wild. Add nothing here without a
+//! `stellwerk_codes::VERSION` bump and a migration. Campaign metadata that is
+//! NOT part of the playable puzzle belongs in [`super::meta`] instead.
 
 use crate::grid::{Cell, Dir8};
 use crate::layout::Layout;

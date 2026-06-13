@@ -241,6 +241,7 @@ fn result_clicks(
                             index,
                             entry.id.clone(),
                             entry.level.clone(),
+                            entry.meta.briefing.clone(),
                             false,
                             &progress,
                             &mut commands,

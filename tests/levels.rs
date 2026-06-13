@@ -4,7 +4,7 @@
 //! CI) is M2 — this catches hand-authoring mistakes today.
 
 use stellwerk_sim::layout::Layout;
-use stellwerk_sim::level::Level;
+use stellwerk_sim::level::{LEVEL_SCHEMA_VERSION, LevelDef};
 
 fn level_files() -> Vec<std::path::PathBuf> {
     let dir = format!("{}/assets/levels", env!("CARGO_MANIFEST_DIR"));
@@ -24,14 +24,29 @@ fn all_levels_parse_and_validate_empty() {
     assert_eq!(files.len(), 15, "M2 content stand: 15 levels (plan M2 §4)");
     for path in files {
         let text = std::fs::read_to_string(&path).expect("readable");
-        let level: Level =
+        let def: LevelDef =
             ron::from_str(&text).unwrap_or_else(|e| panic!("{path:?} does not parse: {e}"));
-        let errors = stellwerk_sim::validate(&level, &Layout::default());
+        let level = &def.sim;
+        let errors = stellwerk_sim::validate(level, &Layout::default());
         assert!(
             errors.is_empty(),
             "{path:?} invalid with empty player layout: {errors:#?}"
         );
         assert!(!level.schedule.is_empty(), "{path:?} has no trains");
         assert!(level.par.material > 0, "{path:?} has no material par");
+
+        // Campaign metadata lint (M2 §2.3): every shipped level must be
+        // organised into a chapter and carry a briefing (the operating order,
+        // GDD §8.1). `order` 0 is reserved for "unset" — authored files use
+        // explicit steps of 10.
+        let meta = &def.meta;
+        assert_eq!(
+            meta.schema_version, LEVEL_SCHEMA_VERSION,
+            "{path:?} has stale schema_version {} (current {LEVEL_SCHEMA_VERSION})",
+            meta.schema_version
+        );
+        assert!(meta.chapter > 0, "{path:?} has no chapter");
+        assert!(meta.order > 0, "{path:?} has no order");
+        assert!(!meta.briefing.is_empty(), "{path:?} has no briefing");
     }
 }

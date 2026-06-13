@@ -2,18 +2,27 @@
 // Kapitel 1, Level 2 — Lehre: Der schnelle Folgezug fährt auf, wenn ihn kein
 // Blocksignal direkt hinter der Quelle hält.
 (
-    name: "1.2 Blocktakt",
-    buildable: [(x: 0, y: 0), (x: 1, y: 0), (x: 2, y: 0), (x: 3, y: 0), (x: 4, y: 0), (x: 5, y: 0)],
-    fixed: (
-        pieces: [(cell: (x: 0, y: 0), a: W, b: E), (cell: (x: 5, y: 0), a: W, b: E)],
-        switches: [],
-        signals: [],
+    meta: (
+        schema_version: 1,
+        chapter: 1,
+        order: 20,
+        optional_hard: false,
+        briefing: "Zwei Züge, eine Strecke: Setzen Sie ein Blocksignal, das den schnellen Folgezug zurückhält, bis der Block vor ihm frei ist.",
     ),
-    sources: [(id: 0, cell: (x: 0, y: 0), dir: W)],
-    sinks: [(id: 0, cell: (x: 5, y: 0), dir: E, label: "OST")],
-    schedule: [
-        (train: 0, class: 0, length: 800, speed: 100, source: 0, sink: 0, depart: 0, due: 65),
-        (train: 1, class: 0, length: 800, speed: 150, source: 0, sink: 0, depart: 2, due: 110),
-    ],
-    par: (throughput: 95, material: 6, lateness: 0),
+    sim: (
+        name: "1.2 Blocktakt",
+        buildable: [(x: 0, y: 0), (x: 1, y: 0), (x: 2, y: 0), (x: 3, y: 0), (x: 4, y: 0), (x: 5, y: 0)],
+        fixed: (
+            pieces: [(cell: (x: 0, y: 0), a: W, b: E), (cell: (x: 5, y: 0), a: W, b: E)],
+            switches: [],
+            signals: [],
+        ),
+        sources: [(id: 0, cell: (x: 0, y: 0), dir: W)],
+        sinks: [(id: 0, cell: (x: 5, y: 0), dir: E, label: "OST")],
+        schedule: [
+            (train: 0, class: 0, length: 800, speed: 100, source: 0, sink: 0, depart: 0, due: 65),
+            (train: 1, class: 0, length: 800, speed: 150, source: 0, sink: 0, depart: 2, due: 110),
+        ],
+        par: (throughput: 95, material: 6, lateness: 0),
+    ),
 )

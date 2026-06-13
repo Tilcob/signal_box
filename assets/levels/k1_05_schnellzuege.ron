@@ -2,21 +2,30 @@
 // Kapitel 1, Level 5 — zwei Schnellzüge hinter einem Bummler: ohne saubere
 // Blockteilung stauen sie sich bis zur Verspätung.
 (
-    name: "1.5 Schnellzüge",
-    buildable: [
-        (x: 0, y: 0), (x: 1, y: 0), (x: 2, y: 0), (x: 3, y: 0),
-        (x: 4, y: 0), (x: 5, y: 0), (x: 6, y: 0), (x: 7, y: 0),
-    ],
-    fixed: (
-        pieces: [(cell: (x: 0, y: 0), a: W, b: E), (cell: (x: 7, y: 0), a: W, b: E)],
-        switches: [], signals: [],
+    meta: (
+        schema_version: 1,
+        chapter: 1,
+        order: 50,
+        optional_hard: true,
+        briefing: "Zwei Schnellzüge drängen hinter einem Bummler. Teilen Sie die Strecke fein genug, dass sich kein Stau bis in die Verspätung aufbaut.",
     ),
-    sources: [(id: 0, cell: (x: 0, y: 0), dir: W)],
-    sinks: [(id: 0, cell: (x: 7, y: 0), dir: E, label: "OST")],
-    schedule: [
-        (train: 0, class: 0, length: 800, speed: 100, source: 0, sink: 0, depart: 0, due: 90),
-        (train: 1, class: 0, length: 800, speed: 150, source: 0, sink: 0, depart: 2, due: 120),
-        (train: 2, class: 0, length: 800, speed: 150, source: 0, sink: 0, depart: 4, due: 140),
-    ],
-    par: (throughput: 134, material: 10, lateness: 0),
+    sim: (
+        name: "1.5 Schnellzüge",
+        buildable: [
+            (x: 0, y: 0), (x: 1, y: 0), (x: 2, y: 0), (x: 3, y: 0),
+            (x: 4, y: 0), (x: 5, y: 0), (x: 6, y: 0), (x: 7, y: 0),
+        ],
+        fixed: (
+            pieces: [(cell: (x: 0, y: 0), a: W, b: E), (cell: (x: 7, y: 0), a: W, b: E)],
+            switches: [], signals: [],
+        ),
+        sources: [(id: 0, cell: (x: 0, y: 0), dir: W)],
+        sinks: [(id: 0, cell: (x: 7, y: 0), dir: E, label: "OST")],
+        schedule: [
+            (train: 0, class: 0, length: 800, speed: 100, source: 0, sink: 0, depart: 0, due: 90),
+            (train: 1, class: 0, length: 800, speed: 150, source: 0, sink: 0, depart: 2, due: 120),
+            (train: 2, class: 0, length: 800, speed: 150, source: 0, sink: 0, depart: 4, due: 140),
+        ],
+        par: (throughput: 134, material: 10, lateness: 0),
+    ),
 )

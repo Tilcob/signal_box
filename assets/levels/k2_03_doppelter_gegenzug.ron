@@ -2,28 +2,37 @@
 // Kapitel 2, Level 3 — die Ausweiche im Dauerbetrieb: zwei Begegnungen
 // hintereinander über dieselbe Schleife.
 (
-    name: "2.3 Doppelter Gegenzug",
-    buildable: [
-        (x: 0, y: 0), (x: 1, y: 0), (x: 2, y: 0), (x: 3, y: 0), (x: 4, y: 0),
-        (x: 1, y: 1), (x: 2, y: 1), (x: 3, y: 1),
-    ],
-    fixed: (
-        pieces: [(cell: (x: 0, y: 0), a: W, b: E), (cell: (x: 4, y: 0), a: W, b: E)],
-        switches: [], signals: [],
+    meta: (
+        schema_version: 1,
+        chapter: 2,
+        order: 30,
+        optional_hard: false,
+        briefing: "Die Ausweiche im Dauerbetrieb: zwei Begegnungen nacheinander über dieselbe Schleife — die Reservierungen müssen sauber freiwerden.",
     ),
-    sources: [
-        (id: 0, cell: (x: 0, y: 0), dir: W),
-        (id: 1, cell: (x: 4, y: 0), dir: E),
-    ],
-    sinks: [
-        (id: 0, cell: (x: 4, y: 0), dir: E, label: "OST"),
-        (id: 1, cell: (x: 0, y: 0), dir: W, label: "WEST"),
-    ],
-    schedule: [
-        (train: 0, class: 0, length: 800, speed: 100, source: 0, sink: 0, depart: 0, due: 60),
-        (train: 1, class: 0, length: 800, speed: 100, source: 1, sink: 1, depart: 0, due: 70),
-        (train: 2, class: 0, length: 800, speed: 100, source: 0, sink: 0, depart: 65, due: 130),
-        (train: 3, class: 0, length: 800, speed: 100, source: 1, sink: 1, depart: 65, due: 140),
-    ],
-    par: (throughput: 123, material: 18, lateness: 0),
+    sim: (
+        name: "2.3 Doppelter Gegenzug",
+        buildable: [
+            (x: 0, y: 0), (x: 1, y: 0), (x: 2, y: 0), (x: 3, y: 0), (x: 4, y: 0),
+            (x: 1, y: 1), (x: 2, y: 1), (x: 3, y: 1),
+        ],
+        fixed: (
+            pieces: [(cell: (x: 0, y: 0), a: W, b: E), (cell: (x: 4, y: 0), a: W, b: E)],
+            switches: [], signals: [],
+        ),
+        sources: [
+            (id: 0, cell: (x: 0, y: 0), dir: W),
+            (id: 1, cell: (x: 4, y: 0), dir: E),
+        ],
+        sinks: [
+            (id: 0, cell: (x: 4, y: 0), dir: E, label: "OST"),
+            (id: 1, cell: (x: 0, y: 0), dir: W, label: "WEST"),
+        ],
+        schedule: [
+            (train: 0, class: 0, length: 800, speed: 100, source: 0, sink: 0, depart: 0, due: 60),
+            (train: 1, class: 0, length: 800, speed: 100, source: 1, sink: 1, depart: 0, due: 70),
+            (train: 2, class: 0, length: 800, speed: 100, source: 0, sink: 0, depart: 65, due: 130),
+            (train: 3, class: 0, length: 800, speed: 100, source: 1, sink: 1, depart: 65, due: 140),
+        ],
+        par: (throughput: 123, material: 18, lateness: 0),
+    ),
 )

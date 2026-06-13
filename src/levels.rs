@@ -13,7 +13,7 @@ use std::path::{Path, PathBuf};
 use stellwerk_sim::Score;
 use stellwerk_sim::grid::Cell;
 use stellwerk_sim::layout::Layout;
-use stellwerk_sim::level::{Level, Par};
+use stellwerk_sim::level::{Level, LevelDef, LevelMeta, Par};
 use stellwerk_sim::units::Tick;
 
 pub const SOLUTION_SLOTS: usize = 3;
@@ -21,6 +21,8 @@ pub const SOLUTION_SLOTS: usize = 3;
 pub struct LevelEntry {
     /// File stem, e.g. `k1_02_blocktakt` — the stable progress key.
     pub id: String,
+    /// Campaign metadata (chapter/order/optional-hard/briefing). Code-free.
+    pub meta: LevelMeta,
     pub level: Level,
 }
 
@@ -193,10 +195,25 @@ fn parse_progress(text: &str) -> Option<Progress> {
     // M1 format: bare map without the wrapper struct.
     ron::from_str::<BTreeMap<String, LevelProgress>>(text)
         .ok()
-        .map(|levels| Progress {
-            levels,
-            lang: String::new(),
-            degraded: false,
+        .map(|mut levels| {
+            // Save v1 had no solution slots. Promote each M1 autosave build
+            // into Slot 1 so it survives the volatile `layout` autosave — the
+            // next run/Esc overwrites that field with the current editor build,
+            // which would otherwise lose the player's only copy of an M1
+            // solution. Never-built levels (empty layout) are skipped.
+            for entry in levels.values_mut() {
+                let empty = entry.layout.pieces.is_empty()
+                    && entry.layout.switches.is_empty()
+                    && entry.layout.signals.is_empty();
+                if !empty {
+                    entry.set_slot(0, entry.layout.clone());
+                }
+            }
+            Progress {
+                levels,
+                lang: String::new(),
+                degraded: false,
+            }
         })
 }
 
@@ -204,10 +221,31 @@ fn parse_progress(text: &str) -> Option<Progress> {
 
 pub const SANDBOX_ID: &str = "sandbox";
 
-pub fn sandbox_template() -> Level {
-    let mut buildable = Vec::new();
-    for x in 0..12 {
-        for y in -3..4 {
+/// Default sandbox: the historical 12×7 area.
+pub const SANDBOX_DEFAULT_W: u32 = 12;
+pub const SANDBOX_DEFAULT_H: u32 = 7;
+/// Lower bound: anything smaller cannot hold a real run (source + track + sink).
+pub const SANDBOX_MIN: u32 = 3;
+/// Upper bound, tied to the level-code budget (plan 06 §6): the largest empty
+/// area must still encode to a Level-Code under the compression threshold
+/// (~1500 chars, M2 §2.1). At ~2 bytes/cell (postcard) plus base64's 4/3
+/// expansion, a square `SANDBOX_MAX`×`SANDBOX_MAX` area (~484 cells) lands near
+/// 1300 chars. Guarded by `largest_empty_sandbox_fits_code_budget`.
+pub const SANDBOX_MAX: u32 = 22;
+
+/// An empty sandbox area of size `w`×`h`, **centered on (0,0)** (plan 06 §7):
+/// the start camera sits at (0,0), so every size lands in view. `w`/`h` are
+/// clamped to `[SANDBOX_MIN, SANDBOX_MAX]` — callers need not validate.
+pub fn empty_sandbox(w: u32, h: u32) -> Level {
+    let w = w.clamp(SANDBOX_MIN, SANDBOX_MAX) as i32;
+    let h = h.clamp(SANDBOX_MIN, SANDBOX_MAX) as i32;
+    // Centering: x0 = -(w/2). For w=12 → x0=-6, x in -6..6 (12 cells). For h=7
+    // → y0=-3, y in -3..4 — identical to the historical y axis.
+    let x0 = -(w / 2);
+    let y0 = -(h / 2);
+    let mut buildable = Vec::with_capacity((w * h) as usize);
+    for x in x0..x0 + w {
+        for y in y0..y0 + h {
             buildable.push(Cell { x, y });
         }
     }
@@ -224,6 +262,11 @@ pub fn sandbox_template() -> Level {
             lateness: 0,
         },
     }
+}
+
+/// Default template (fallback in [`load_sandbox`]).
+pub fn sandbox_template() -> Level {
+    empty_sandbox(SANDBOX_DEFAULT_W, SANDBOX_DEFAULT_H)
 }
 
 pub fn load_sandbox() -> Level {
@@ -273,13 +316,22 @@ pub fn load_catalog() -> Catalog {
             .to_string();
         match std::fs::read_to_string(&path)
             .map_err(|e| e.to_string())
-            .and_then(|text| ron::from_str::<Level>(&text).map_err(|e| e.to_string()))
+            .and_then(|text| ron::from_str::<LevelDef>(&text).map_err(|e| e.to_string()))
         {
-            Ok(level) => entries.push(LevelEntry { id, level }),
+            Ok(def) => entries.push(LevelEntry {
+                id,
+                meta: def.meta,
+                level: def.sim,
+            }),
             Err(e) => error!("level {path:?} unreadable: {e}"),
         }
     }
-    entries.sort_by(|a, b| a.id.cmp(&b.id));
+    // Play/display order is (chapter, order) — decoupled from the file stem so
+    // levels can be inserted without renaming (the stem stays the stable
+    // progress/code key). The stem breaks ties for deterministic ordering.
+    entries.sort_by(|a, b| {
+        (a.meta.chapter, a.meta.order, &a.id).cmp(&(b.meta.chapter, b.meta.order, &b.id))
+    });
     info!("{} levels loaded", entries.len());
     Catalog(entries)
 }
@@ -320,6 +372,39 @@ mod tests {
     }
 
     #[test]
+    fn empty_sandbox_has_w_times_h_cells_centered() {
+        let lvl = empty_sandbox(12, 7);
+        assert_eq!(lvl.buildable.len(), 12 * 7);
+        let xs: Vec<i32> = lvl.buildable.iter().map(|c| c.x).collect();
+        let ys: Vec<i32> = lvl.buildable.iter().map(|c| c.y).collect();
+        // Centered: x in -6..6, y in -3..4 (matches the historical y axis).
+        assert_eq!(xs.iter().min(), Some(&-6));
+        assert_eq!(xs.iter().max(), Some(&5));
+        assert_eq!(ys.iter().min(), Some(&-3));
+        assert_eq!(ys.iter().max(), Some(&3));
+    }
+
+    #[test]
+    fn empty_sandbox_clamps_out_of_range() {
+        let lvl = empty_sandbox(0, 1000);
+        assert_eq!(lvl.buildable.len() as u32, SANDBOX_MIN * SANDBOX_MAX);
+    }
+
+    /// Guards `SANDBOX_MAX` against the level-code budget (plan 06 §6): the
+    /// largest empty area must still encode under the ~1500-char compression
+    /// threshold (M2 §2.1). If this breaks, shrink `SANDBOX_MAX` / the presets.
+    #[test]
+    fn largest_empty_sandbox_fits_code_budget() {
+        let level = empty_sandbox(SANDBOX_MAX, SANDBOX_MAX);
+        let code = stellwerk_codes::encode(&stellwerk_codes::Payload::Level { level });
+        assert!(
+            code.len() < 1500,
+            "largest empty sandbox code is {} chars",
+            code.len()
+        );
+    }
+
+    #[test]
     fn parse_current_format_roundtrips() {
         let mut p = Progress {
             lang: "en".into(),
@@ -351,6 +436,36 @@ mod tests {
         let entry = p.levels.get("k1_01_erste_fahrt").expect("level migrated");
         assert!(entry.solved);
         assert_eq!(entry.best_throughput, Some(120));
+        // Empty M1 layout is NOT promoted — nothing to preserve.
+        assert!(entry.slot(0).is_none(), "empty build leaves Slot 1 empty");
+    }
+
+    /// Save-v2 promotion: a real M1 autosave (the winning build lives in
+    /// `layout`) is lifted into Slot 1 on migration, so the volatile autosave
+    /// — overwritten on the next run/Esc — cannot become the only copy.
+    /// Frozen string: what a real M1 save of a built level looks like on disk.
+    #[test]
+    fn m1_autosave_is_promoted_to_slot_one() {
+        let m1 = r#"{
+            "k1_01_erste_fahrt": (
+                solved: true,
+                best_throughput: Some(120),
+                best_material: Some(4),
+                best_lateness: Some(0),
+                layout: (
+                    pieces: [(cell: (x: 2, y: 0), a: W, b: E)],
+                    switches: [],
+                    signals: [],
+                ),
+            ),
+        }"#;
+        let p = parse_progress(m1).expect("M1 migrates");
+        let entry = p.levels.get("k1_01_erste_fahrt").expect("level migrated");
+        let slot = entry.slot(0).expect("M1 build promoted to Slot 1");
+        assert_eq!(slot.pieces.len(), 1, "the M1 build landed in Slot 1");
+        assert_eq!(slot.pieces[0].cell, Cell { x: 2, y: 0 });
+        // Autosave left intact — nothing lost.
+        assert_eq!(entry.layout.pieces.len(), 1);
     }
 
     #[test]

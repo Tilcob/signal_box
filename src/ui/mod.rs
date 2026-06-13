@@ -7,6 +7,7 @@ pub(crate) mod edit_hud;
 mod main_menu;
 mod result;
 mod run_hud;
+mod sandbox_setup;
 mod schedule_panel;
 mod select;
 mod switch_panel;
@@ -24,6 +25,7 @@ impl Plugin for UiPlugin {
         app.add_plugins((
             main_menu::MainMenuPlugin,
             select::SelectUiPlugin,
+            sandbox_setup::SandboxSetupUiPlugin,
             edit_hud::EditHudPlugin,
             switch_panel::SwitchPanelPlugin,
             schedule_panel::SchedulePanelPlugin,
@@ -42,6 +44,7 @@ fn enter_level(
     index: usize,
     id: String,
     level: stellwerk_sim::Level,
+    briefing: String,
     sandbox: bool,
     progress: &Progress,
     commands: &mut Commands,
@@ -63,6 +66,7 @@ fn enter_level(
         id,
         index,
         level,
+        briefing,
         sandbox,
     });
     next.set(GameState::Edit);

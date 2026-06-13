@@ -1,17 +1,26 @@
 #![enable(unwrap_newtypes, implicit_some)]
 // Kapitel 1, Level 1 — Lehre: Gleis ziehen, Simulation starten.
 (
-    name: "1.1 Erste Fahrt",
-    buildable: [(x: 0, y: 0), (x: 1, y: 0), (x: 2, y: 0), (x: 3, y: 0), (x: 4, y: 0), (x: 5, y: 0)],
-    fixed: (
-        pieces: [(cell: (x: 0, y: 0), a: W, b: E), (cell: (x: 5, y: 0), a: W, b: E)],
-        switches: [],
-        signals: [],
+    meta: (
+        schema_version: 1,
+        chapter: 1,
+        order: 10,
+        optional_hard: false,
+        briefing: "Ziehen Sie das Gleis durch und bringen Sie den Zug nach OST. Eine Fahrt, ein Ziel — Ihr Einstieg ans Pult.",
     ),
-    sources: [(id: 0, cell: (x: 0, y: 0), dir: W)],
-    sinks: [(id: 0, cell: (x: 5, y: 0), dir: E, label: "OST")],
-    schedule: [
-        (train: 0, class: 0, length: 800, speed: 100, source: 0, sink: 0, depart: 0, due: 70),
-    ],
-    par: (throughput: 60, material: 4, lateness: 0),
+    sim: (
+        name: "1.1 Erste Fahrt",
+        buildable: [(x: 0, y: 0), (x: 1, y: 0), (x: 2, y: 0), (x: 3, y: 0), (x: 4, y: 0), (x: 5, y: 0)],
+        fixed: (
+            pieces: [(cell: (x: 0, y: 0), a: W, b: E), (cell: (x: 5, y: 0), a: W, b: E)],
+            switches: [],
+            signals: [],
+        ),
+        sources: [(id: 0, cell: (x: 0, y: 0), dir: W)],
+        sinks: [(id: 0, cell: (x: 5, y: 0), dir: E, label: "OST")],
+        schedule: [
+            (train: 0, class: 0, length: 800, speed: 100, source: 0, sink: 0, depart: 0, due: 70),
+        ],
+        par: (throughput: 60, material: 4, lateness: 0),
+    ),
 )

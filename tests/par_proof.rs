@@ -10,7 +10,7 @@
 //! values — adjust the level's par (or improve the solution) deliberately.
 
 use stellwerk_sim::layout::Layout;
-use stellwerk_sim::level::Level;
+use stellwerk_sim::level::LevelDef;
 use stellwerk_sim::units::Tick;
 use stellwerk_sim::{Outcome, Sim};
 
@@ -41,7 +41,7 @@ fn every_level_par_is_proven() {
             .to_str()
             .unwrap()
             .to_string();
-        let level: Level = read_ron(&level_path);
+        let level = read_ron::<LevelDef>(&level_path).sim;
 
         let mut solution_files: Vec<_> = std::fs::read_dir(&solutions_dir)
             .expect("solutions dir")

@@ -84,6 +84,8 @@ fn auto_cycle(
         }
         // Loading hands off to LevelSelect on its own (see crate::loading).
         GameState::Loading => {}
+        // Not part of the autocycle boot flow.
+        GameState::SandboxSetup => {}
         GameState::LevelSelect => {
             *timer = 0.0;
             let Some(catalog) = catalog.as_ref().filter(|c| !c.0.is_empty()) else {
@@ -106,6 +108,7 @@ fn auto_cycle(
                 id: entry.id.clone(),
                 index: *round - 1,
                 level: entry.level.clone(),
+                briefing: entry.meta.briefing.clone(),
                 sandbox: false,
             });
             next.set(GameState::Edit);

@@ -2,34 +2,43 @@
 // Kapitel 4, Level 2 — drei Ziele, zwei Weichen in Kaskade: Zielregeln
 // müssen sauber gestaffelt werden.
 (
-    name: "4.2 Drei Ziele",
-    buildable: [
-        (x: 0, y: 0), (x: 1, y: 0), (x: 2, y: 0), (x: 3, y: 0), (x: 4, y: 0),
-        (x: 1, y: 1), (x: 2, y: 1), (x: 3, y: 1), (x: 2, y: 2), (x: 3, y: 2),
-        (x: 2, y: -1), (x: 3, y: -1), (x: 3, y: -2),
-    ],
-    fixed: (
-        pieces: [
-            (cell: (x: 0, y: 0), a: W, b: E),
-            (cell: (x: 4, y: 0), a: W, b: E),
-            (cell: (x: 3, y: 2), a: SW, b: N),
-            (cell: (x: 3, y: -2), a: N, b: S),
-        ],
-        switches: [], signals: [],
+    meta: (
+        schema_version: 1,
+        chapter: 4,
+        order: 20,
+        optional_hard: false,
+        briefing: "Drei Ziele, zwei Weichen in Kaskade. Staffeln Sie die Zielregeln so, dass jeder Zug ohne Umweg an seinen Bahnhof gelangt.",
     ),
-    sources: [(id: 0, cell: (x: 0, y: 0), dir: W)],
-    sinks: [
-        (id: 0, cell: (x: 4, y: 0), dir: E, label: "OST"),
-        (id: 1, cell: (x: 3, y: 2), dir: N, label: "NORD"),
-        (id: 2, cell: (x: 3, y: -2), dir: S, label: "SUED"),
-    ],
-    schedule: [
-        (train: 0, class: 0, length: 800, speed: 100, source: 0, sink: 0, depart: 0, due: 70),
-        (train: 1, class: 0, length: 800, speed: 100, source: 0, sink: 1, depart: 12, due: 90),
-        (train: 2, class: 0, length: 800, speed: 100, source: 0, sink: 2, depart: 24, due: 110),
-        (train: 3, class: 0, length: 800, speed: 100, source: 0, sink: 0, depart: 36, due: 120),
-        (train: 4, class: 0, length: 800, speed: 100, source: 0, sink: 1, depart: 48, due: 140),
-        (train: 5, class: 0, length: 800, speed: 100, source: 0, sink: 2, depart: 60, due: 160),
-    ],
-    par: (throughput: 120, material: 11, lateness: 0),
+    sim: (
+        name: "4.2 Drei Ziele",
+        buildable: [
+            (x: 0, y: 0), (x: 1, y: 0), (x: 2, y: 0), (x: 3, y: 0), (x: 4, y: 0),
+            (x: 1, y: 1), (x: 2, y: 1), (x: 3, y: 1), (x: 2, y: 2), (x: 3, y: 2),
+            (x: 2, y: -1), (x: 3, y: -1), (x: 3, y: -2),
+        ],
+        fixed: (
+            pieces: [
+                (cell: (x: 0, y: 0), a: W, b: E),
+                (cell: (x: 4, y: 0), a: W, b: E),
+                (cell: (x: 3, y: 2), a: SW, b: N),
+                (cell: (x: 3, y: -2), a: N, b: S),
+            ],
+            switches: [], signals: [],
+        ),
+        sources: [(id: 0, cell: (x: 0, y: 0), dir: W)],
+        sinks: [
+            (id: 0, cell: (x: 4, y: 0), dir: E, label: "OST"),
+            (id: 1, cell: (x: 3, y: 2), dir: N, label: "NORD"),
+            (id: 2, cell: (x: 3, y: -2), dir: S, label: "SUED"),
+        ],
+        schedule: [
+            (train: 0, class: 0, length: 800, speed: 100, source: 0, sink: 0, depart: 0, due: 70),
+            (train: 1, class: 0, length: 800, speed: 100, source: 0, sink: 1, depart: 12, due: 90),
+            (train: 2, class: 0, length: 800, speed: 100, source: 0, sink: 2, depart: 24, due: 110),
+            (train: 3, class: 0, length: 800, speed: 100, source: 0, sink: 0, depart: 36, due: 120),
+            (train: 4, class: 0, length: 800, speed: 100, source: 0, sink: 1, depart: 48, due: 140),
+            (train: 5, class: 0, length: 800, speed: 100, source: 0, sink: 2, depart: 60, due: 160),
+        ],
+        par: (throughput: 120, material: 11, lateness: 0),
+    ),
 )

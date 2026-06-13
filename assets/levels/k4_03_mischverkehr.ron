@@ -3,32 +3,41 @@
 // Güterzug quert die S-Bahn-Linie. Die Kettensignale entscheiden, wer wann
 // durch darf — die S-Bahn-Soll-Zeiten sind eng.
 (
-    name: "4.3 Mischverkehr",
-    buildable: [
-        (x: 0, y: 0), (x: 1, y: 0), (x: 2, y: 0), (x: 3, y: 0), (x: 4, y: 0),
-        (x: 2, y: -1), (x: 2, y: 1),
-    ],
-    fixed: (
-        pieces: [
-            (cell: (x: 0, y: 0), a: W, b: E),
-            (cell: (x: 4, y: 0), a: W, b: E),
-            (cell: (x: 2, y: -1), a: N, b: S),
-            (cell: (x: 2, y: 1), a: N, b: S),
-        ],
-        switches: [], signals: [],
+    meta: (
+        schema_version: 1,
+        chapter: 4,
+        order: 30,
+        optional_hard: true,
+        briefing: "Ein kriechender Güterzug quert die enge S-Bahn-Linie. Lassen Sie die Kettensignale entscheiden, wer zuerst durch darf — die S-Bahn-Soll-Zeiten sind knapp.",
     ),
-    sources: [
-        (id: 0, cell: (x: 0, y: 0), dir: W),
-        (id: 1, cell: (x: 2, y: -1), dir: S),
-    ],
-    sinks: [
-        (id: 0, cell: (x: 4, y: 0), dir: E, label: "GÜTER-OST"),
-        (id: 1, cell: (x: 2, y: 1), dir: N, label: "STADT"),
-    ],
-    schedule: [
-        (train: 0, class: 1, length: 1800, speed: 60, source: 0, sink: 0, depart: 0, due: 160),
-        (train: 1, class: 0, length: 800, speed: 240, source: 1, sink: 1, depart: 0, due: 30),
-        (train: 2, class: 0, length: 800, speed: 240, source: 1, sink: 1, depart: 15, due: 55),
-    ],
-    par: (throughput: 84, material: 12, lateness: 0),
+    sim: (
+        name: "4.3 Mischverkehr",
+        buildable: [
+            (x: 0, y: 0), (x: 1, y: 0), (x: 2, y: 0), (x: 3, y: 0), (x: 4, y: 0),
+            (x: 2, y: -1), (x: 2, y: 1),
+        ],
+        fixed: (
+            pieces: [
+                (cell: (x: 0, y: 0), a: W, b: E),
+                (cell: (x: 4, y: 0), a: W, b: E),
+                (cell: (x: 2, y: -1), a: N, b: S),
+                (cell: (x: 2, y: 1), a: N, b: S),
+            ],
+            switches: [], signals: [],
+        ),
+        sources: [
+            (id: 0, cell: (x: 0, y: 0), dir: W),
+            (id: 1, cell: (x: 2, y: -1), dir: S),
+        ],
+        sinks: [
+            (id: 0, cell: (x: 4, y: 0), dir: E, label: "GÜTER-OST"),
+            (id: 1, cell: (x: 2, y: 1), dir: N, label: "STADT"),
+        ],
+        schedule: [
+            (train: 0, class: 1, length: 1800, speed: 60, source: 0, sink: 0, depart: 0, due: 160),
+            (train: 1, class: 0, length: 800, speed: 240, source: 1, sink: 1, depart: 0, due: 30),
+            (train: 2, class: 0, length: 800, speed: 240, source: 1, sink: 1, depart: 15, due: 55),
+        ],
+        par: (throughput: 84, material: 12, lateness: 0),
+    ),
 )

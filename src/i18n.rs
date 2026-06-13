@@ -97,6 +97,15 @@ pub fn station_label(authored: &str) -> String {
     t_or(&format!("station.{authored}"), authored)
 }
 
+/// Localized level briefing (fallback = authored `LevelMeta.briefing`). `id`
+/// is the level file stem; the empty sandbox briefing stays empty.
+pub fn briefing(id: &str, authored: &str) -> String {
+    if authored.is_empty() {
+        return String::new();
+    }
+    t_or(&format!("level.{id}.briefing"), authored)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

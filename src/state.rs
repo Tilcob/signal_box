@@ -17,6 +17,8 @@ pub enum GameState {
     /// [`LevelSelect`] once everything is resident (see `crate::loading`).
     Loading,
     LevelSelect,
+    /// Size picker before creating a new sandbox (M2 §2.2).
+    SandboxSetup,
     Edit,
     Run,
     Result,
@@ -29,6 +31,9 @@ pub struct ActiveLevel {
     pub id: String,
     pub index: usize,
     pub level: Level,
+    /// Authored briefing (operating order, GDD §8.1); localized at render via
+    /// `i18n::briefing`. Empty in the sandbox.
+    pub briefing: String,
     pub sandbox: bool,
 }
 
