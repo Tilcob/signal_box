@@ -12,6 +12,7 @@
 mod ops;
 mod overlays;
 mod placement;
+mod radial;
 mod tools;
 mod validation;
 
@@ -33,6 +34,9 @@ impl Plugin for EditorPlugin {
                 overlays::draw_overlays,
                 validation::revalidate,
                 tools::leave_to_select,
+                // After leave_to_select: it yields to an open menu, so the
+                // menu must still be open when it runs — close happens here.
+                radial::radial_menu,
             )
                 .chain()
                 .run_if(in_state(GameState::Edit)),

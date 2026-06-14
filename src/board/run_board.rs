@@ -19,7 +19,7 @@ use stellwerk_sim::grid::{Cell, Dir8, Point};
 use stellwerk_sim::layout::SignalKind;
 use stellwerk_sim::units::{BlockId, EdgeId};
 
-use super::draw::{Tag, band, draw_stations, lamp, label, signal_direction_tick, signal_pos};
+use super::draw::{Tag, band, draw_stations, lamp, label, signal_arrow, signal_pos};
 use super::geometry::{CELL, cell_world, point_world};
 use super::palette::*;
 use crate::font::UiFont;
@@ -116,8 +116,9 @@ pub(super) fn spawn_run_board_static(
             Tag::Live,
         );
         commands.entity(lamp_e).insert(marker);
-        let tick_e = signal_direction_tick(&mut commands, signal.cell, signal.at, color, Tag::Live);
-        commands.entity(tick_e).insert(marker);
+        for arrow_e in signal_arrow(&mut commands, signal.cell, signal.at, color, Tag::Live) {
+            commands.entity(arrow_e).insert(marker);
+        }
     }
 }
 
@@ -223,7 +224,9 @@ fn band_style(block: BlockId, occupied: &BTreeSet<BlockId>, reserved: &BTreeSet<
     } else if reserved.contains(&block) {
         (col_reserved(), 5.0)
     } else {
-        (col_player(), 7.0)
+        // Idle: a distinct hue per block so the signal-cut partition is
+        // visible at rest, not just when a train lights one up.
+        (col_block(block), 7.0)
     }
 }
 

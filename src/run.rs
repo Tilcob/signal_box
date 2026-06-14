@@ -174,9 +174,18 @@ fn tick(
         let events: Vec<SimEvent> = ctl.sim.step().to_vec();
         ctl.heads_curr = heads(&ctl.sim);
         for event in events {
-            if let SimEvent::RunEnded(outcome) = event {
-                finish(&outcome, &active, &mut progress, &mut commands, &mut next);
-                return;
+            match event {
+                SimEvent::TrainSpawned(_) => {
+                    commands.trigger(crate::audio::SfxKind::Rail);
+                }
+                SimEvent::SignalBlocked { .. } => {
+                    commands.trigger(crate::audio::SfxKind::Signal);
+                }
+                SimEvent::RunEnded(outcome) => {
+                    finish(&outcome, &active, &mut progress, &mut commands, &mut next);
+                    return;
+                }
+                SimEvent::TrainArrived { .. } => {}
             }
         }
         // Safety net: a run that never ends within the sim cap.

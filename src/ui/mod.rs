@@ -6,6 +6,7 @@
 #[cfg(feature = "dev")]
 mod campaign_save;
 pub(crate) mod edit_hud;
+pub(crate) mod encyclopedia;
 mod main_menu;
 mod result;
 mod run_hud;
@@ -33,6 +34,7 @@ impl Plugin for UiPlugin {
             schedule_panel::SchedulePanelPlugin,
             run_hud::RunHudPlugin,
             result::ResultPlugin,
+            encyclopedia::EncyclopediaPlugin,
         ))
         // All states: hover/press feedback for every button.
         .add_systems(Update, widgets::button_feedback);
@@ -64,8 +66,10 @@ fn enter_level(
     editor.redo.clear();
     editor.tool = Tool::Track;
     editor.variant = 0;
+    editor.track_form = (stellwerk_sim::grid::Dir8::W, stellwerk_sim::grid::Dir8::E);
     editor.selected_switch = None;
     editor.drag = None;
+    editor.radial = None;
     commands.insert_resource(ActiveLevel {
         id,
         index,

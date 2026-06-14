@@ -1,6 +1,7 @@
 //! The Pult color palette (GDD §10). HDR values > 1.0 feed the bloom pass.
 
 use bevy::prelude::*;
+use stellwerk_sim::units::BlockId;
 
 pub fn col_grid() -> Color {
     Color::srgb(0.030, 0.035, 0.045)
@@ -10,6 +11,14 @@ pub fn col_fixed() -> Color {
 }
 pub fn col_player() -> Color {
     Color::srgb(0.30, 0.34, 0.42)
+}
+/// Idle colour of a block, distinct per block so a player can see at a glance
+/// where their signals cut the net. Hue rotates by the golden angle for
+/// maximal separation between adjacent ids; kept muted (low saturation/
+/// lightness) so live states (occupied/reserved/train) still read louder.
+pub fn col_block(block: BlockId) -> Color {
+    let hue = (block.0 as f32 * 137.508).rem_euclid(360.0);
+    Color::hsl(hue, 0.45, 0.55)
 }
 pub fn col_switch_active() -> Color {
     Color::LinearRgba(LinearRgba::rgb(1.6, 1.2, 0.25))

@@ -7,7 +7,7 @@ use stellwerk_sim::ValidationError;
 use stellwerk_sim::layout::TrackPiece;
 
 use super::placement::{
-    can_place_piece, can_place_signal, can_place_station, can_place_switch, piece_variants,
+    can_place_piece, can_place_signal, can_place_station, can_place_switch, signal_stub,
     switch_variants,
 };
 use crate::board::{self, CELL};
@@ -35,9 +35,10 @@ pub(super) fn draw_overlays(
             .map(|a| a.level.fixed.merged(&editor.layout));
         let blocked = Color::srgba(1.0, 0.35, 0.3, 0.6);
         match editor.tool {
+            // The radial menu owns the Track preview while open.
+            Tool::Track if editor.radial.is_some() => {}
             Tool::Track => {
-                let variants = piece_variants();
-                let (a, b) = variants[editor.variant % variants.len()];
+                let (a, b) = editor.track_form;
                 let ok = match (&active, &merged) {
                     (Some(active), Some(merged)) => {
                         can_place_piece(&active.level, merged, &TrackPiece { cell, a, b })
@@ -54,7 +55,8 @@ pub(super) fn draw_overlays(
             }
             Tool::Switch => {
                 let variants = switch_variants();
-                let (stem, branches) = variants[editor.variant % variants.len()];
+                let (stem, branches) =
+                    variants[editor.variant.rem_euclid(variants.len() as i32) as usize];
                 let ok = match (&active, &merged) {
                     (Some(active), Some(merged)) => can_place_switch(&active.level, merged, cell),
                     _ => true,
@@ -70,24 +72,29 @@ pub(super) fn draw_overlays(
                 }
             }
             Tool::SignalBlock | Tool::SignalChain => {
-                let at = board::nearest_connector(cell, cursor);
-                let connector = board::connector_world(cell, at);
-                let ok = match (&active, &merged) {
-                    (Some(active), Some(merged)) => {
-                        can_place_signal(&active.level, merged, cell, at)
-                    }
-                    _ => true,
-                };
-                let ghost = if ok {
-                    Color::srgba(0.4, 1.0, 0.6, 0.6)
-                } else {
-                    blocked
-                };
-                gizmos.circle_2d(Isometry2d::from_translation(connector), 10.0, ghost);
-                // Gated travel direction (out of the cell across `at`) —
-                // shown before placing, so a backwards signal is no surprise.
-                let outward = (connector - center).normalize_or_zero();
-                gizmos.line_2d(connector, connector + outward * 26.0, ghost);
+                // R/T pick the gated connector among the cell's stubs.
+                if let Some(at) = merged
+                    .as_ref()
+                    .and_then(|m| signal_stub(m, cell, editor.variant))
+                {
+                    let connector = board::connector_world(cell, at);
+                    let ok = match (&active, &merged) {
+                        (Some(active), Some(merged)) => {
+                            can_place_signal(&active.level, merged, cell, at)
+                        }
+                        _ => true,
+                    };
+                    let ghost = if ok {
+                        Color::srgba(0.4, 1.0, 0.6, 0.6)
+                    } else {
+                        blocked
+                    };
+                    gizmos.circle_2d(Isometry2d::from_translation(connector), 10.0, ghost);
+                    // Gated travel direction (out of the cell across `at`) —
+                    // shown before placing, so a backwards signal is no surprise.
+                    let outward = (connector - center).normalize_or_zero();
+                    gizmos.line_2d(connector, connector + outward * 26.0, ghost);
+                }
             }
             Tool::Source | Tool::Sink => {
                 let at = board::nearest_connector(cell, cursor);

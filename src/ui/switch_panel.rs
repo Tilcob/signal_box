@@ -73,7 +73,18 @@ pub(super) fn rebuild_switch_panel(
 
     let font = ui_font.0.clone();
     let switch = switch.clone();
-    let sinks = active.level.sinks.clone();
+    // Only offer destinations that lie behind the switch (reachable through a
+    // branch). Sinks before it can never be routed here, so listing them only
+    // confuses. On an invalid layout (graph won't build) fall back to all.
+    let reachable =
+        stellwerk_sim::routing::reachable_sinks(&active.level, &editor.layout, cell).ok().flatten();
+    let sinks: Vec<_> = active
+        .level
+        .sinks
+        .iter()
+        .filter(|s| reachable.as_ref().is_none_or(|set| set.contains(&s.id)))
+        .cloned()
+        .collect();
     // Branches are named by their compass exit ("→ O"), not by index —
     // matches the labels drawn at the switch itself and follows rotation.
     let exit = |branch: u8| dir_label(switch.branches[branch as usize]);

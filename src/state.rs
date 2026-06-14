@@ -5,6 +5,7 @@
 
 use bevy::prelude::*;
 use stellwerk_sim::Outcome;
+use stellwerk_sim::grid::{Cell, Dir8};
 use stellwerk_sim::layout::Layout;
 use stellwerk_sim::level::Level;
 
@@ -44,18 +45,40 @@ pub struct LastOutcome(pub Outcome);
 /// The player's build, with full undo/redo (plan M1 §2: every build action
 /// is an invertible operation — the same op vocabulary carries the M2
 /// sharing format).
-#[derive(Resource, Default)]
+#[derive(Resource)]
 pub struct Editor {
     pub layout: Layout,
     pub undo: Vec<crate::editor::EditOp>,
     pub redo: Vec<crate::editor::EditOp>,
     pub tool: Tool,
-    /// R-cycled placement variant per tool.
-    pub variant: usize,
+    /// R/T-rotated placement variant for the switch and signal tools (signed
+    /// so both rotation directions work; indexed via `rem_euclid`).
+    pub variant: i32,
+    /// The two connectors of the track ghost. R/T rotate it (8 orientations);
+    /// the radial RMB menu picks a new exit (the curve/secondary forms).
+    pub track_form: (Dir8, Dir8),
     /// Cells visited by the current track drag.
-    pub drag: Option<Vec<stellwerk_sim::grid::Cell>>,
+    pub drag: Option<Vec<Cell>>,
     /// Switch cell whose config panel is open.
-    pub selected_switch: Option<stellwerk_sim::grid::Cell>,
+    pub selected_switch: Option<Cell>,
+    /// Cell whose radial track menu is open (RMB on the Track tool).
+    pub radial: Option<Cell>,
+}
+
+impl Default for Editor {
+    fn default() -> Self {
+        Self {
+            layout: Layout::default(),
+            undo: Vec::new(),
+            redo: Vec::new(),
+            tool: Tool::default(),
+            variant: 0,
+            track_form: (Dir8::W, Dir8::E),
+            drag: None,
+            selected_switch: None,
+            radial: None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]

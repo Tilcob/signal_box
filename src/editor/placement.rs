@@ -5,22 +5,9 @@
 //! never a puzzle state worth inspecting. Cross-cell problems (junction
 //! without switch, reachability) stay non-modal — they glow as diagnostics.
 
-use stellwerk_sim::grid::{Cell, Dir8, pair_len};
+use stellwerk_sim::grid::{Cell, Dir8};
 use stellwerk_sim::layout::{Layout, TrackPiece};
 use stellwerk_sim::level::Level;
-
-/// All 16 legal connector pairs, R-cycled for click placement.
-pub(super) fn piece_variants() -> Vec<(Dir8, Dir8)> {
-    let mut out = Vec::new();
-    for a in Dir8::ALL {
-        for b in Dir8::ALL {
-            if a.index() < b.index() && pair_len(a, b).is_some() {
-                out.push((a, b));
-            }
-        }
-    }
-    out
-}
 
 /// 8 switch presets: cardinal stem, branches = straight-through + 45° turn.
 pub(super) fn switch_variants() -> Vec<(Dir8, [Dir8; 2])> {
@@ -49,6 +36,17 @@ pub(super) fn can_place_switch(level: &Level, merged: &Layout, cell: Cell) -> bo
     level.buildable.contains(&cell)
         && !merged.pieces.iter().any(|p| p.cell == cell)
         && !merged.switches.iter().any(|s| s.cell == cell)
+}
+
+/// The signal anchor chosen by the R/T-cycled `variant` among the connectors
+/// of `cell` that actually carry track. `None` for a cell with no track —
+/// the mouse only picks the cell, the direction is keyboard-driven.
+pub(super) fn signal_stub(merged: &Layout, cell: Cell, variant: i32) -> Option<Dir8> {
+    let stubs: Vec<Dir8> = Dir8::ALL
+        .into_iter()
+        .filter(|&d| merged.has_stub(cell, d))
+        .collect();
+    (!stubs.is_empty()).then(|| stubs[variant.rem_euclid(stubs.len() as i32) as usize])
 }
 
 /// Signals need track under their connector and may not stack.

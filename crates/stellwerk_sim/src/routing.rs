@@ -2,10 +2,11 @@
 //! walk used for the editor's reachability check and misrouting blame.
 
 use crate::graph::{Next, SwitchData, TrackGraph};
+use crate::grid::Cell;
 use crate::layout::{Layout, RuleWhen, ValidationError};
 use crate::level::Level;
 use crate::units::{EdgeId, SinkId, TrainClass, TrainId};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 /// Switch decision for a train: first matching rule wins (list order =
 /// player priority), otherwise the default branch. Returns the outgoing
@@ -85,6 +86,55 @@ pub fn check_reachability(
     Ok(out)
 }
 
+/// Sinks reachable *downstream* of a switch — i.e. lying behind it, entered
+/// through one of its branches. A forward flood from both branch exits;
+/// every sink whose arrival edge is met counts. Switches met on the way are
+/// treated as open (both branches explored), so the result is independent of
+/// the current routing rules: it answers "which destinations could this
+/// switch ever steer to", not "where does it steer now".
+///
+/// Sinks reachable only by leaving through the stem (i.e. lying *before* the
+/// switch) are excluded — listing them as routing targets only confuses, as
+/// no branch can send a train there (see levels 2.1 / 2.3).
+pub fn reachable_sinks_from_switch(graph: &TrackGraph, switch_index: usize) -> BTreeSet<SinkId> {
+    let arrival: BTreeMap<EdgeId, SinkId> = graph.sinks.iter().map(|s| (s.arrival, s.id)).collect();
+    let mut reached = BTreeSet::new();
+    let mut visited: BTreeSet<EdgeId> = BTreeSet::new();
+    let mut stack: Vec<EdgeId> = graph.switches[switch_index].branch_out.to_vec();
+    while let Some(edge) = stack.pop() {
+        if !visited.insert(edge) {
+            continue;
+        }
+        if let Some(&sink) = arrival.get(&edge) {
+            reached.insert(sink);
+        }
+        match graph.edge(edge).next {
+            Next::Fixed(e) => stack.push(e),
+            Next::SwitchChoice { switch } => {
+                stack.extend(graph.switches[switch as usize].branch_out);
+            }
+            Next::DeadEnd => {}
+        }
+    }
+    reached
+}
+
+/// Editor helper: the downstream sinks of the switch at `switch_cell`. `Err`
+/// = the layout does not validate yet (the caller falls back to all sinks);
+/// `Ok(None)` = no switch sits on that cell.
+pub fn reachable_sinks(
+    level: &Level,
+    player: &Layout,
+    switch_cell: Cell,
+) -> Result<Option<BTreeSet<SinkId>>, Vec<ValidationError>> {
+    let graph = crate::graph::build(level, player)?;
+    Ok(graph
+        .switches
+        .iter()
+        .position(|s| s.cell == switch_cell)
+        .map(|i| reachable_sinks_from_switch(&graph, i)))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -153,5 +203,102 @@ mod tests {
         assert_eq!(resolve(&sw, TrainClass(1), SinkId(7)), EdgeId(0));
         let sw = switch(0, vec![class, dest]);
         assert_eq!(resolve(&sw, TrainClass(1), SinkId(7)), EdgeId(1));
+    }
+
+    #[test]
+    fn reachable_sinks_excludes_targets_before_the_switch() {
+        use crate::grid::Dir8;
+        use crate::layout::{SwitchDef, TrackPiece};
+        use crate::level::{Par, ScheduleEntry, SinkDef, SourceDef};
+        use crate::units::{Len, SourceId, Speed, Tick};
+
+        let cell = |x, y| Cell { x, y };
+        // source (0,0)W → switch (1,0) stem W, branches E→(2,0), NE→(2,1).
+        // sink 0 sits behind the straight branch, sink 1 behind the diagonal
+        // branch, sink 2 on the stem cell itself — before the switch.
+        let layout = Layout {
+            pieces: vec![
+                TrackPiece {
+                    cell: cell(0, 0),
+                    a: Dir8::W,
+                    b: Dir8::E,
+                },
+                TrackPiece {
+                    cell: cell(2, 0),
+                    a: Dir8::W,
+                    b: Dir8::E,
+                },
+                TrackPiece {
+                    cell: cell(2, 1),
+                    a: Dir8::SW,
+                    b: Dir8::NE,
+                },
+            ],
+            switches: vec![SwitchDef {
+                cell: cell(1, 0),
+                stem: Dir8::W,
+                branches: [Dir8::E, Dir8::NE],
+                default_branch: 0,
+                rules: vec![],
+            }],
+            signals: vec![],
+        };
+        let level = Level {
+            name: "t".into(),
+            buildable: vec![cell(0, 0), cell(1, 0), cell(2, 0), cell(2, 1)],
+            fixed: Layout::default(),
+            sources: vec![SourceDef {
+                id: SourceId(0),
+                cell: cell(0, 0),
+                dir: Dir8::W,
+            }],
+            sinks: vec![
+                SinkDef {
+                    id: SinkId(0),
+                    cell: cell(2, 0),
+                    dir: Dir8::E,
+                    label: "OST".into(),
+                },
+                SinkDef {
+                    id: SinkId(1),
+                    cell: cell(2, 1),
+                    dir: Dir8::NE,
+                    label: "NORD".into(),
+                },
+                SinkDef {
+                    id: SinkId(2),
+                    cell: cell(0, 0),
+                    dir: Dir8::W,
+                    label: "WEST".into(),
+                },
+            ],
+            schedule: vec![ScheduleEntry {
+                train: TrainId(0),
+                class: TrainClass(0),
+                length: Len(400),
+                speed: Speed(100),
+                source: SourceId(0),
+                sink: SinkId(0),
+                depart: Tick(0),
+                due: Tick(200),
+            }],
+            par: Par {
+                throughput: Tick(0),
+                material: 0,
+                lateness: 0,
+            },
+        };
+
+        let reachable = reachable_sinks(&level, &layout, cell(1, 0)).expect("valid");
+        let reachable = reachable.expect("switch exists on that cell");
+        assert!(reachable.contains(&SinkId(0)), "straight branch sink");
+        assert!(reachable.contains(&SinkId(1)), "diagonal branch sink");
+        assert!(
+            !reachable.contains(&SinkId(2)),
+            "stem-side sink is before the switch"
+        );
+
+        // No switch on an empty cell → None, not an error.
+        assert_eq!(reachable_sinks(&level, &layout, cell(2, 0)), Ok(None));
     }
 }

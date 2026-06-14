@@ -5,6 +5,7 @@ use bevy::prelude::*;
 use stellwerk_codes::{DecodeError, Payload};
 
 use super::enter_level;
+use super::encyclopedia::{HelpButton, HelpOpen};
 #[cfg(feature = "dev")]
 use super::widgets::small_button;
 use super::widgets::{
@@ -73,9 +74,14 @@ impl Plugin for SelectUiPlugin {
     }
 }
 
-/// Esc returns to the main menu.
-fn leave_to_menu(keys: Res<ButtonInput<KeyCode>>, mut next: ResMut<NextState<GameState>>) {
-    if keys.just_pressed(KeyCode::Escape) {
+/// Esc returns to the main menu — unless the help overlay is open (it owns
+/// Esc to close itself first).
+fn leave_to_menu(
+    keys: Res<ButtonInput<KeyCode>>,
+    help: Res<HelpOpen>,
+    mut next: ResMut<NextState<GameState>>,
+) {
+    if !help.0 && keys.just_pressed(KeyCode::Escape) {
         next.set(GameState::MainMenu);
     }
 }
@@ -171,6 +177,7 @@ fn build_select(
                 );
                 button(row, &font, &t("select.import"), BUTTON_BG, ImportButton);
                 button(row, &font, &t("select.lang"), BUTTON_BG, LangButton);
+                button(row, &font, &t("help.button"), BUTTON_BG, HelpButton);
             });
             // Dev authoring controls (never in a ship build).
             #[cfg(feature = "dev")]

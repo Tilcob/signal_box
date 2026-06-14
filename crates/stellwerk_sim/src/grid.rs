@@ -82,6 +82,13 @@ impl Dir8 {
         Self::ALL[((self.index() + 4) % 8) as usize]
     }
 
+    /// Rotate by `steps` × 45° (clockwise for positive, counter-clockwise for
+    /// negative). The shared turn operator behind the editor's R/T keys and
+    /// the radial track menu; rotation preserves [`pair_len`] legality.
+    pub fn rotate(self, steps: i32) -> Dir8 {
+        Self::ALL[(i32::from(self.index()) + steps).rem_euclid(8) as usize]
+    }
+
     pub fn is_cardinal(self) -> bool {
         self.index().is_multiple_of(2)
     }
@@ -162,6 +169,25 @@ mod tests {
         assert_eq!(Dir8::N.opposite(), Dir8::S);
         assert_eq!(Dir8::NE.opposite(), Dir8::SW);
         assert_eq!(Dir8::W.opposite(), Dir8::E);
+    }
+
+    #[test]
+    fn rotation_wraps_both_ways_and_preserves_legality() {
+        assert_eq!(Dir8::N.rotate(2), Dir8::E);
+        assert_eq!(Dir8::N.rotate(-1), Dir8::NW);
+        assert_eq!(Dir8::N.rotate(8), Dir8::N);
+        assert_eq!(Dir8::N.rotate(-8), Dir8::N);
+        assert_eq!(Dir8::N.rotate(4), Dir8::N.opposite());
+        // Rotating both connectors of a legal pair keeps it legal.
+        for a in Dir8::ALL {
+            for b in Dir8::ALL {
+                if pair_len(a, b).is_some() {
+                    for k in -3..=3 {
+                        assert!(pair_len(a.rotate(k), b.rotate(k)).is_some());
+                    }
+                }
+            }
+        }
     }
 
     #[test]

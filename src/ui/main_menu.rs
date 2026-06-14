@@ -4,6 +4,7 @@
 use bevy::app::AppExit;
 use bevy::prelude::*;
 
+use super::encyclopedia::{HelpButton, HelpOpen};
 use super::widgets::{
     BUTTON_BG, BUTTON_BG_PRIMARY, TEXT_BRIGHT, TEXT_DIM, button, despawn_all, text_bundle,
 };
@@ -59,6 +60,7 @@ fn spawn_main_menu(mut commands: Commands, ui_font: Res<UiFont>) {
                 },
             ));
             button(root, &font, &t("menu.start"), BUTTON_BG_PRIMARY, MenuAction::Start);
+            button(root, &font, &t("help.button"), BUTTON_BG, HelpButton);
             button(root, &font, &t("menu.quit"), BUTTON_BG, MenuAction::Quit);
         });
 }
@@ -84,9 +86,14 @@ fn menu_clicks(
 /// Keyboard shortcuts: Enter/Space start, Esc quits.
 fn menu_keys(
     keys: Res<ButtonInput<KeyCode>>,
+    help: Res<HelpOpen>,
     mut next: ResMut<NextState<GameState>>,
     mut exit: MessageWriter<AppExit>,
 ) {
+    // The help overlay owns Esc/Enter while it is open.
+    if help.0 {
+        return;
+    }
     if keys.just_pressed(KeyCode::Enter) || keys.just_pressed(KeyCode::Space) {
         next.set(GameState::Loading);
     }

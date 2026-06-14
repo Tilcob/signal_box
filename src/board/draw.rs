@@ -3,9 +3,16 @@
 
 use bevy::prelude::*;
 use bevy::text::Font;
+use std::collections::BTreeMap;
 use stellwerk_sim::grid::{Cell, Dir8};
 use stellwerk_sim::layout::{Layout, SignalKind};
 use stellwerk_sim::level::Level;
+use stellwerk_sim::units::BlockId;
+
+/// Per-stub block colours for the edit board (`(cell, connector) → block`).
+/// Built best-effort from the live graph; `None` when the layout does not yet
+/// validate, in which case bands fall back to their flat colour.
+pub(super) type BlockColors = BTreeMap<(Cell, Dir8), BlockId>;
 
 use super::geometry::{cell_world, connector_world};
 use super::palette::*;
@@ -115,21 +122,31 @@ pub(super) fn signal_pos(cell: Cell, at: Dir8) -> Vec2 {
     connector + inward.perp() * 16.0
 }
 
-/// Direction tick next to the lamp: a signal gates exactly ONE travel
-/// direction (trains leaving the cell across its connector). Without the
-/// tick a signal placed backwards looks identical to a working one — the
-/// classic "my signal does nothing" trap.
-pub(super) fn signal_direction_tick(
+/// Arrow drawn ON the gated stub, pointing in the one travel direction the
+/// signal guards (trains leaving the cell across `at`). Replaces the easy-to-
+/// miss tick: a signal placed backwards now visibly points the wrong way —
+/// the classic "my signal does nothing" trap is now legible on the track.
+/// Returns the sprite entities (shaft + two wings) so the run board can mark
+/// them all for per-frame recolour.
+pub(super) fn signal_arrow(
     commands: &mut Commands,
     cell: Cell,
     at: Dir8,
     color: Color,
     tag: Tag,
-) -> Entity {
+) -> Vec<Entity> {
+    let center = cell_world(cell);
     let connector = connector_world(cell, at);
-    let outward = (connector - cell_world(cell)).normalize_or_zero();
-    let base = signal_pos(cell, at);
-    band(commands, base, base + outward * 16.0, 3.0, color, 5.0, tag)
+    let outward = (connector - center).normalize_or_zero();
+    let perp = outward.perp();
+    let tip = center.lerp(connector, 0.72);
+    let tail = center.lerp(connector, 0.38);
+    let back = tip - outward * 9.0;
+    vec![
+        band(commands, tail, tip, 3.0, color, 5.0, tag),
+        band(commands, tip, back + perp * 7.0, 3.0, color, 5.0, tag),
+        band(commands, tip, back - perp * 7.0, 3.0, color, 5.0, tag),
+    ]
 }
 
 pub(super) fn draw_layout(
@@ -137,8 +154,16 @@ pub(super) fn draw_layout(
     font: &Handle<Font>,
     layout: &Layout,
     color: Color,
+    blocks: Option<&BlockColors>,
     tag: Tag,
 ) {
+    // A stub's colour: its block hue when the partition is known, else the
+    // flat layout colour (fixed/player) passed in.
+    let band_color = |cell: Cell, dir: Dir8| {
+        blocks
+            .and_then(|m| m.get(&(cell, dir)))
+            .map_or(color, |&b| col_block(b))
+    };
     for piece in &layout.pieces {
         let center = cell_world(piece.cell);
         band(
@@ -146,7 +171,7 @@ pub(super) fn draw_layout(
             connector_world(piece.cell, piece.a),
             center,
             7.0,
-            color,
+            band_color(piece.cell, piece.a),
             2.0,
             tag,
         );
@@ -155,7 +180,7 @@ pub(super) fn draw_layout(
             connector_world(piece.cell, piece.b),
             center,
             7.0,
-            color,
+            band_color(piece.cell, piece.b),
             2.0,
             tag,
         );
@@ -167,7 +192,7 @@ pub(super) fn draw_layout(
             connector_world(switch.cell, switch.stem),
             center,
             7.0,
-            color,
+            band_color(switch.cell, switch.stem),
             2.0,
             tag,
         );
@@ -229,7 +254,7 @@ pub(super) fn draw_layout(
             5.0,
             tag,
         );
-        signal_direction_tick(commands, signal.cell, signal.at, col_signal_green(), tag);
+        signal_arrow(commands, signal.cell, signal.at, col_signal_green(), tag);
     }
 }
 

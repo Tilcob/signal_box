@@ -11,7 +11,8 @@ use stellwerk_sim::units::{SinkId, SourceId};
 
 use super::ops::{EditOp, Element, apply, do_op, invert};
 use super::placement::{
-    can_place_piece, can_place_signal, can_place_station, can_place_switch, switch_variants,
+    can_place_piece, can_place_signal, can_place_station, can_place_switch, signal_stub,
+    switch_variants,
 };
 use crate::board;
 use crate::camera::{MainCamera, cursor_world};
@@ -41,7 +42,7 @@ pub(super) fn hotkeys(
     if keys.just_pressed(KeyCode::Digit4) {
         bypass.tool = Tool::SignalChain;
     }
-    if keys.just_pressed(KeyCode::Digit5) || keys.just_pressed(KeyCode::KeyX) {
+    if keys.just_pressed(KeyCode::KeyB) {
         bypass.tool = Tool::Erase;
     }
     if sandbox && keys.just_pressed(KeyCode::Digit6) {
@@ -50,8 +51,20 @@ pub(super) fn hotkeys(
     if sandbox && keys.just_pressed(KeyCode::Digit7) {
         bypass.tool = Tool::Sink;
     }
-    if keys.just_pressed(KeyCode::KeyR) {
-        bypass.variant = bypass.variant.wrapping_add(1);
+    // R = rotate left (−45°), T = rotate right (+45°) for every tool. Tracks
+    // rotate their whole form through the 8 orientations; switch/signal rotate
+    // their variant counter.
+    let r = keys.just_pressed(KeyCode::KeyR);
+    let t = keys.just_pressed(KeyCode::KeyT);
+    if r ^ t {
+        let steps = if r { -1 } else { 1 };
+        match bypass.tool {
+            Tool::Track => {
+                let (a, b) = bypass.track_form;
+                bypass.track_form = (a.rotate(steps), b.rotate(steps));
+            }
+            _ => bypass.variant += steps,
+        }
     }
 
     // Undo/redo match the LOGICAL key, not the physical KeyCode: KeyCode
@@ -86,6 +99,7 @@ pub(super) fn pointer(
     ui: Query<&Interaction>,
     active: Option<ResMut<ActiveLevel>>,
     mut editor: ResMut<Editor>,
+    mut commands: Commands,
 ) {
     let Some(mut active) = active else { return };
     let Some(cursor) = cursor_world(&windows, &cameras) else {
@@ -98,6 +112,13 @@ pub(super) fn pointer(
     let over_ui = ui.iter().any(|i| *i != Interaction::None);
     let cell = board::world_cell(cursor);
     let merged = active.level.fixed.merged(&editor.layout);
+
+    // While the radial track menu is open it owns the mouse — placement and
+    // drag are suppressed (handled by `radial::radial_menu`, which runs after
+    // this so it sees the menu still open on the click frame).
+    if editor.radial.is_some() {
+        return;
+    }
 
     // Track drag: collect cells while held.
     if editor.tool == Tool::Track {
@@ -134,7 +155,8 @@ pub(super) fn pointer(
                 return;
             }
             let variants = switch_variants();
-            let (stem, branches) = variants[editor.variant % variants.len()];
+            let (stem, branches) =
+                variants[editor.variant.rem_euclid(variants.len() as i32) as usize];
             do_op(
                 &mut editor,
                 EditOp::Place(Element::Switch(SwitchDef {
@@ -145,9 +167,14 @@ pub(super) fn pointer(
                     rules: vec![],
                 })),
             );
+            commands.trigger(crate::audio::SfxKind::Switch);
         }
         Tool::SignalBlock | Tool::SignalChain => {
-            let at = board::nearest_connector(cell, cursor);
+            // Direction is keyboard-driven (R/T cycle the cell's stubs), not
+            // taken from the cursor angle.
+            let Some(at) = signal_stub(&merged, cell, editor.variant) else {
+                return;
+            };
             if !can_place_signal(&active.level, &merged, cell, at) {
                 return;
             }
@@ -235,9 +262,8 @@ fn finish_track_drag(editor: &mut Editor, level: &Level, merged: &Layout, path: 
     }
 
     if ops.is_empty() && path.len() == 1 {
-        // No drag: click places the R-cycled variant.
-        let variants = super::placement::piece_variants();
-        let (a, b) = variants[editor.variant % variants.len()];
+        // No drag: click places the current R/T-rotated form.
+        let (a, b) = editor.track_form;
         let piece = TrackPiece {
             cell: path[0],
             a,
@@ -329,6 +355,11 @@ pub(super) fn leave_to_select(
     mut next: ResMut<NextState<GameState>>,
 ) {
     if !keys.just_pressed(KeyCode::Escape) {
+        return;
+    }
+    // Esc first closes an open radial menu (handled by `radial_menu`, which
+    // runs after this); only an Esc with no menu open leaves the level.
+    if editor.radial.is_some() {
         return;
     }
     if let Some(active) = active {
