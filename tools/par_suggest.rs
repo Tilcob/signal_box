@@ -33,10 +33,10 @@ fn main() {
 
     for path in files {
         let id = path.file_stem().and_then(|s| s.to_str()).unwrap_or("").to_string();
-        if let Some(only) = &only {
-            if only != &id {
-                continue;
-            }
+        if let Some(only) = &only
+            && only != &id
+        {
+            continue;
         }
         let text = std::fs::read_to_string(&path).expect("read level");
         let def: LevelDef = match ron::from_str(&text) {
