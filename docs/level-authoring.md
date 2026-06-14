@@ -100,9 +100,9 @@ cargo run --bin i18n_fill
 ```
 
 Ergänzt fehlende `level.<id>.name` / `level.<id>.briefing` / `station.<label>`-
-Keys in **beide** Tabellen (DE = authored Wert, EN = mit `⟨TODO⟩` markiert),
+Keys in **beide** Tabellen (DE = authored Wert, EN = mit `[TODO]` markiert),
 ordnungserhaltend, ohne bestehende zu überschreiben. Danach in
-`assets/i18n/en.ron` die `⟨TODO⟩`-Zeilen übersetzen (das Tool listet sie am Ende
+`assets/i18n/en.ron` die `[TODO]`-Zeilen übersetzen (das Tool listet sie am Ende
 auf).
 
 ## 8. Verifizieren

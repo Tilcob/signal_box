@@ -144,7 +144,7 @@ fn build_select(
                 })
                 .with_children(|r| {
                     button(r, &font, &label, BUTTON_BG, LevelButton(index));
-                    small_button(r, &font, "🗑", DevDeleteLevel(entry.id.clone()));
+                    small_button(r, &font, "DEL", DevDeleteLevel(entry.id.clone()));
                 });
                 #[cfg(not(feature = "dev"))]
                 button(root, &font, &label, BUTTON_BG, LevelButton(index));
@@ -374,7 +374,7 @@ fn dev_select_actions(
             catalog_changed = true;
         } else {
             armed.0 = true;
-            status.0 = "⚠ Nochmal „ALLE Level löschen\" klicken zum Bestätigen.".into();
+            status.0 = "! Nochmal \"ALLE Level löschen\" klicken zum Bestätigen.".into();
         }
     }
 

@@ -18,7 +18,8 @@ use stellwerk_sim::layout::Layout;
 use stellwerk_sim::level::{Level, LevelDef, LevelMeta};
 
 /// Marks an untranslated English placeholder (shared with the `i18n_fill` CLI).
-const TODO: &str = "⟨TODO⟩ ";
+/// ASCII only — the game font has no fancy bracket glyphs.
+const TODO: &str = "[TODO] ";
 
 fn levels_dir() -> PathBuf {
     PathBuf::from("assets/levels")

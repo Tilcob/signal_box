@@ -11,7 +11,8 @@ use std::collections::BTreeMap;
 use stellwerk_sim::level::LevelDef;
 
 /// Marks an untranslated English placeholder. A separate report lists these.
-const TODO: &str = "⟨TODO⟩ ";
+/// ASCII only — the game font has no fancy bracket glyphs.
+const TODO: &str = "[TODO] ";
 
 fn main() {
     let root = env!("CARGO_MANIFEST_DIR");

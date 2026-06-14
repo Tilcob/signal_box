@@ -109,7 +109,7 @@ fn spawn_panel(
                     button(row, &font, "Kapitel +", BUTTON_BG, ChapterButton);
                     button(row, &font, "Order +10", BUTTON_BG, OrderButton);
                 });
-            button(panel, &font, "💾 Speichern", BUTTON_BG_PRIMARY, SaveButton);
+            button(panel, &font, "Speichern", BUTTON_BG_PRIMARY, SaveButton);
         });
 }
 
