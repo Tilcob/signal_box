@@ -11,7 +11,6 @@
 //! the pragmatic path the plan sanctions; rename/refine in the file afterwards.
 
 use bevy::prelude::*;
-use bevy::text::Font;
 use stellwerk_sim::level::{LEVEL_SCHEMA_VERSION, LevelMeta};
 
 use super::widgets::{

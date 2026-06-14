@@ -4,6 +4,8 @@ version = "0.1.0"
 edition = "2024"
 description = "Stellwerk — a Zachlike about routing trains with switches and signals."
 license = "MIT OR Apache-2.0"
+# `cargo run` launches the game; the authoring CLIs need an explicit --bin.
+default-run = "signal_box"
 
 [workspace]
 members = ["crates/*"]

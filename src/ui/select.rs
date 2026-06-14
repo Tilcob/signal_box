@@ -2,7 +2,6 @@
 //! import and the language toggle.
 
 use bevy::prelude::*;
-use bevy::text::Font;
 use stellwerk_codes::{DecodeError, Payload};
 
 use super::enter_level;
