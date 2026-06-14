@@ -19,6 +19,7 @@ mod ui;
 mod authoring;
 #[cfg(feature = "dev")]
 mod dev_tools;
+mod audio;
 
 use bevy::prelude::*;
 use bevy::window::{PresentMode, WindowMode, WindowPosition};
@@ -49,10 +50,16 @@ fn main() {
     };
 
     app.insert_resource(ClearColor(Color::srgb(0.013, 0.016, 0.022)))
-        .add_plugins(DefaultPlugins.set(WindowPlugin {
-            primary_window: Some(window),
-            ..default()
-        }))
+        .add_plugins(
+            DefaultPlugins
+                .set(WindowPlugin {
+                    primary_window: Some(window),
+                    ..default()
+                })
+                // bevy_kira_audio drives the audio device; disable Bevy's own
+                // audio plugin so the two don't both grab the output.
+                .disable::<bevy::audio::AudioPlugin>(),
+        )
         .add_plugins((
             font::FontPlugin,
             state::StatePlugin,
@@ -63,6 +70,7 @@ fn main() {
             editor::EditorPlugin,
             run::RunPlugin,
             ui::UiPlugin,
+            audio::AudioManagerPlugin,
         ));
 
     #[cfg(feature = "dev")]

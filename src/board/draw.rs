@@ -27,7 +27,7 @@ pub(super) enum Tag {
 }
 
 impl Tag {
-    pub(super) fn apply(self, entity: &mut bevy::ecs::system::EntityCommands) {
+    pub(super) fn apply(self, entity: &mut EntityCommands) {
         match self {
             Tag::Board => entity.insert(BoardGfx),
             Tag::Live => entity.insert(LiveGfx),
