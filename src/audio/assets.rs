@@ -30,8 +30,13 @@ pub struct AudioAssets {
     pub train_horn_sound: Handle<AudioSource>,
 }
 
-pub(super) fn load_audio_assets(mut commands: Commands, asset_server: Res<AssetServer>) {
-    commands.insert_resource(AudioAssets {
+/// Builds the audio handles. Called at plugin-BUILD time (not via a `Startup`
+/// system), because `bevy_state` runs the initial `OnEnter(MainMenu)` transition
+/// before `PreStartup` — a startup system would insert `AudioAssets` too late and
+/// `menu_music` (a one-shot `OnEnter`) would find nothing and leave the title
+/// screen silent forever. Same race + fix as `FontPlugin` (see `src/font.rs`).
+pub(super) fn build_audio_assets(asset_server: &AssetServer) -> AudioAssets {
+    AudioAssets {
         menu_music: asset_server.load("audio/music/grand_project-technology-modern-electronic-railway-track-470218.ogg"),
         level_tracks: LEVEL_TRACKS
             .iter()
@@ -42,5 +47,5 @@ pub(super) fn load_audio_assets(mut commands: Commands, asset_server: Res<AssetS
         rail_sound: asset_server.load("audio/sfx/rail.wav"),
         signal_sound: asset_server.load("audio/sfx/signal_click.wav"),
         train_horn_sound: asset_server.load("audio/sfx/train-horn.wav"),
-    });
+    }
 }

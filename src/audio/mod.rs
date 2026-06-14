@@ -26,12 +26,21 @@ pub struct AudioManagerPlugin;
 
 impl Plugin for AudioManagerPlugin {
     fn build(&self, app: &mut App) {
+        // Backend + channels first: this registers the ogg/wav `AudioSource`
+        // loader, so the `asset_server.load(...)` calls below find a loader.
         app.add_plugins(AudioPlugin)
             .add_audio_channel::<MusicChannel>()
-            .add_audio_channel::<SfxChannel>()
-            .init_resource::<music::CurrentTrack>()
+            .add_audio_channel::<SfxChannel>();
+
+        // Insert AudioAssets at BUILD time — it must exist before the initial
+        // OnEnter(MainMenu), which bevy_state fires before PreStartup. A Startup
+        // system is too late and leaves the menu music silent (see
+        // `assets::build_audio_assets` + `src/font.rs` for the same race).
+        let assets = assets::build_audio_assets(app.world().resource::<AssetServer>());
+        app.insert_resource(assets);
+
+        app.init_resource::<music::CurrentTrack>()
             .init_resource::<music::LevelPlaylist>()
-            .add_systems(Startup, assets::load_audio_assets)
             .add_observer(sfx::on_sfx)
             .add_systems(Update, sfx::button_click_sfx)
             // Menu-side states share the calm menu loop; the desk (Edit/Run) runs
