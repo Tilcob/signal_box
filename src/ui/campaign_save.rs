@@ -27,6 +27,7 @@ use crate::state::{ActiveLevel, GameState};
 struct CampaignDraft {
     chapter: u8,
     order: u16,
+    hard: bool,
     status: String,
 }
 
@@ -35,6 +36,7 @@ impl Default for CampaignDraft {
         CampaignDraft {
             chapter: 1,
             order: 10,
+            hard: false,
             status: String::new(),
         }
     }
@@ -46,6 +48,8 @@ struct UiCampaignSave;
 struct ChapterButton;
 #[derive(Component)]
 struct OrderButton;
+#[derive(Component)]
+struct HardButton;
 #[derive(Component)]
 struct SaveButton;
 #[derive(Component)]
@@ -108,6 +112,7 @@ fn spawn_panel(
                 .with_children(|row| {
                     button(row, &font, "Kapitel +", BUTTON_BG, ChapterButton);
                     button(row, &font, "Order +10", BUTTON_BG, OrderButton);
+                    button(row, &font, "hart umschalten", BUTTON_BG, HardButton);
                 });
             button(panel, &font, "Speichern", BUTTON_BG_PRIMARY, SaveButton);
         });
@@ -116,6 +121,7 @@ fn spawn_panel(
 fn cycle_buttons(
     chapter: Query<&Interaction, (Changed<Interaction>, With<ChapterButton>)>,
     order: Query<&Interaction, (Changed<Interaction>, With<OrderButton>)>,
+    hard: Query<&Interaction, (Changed<Interaction>, With<HardButton>)>,
     mut draft: ResMut<CampaignDraft>,
 ) {
     if chapter.iter().any(|i| *i == Interaction::Pressed) {
@@ -125,6 +131,9 @@ fn cycle_buttons(
     if order.iter().any(|i| *i == Interaction::Pressed) {
         // 10, 20, … 200, wrap. Steps of 10 leave room to insert later.
         draft.order = if draft.order >= 200 { 10 } else { draft.order + 10 };
+    }
+    if hard.iter().any(|i| *i == Interaction::Pressed) {
+        draft.hard = !draft.hard;
     }
 }
 
@@ -147,7 +156,7 @@ fn save_click(
         schema_version: LEVEL_SCHEMA_VERSION,
         chapter: draft.chapter,
         order: draft.order,
-        optional_hard: false,
+        optional_hard: draft.hard,
         briefing: String::new(),
     };
     match crate::authoring::write_campaign_level(&id, meta, active.level.clone()) {
@@ -161,7 +170,21 @@ fn save_click(
             };
             set_lang(lang);
             *catalog = load_catalog();
-            draft.status = format!("Gespeichert: {} · Katalog neu geladen", path.display());
+            // A sandbox export has an EMPTY `fixed`; its sources/sinks are only
+            // anchored on the (player) track you drew, so it usually fails
+            // validate-with-empty-layout — exactly what `tests/levels.rs`
+            // checks. Don't claim a clean save when the file won't pass: report
+            // the first error so the author knows to add fixed anchor track.
+            let errors = stellwerk_sim::validate(&active.level, &stellwerk_sim::Layout::default());
+            draft.status = if errors.is_empty() {
+                format!("Gespeichert: {} · Katalog neu geladen", path.display())
+            } else {
+                format!(
+                    "Gespeichert ({}), ABER noch ungültig — fixed-Anker ergänzen: {}",
+                    path.display(),
+                    errors[0]
+                )
+            };
         }
         Err(e) => draft.status = format!("Fehler: {e}"),
     }
@@ -170,10 +193,11 @@ fn save_click(
 fn update_info(draft: Res<CampaignDraft>, mut texts: Query<&mut Text, With<InfoText>>) {
     if let Ok(mut text) = texts.single_mut() {
         let id = preview_id(draft.chapter, draft.order);
+        let hard = if draft.hard { "an" } else { "aus" };
         set_text(
             &mut text,
             format!(
-                "Kapitel: {} · Order: {} · id≈{id}\n{}",
+                "Kapitel: {} · Order: {} · hart: {hard} · id≈{id}\n{}",
                 draft.chapter, draft.order, draft.status
             ),
         );

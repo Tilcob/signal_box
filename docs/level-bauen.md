@@ -133,36 +133,61 @@ wandert in Sharing-Codes.
 
 ## 3. Der Autorenworkflow (Schritt für Schritt)
 
-1. **In der Sandbox entwerfen.** Sandbox = Editor + Sim wie die Kampagne, nur
-   ohne Bewertung. Quellen, Senken und Fahrplan setzen, Gleisidee skizzieren.
-   *Die Sandbox ist das Autorenwerkzeug.*
-2. **Als Level-Code exportieren** (`LEVEL-CODE EXPORTIEREN` im Sandbox-HUD →
-   `stellwerk_code.txt`). Der Code enthält das volle `sim`-Level.
-3. **Datei anlegen** `assets/levels/kN_MM_kurzname.ron`. Den `sim`-Teil aus dem
-   Sandbox-Export übernehmen (bzw. die `sandbox.ron` aus dem Konfigverzeichnis
-   als Vorlage), in das `(meta:, sim:)`-Gerüst aus [§2](#2-das-dateiformat)
-   einsetzen.
-4. **Metadaten füllen:** `chapter`, `order` (nächster freier 10er-Schritt im
-   Kapitel), `optional_hard`, `briefing`. `schema_version: 1`.
-5. **`buildable` festlegen:** genau die Zellen, die der Spieler bebauen darf.
-   Designer-Gleis gehört in `fixed`, nicht in `buildable`.
-6. **`par` zunächst grob** setzen (wird in Schritt 8 hart bewiesen).
-7. **i18n-Keys ergänzen** in **beiden** Tabellen `assets/i18n/de.ron` und
-   `assets/i18n/en.ron`:
-   - `level.<id>.name`
-   - `level.<id>.briefing`
-   - jedes neue `station.<LABEL>`
-   Deutsche Werte = die authored Strings; Englisch = Übersetzung.
-8. **Designer-Lösung bauen & hinterlegen:** das Level spielen, lösen, die
-   Lösung als **Lösungs-Code** exportieren und als
-   `assets/levels/solutions/<id>.ron` (nur das `Layout`) ablegen. Für jede
-   Achse, die eine eigene Lösung braucht, eine Variante `…__name.ron`.
-9. **Par scharfstellen:** `cargo test --test par_proof -- --nocapture` zeigt
-   die je Achse **erreichten** Werte. `par` so setzen, dass jede Achse von
-   einer hinterlegten Lösung erreicht wird (nie strenger).
-10. **Alles grün?** Siehe [§4](#4-was-grün-sein-muss). Dann ist das Level fertig.
-11. **Tempo notieren** in [plans/M2/content-log.md](../plans/M2/content-log.md)
-    (Exit-Kriterium: < 1 Tag/Level).
+> Voraussetzung: **dev-Build** (Standard) und Start **aus dem Repo-Verzeichnis**
+> — die Werkzeuge schreiben in `assets/`. Im Ship-Build
+> (`--no-default-features`) gibt es sie nicht.
+
+Seit Plan [optimierung/07](../plans/optimierung/07-kampagnen-level-werkzeuge.md)
+ist der frühere „Code exportieren → von Hand in eine `.ron` gießen"-Umweg durch
+Werkzeuge ersetzt — zwei Editor-Knöpfe und zwei CLIs.
+
+1. **In der Sandbox entwerfen.** Streckenwahl → **NEUE SANDBOX** → Größe wählen.
+   Quellen/Senken mit `6`/`7` setzen, Fahrplan unten links (**+ ZUG**, dann
+   Zyklus-Knöpfe je Zeile), Gleisidee ziehen.
+   ⚠️ **Was wo landet:** Das gezeichnete Gleis ist der **Spieler-Build**
+   (= spätere Lösung), nicht die Level-Infrastruktur. Als Level gespeichert wird
+   nur die **Definition** (`buildable`, `sources`, `sinks`, `schedule` und ein
+   *leeres* `fixed`). Vorplatzierte Designer-Gleise (`fixed`) trägst du
+   nachträglich in der `.ron` ein.
+2. **„DEV: Als Kampagnen-Level speichern"** (Panel unten rechts im Sandbox-
+   Editor): `Kapitel +` / `Order +10` / `hart umschalten` wählen — die id wird
+   generiert (`k<kap>_<order>_neu`, de-dupliziert) und als `id≈…` vorab gezeigt.
+   **Speichern** schreibt `assets/levels/<id>.ron` (gefüllter `meta`-Block +
+   Sandbox-`sim`), legt Platzhalter-i18n-Keys in **beide** Tabellen an und lädt
+   den Katalog neu.
+3. **(Optional) Datei feilen** in `assets/levels/<id>.ron`:
+   - **id umbenennen** auf den endgültigen Stamm (`kN_MM_kurzname`) — **jetzt**,
+     denn der Stamm ist der stabile Schlüssel (s. [§1](#1-wo-level-leben-und-wie-sie-heißen)).
+     Danach Schritt 6 (`i18n_fill`) neu laufen lassen, alte Keys entfernen.
+   - `briefing` füllen, ggf. `fixed`-Gleise eintragen.
+4. **Lösung bauen & sichern.** Streckenwahl → neues Level öffnen → Lösung
+   bauen → **START**. Bei **Erfolg** im Ergebnis-Screen **„DEV: Lösung sichern"**
+   → schreibt `assets/levels/solutions/<id>.ron`. Achsen-Varianten legst du als
+   `…__material.ron` o. ä. von Hand ab.
+5. **Par scharfstellen** (CLI):
+   ```sh
+   cargo run --bin par_suggest                # Dry-run: erreichte Werte zeigen
+   cargo run --bin par_suggest -- <id>        # nur ein Level
+   cargo run --bin par_suggest -- --write     # par:-Zeile zurückschreiben
+   ```
+   Ersetzt zielgenau nur den `par: (…)`-Block (Kommentare bleiben).
+6. **Texte** (CLI): `cargo run --bin i18n_fill` ergänzt fehlende
+   `level.<id>.name` / `level.<id>.briefing` / `station.<LABEL>`-Keys in beiden
+   Tabellen (DE = authored, EN = `[TODO]`-markiert), ohne Bestehendes zu
+   überschreiben. Danach die `[TODO]`-Zeilen in `en.ron` übersetzen (das Tool
+   listet sie am Ende auf).
+7. **Alles grün?** `cargo test` — siehe [§4](#4-was-grün-sein-muss).
+8. **Tempo notieren** in [plans/M2/content-log.md](../plans/M2/content-log.md)
+   (Exit-Kriterium: < 1 Tag/Level).
+
+### Dev-Knöpfe in der Streckenwahl (nur dev-Build)
+
+- **`DEL`** neben jedem Level — löscht **dieses** Level komplett: `.ron`,
+  Solutions, i18n-Keys, Fortschritt (keine Waisen).
+- **`DEV: ALLE Level löschen`** — wie oben für alle, mit **Zwei-Klick-
+  Bestätigung**.
+- **`DEV: Fortschritt zurücksetzen`** — leert Builds, Slots, gelöst-Status und
+  Bestwerte aller Level (Sprache bleibt). Löscht **keine** Dateien.
 
 ---
 
@@ -198,6 +223,12 @@ cargo test
   Sandbox-Labels `Z<n>` brauchen keinen Key (fallen auf den Rohwert zurück).
 - **`id` zum Umsortieren umbenannt** → bricht Saves/Codes. Stattdessen
   `meta.order` ändern.
+- **Werkzeug-geschriebene `.ron` sieht anders aus** (`Tick(60)` statt `60`,
+  `Some(…)`) → Absicht: serde-RON schreibt die gewickelte Form **ohne** den
+  `#![enable(…)]`-Header. Parst identisch; bei Bedarf von Hand angleichen.
+- **`cargo run` „could not determine which binary"** → sollte nicht auftreten
+  (`default-run = "signal_box"` ist gesetzt). Sonst `cargo run --bin signal_box`;
+  die Werkzeuge brauchen `--bin par_suggest` / `--bin i18n_fill`.
 
 ---
 
@@ -226,24 +257,21 @@ Der heutige Workflow ist „in Sandbox bauen → Code exportieren → von Hand i
 eine `.ron` gießen → Metadaten + i18n + Lösung nachpflegen". Das funktioniert,
 hat aber mehrere manuelle Nähte. Vorschläge, grob nach Aufwand/Nutzen:
 
-### Kurzfristig (kleine Werkzeuge)
+### Kurzfristig — **umgesetzt** ([Plan 07](../plans/optimierung/07-kampagnen-level-werkzeuge.md))
 
-1. **„Als Kampagnen-Level speichern" aus der Sandbox.** Statt Code →
-   Zwischenablage → Datei: ein Editor-Knopf, der direkt
-   `assets/levels/<id>.ron` mit gefülltem `meta`-Block schreibt (kleines
-   Eingabefeld für `chapter`/`order`/`briefing`). Schreibt zugleich
-   Platzhalter-i18n-Keys in beide Tabellen.
-2. **Lösung automatisch ablegen.** Wenn ein Run im Editor `Success` liefert,
-   einen Knopf „als Designer-Lösung sichern" anbieten → schreibt
-   `solutions/<id>.ron` und (optional) achsenbenannte Varianten. Spart den
-   Export/Import-Umweg in Schritt 8.
-3. **Par-Vorschlag statt Raten.** `par_proof` kennt die je Achse erreichten
-   Bestwerte schon. Ein `cargo run --bin par_suggest` (oder ein Flag) könnte
-   die `par`-Zeile direkt in die Level-Datei zurückschreiben — „bless"-Flow
-   statt manuellem Abtippen.
-4. **i18n-Lückenfüller.** Ein kleines Tool, das über `assets/levels/*.ron`
-   läuft und fehlende `level.*`/`station.*`-Keys mit dem authored Wert als
-   Platzhalter in beide Tabellen einträgt (rot markiert, bis übersetzt).
+Diese vier Nähte sind inzwischen Werkzeuge und im Workflow [§3](#3-der-autorenworkflow-schritt-für-schritt)
+beschrieben:
+
+1. ✅ **„Als Kampagnen-Level speichern"** — dev-Panel im Sandbox-Editor,
+   schreibt `assets/levels/<id>.ron` + Platzhalter-i18n-Keys.
+   `chapter`/`order`/`optional_hard` über Buttons; id generiert; Name/Briefing
+   bewusst über die i18n-Tabellen statt als GUI-Feld.
+2. ✅ **Lösung automatisch ablegen** — Knopf „DEV: Lösung sichern" im
+   Ergebnis-Screen → `solutions/<id>.ron`.
+3. ✅ **Par-Vorschlag** — `cargo run --bin par_suggest [-- --write|<id>]`,
+   „bless"-Flow mit zielgenauem `par:`-Block-Ersatz.
+4. ✅ **i18n-Lückenfüller** — `cargo run --bin i18n_fill`, ergänzt fehlende
+   Keys (`[TODO]`-markiert) in beiden Tabellen.
 
 ### Mittelfristig (Pipeline & UX)
 

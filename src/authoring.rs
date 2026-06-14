@@ -73,8 +73,10 @@ pub fn write_campaign_level(id: &str, meta: LevelMeta, sim: Level) -> Result<Pat
 }
 
 /// Delete a campaign level COMPLETELY: its file, every solution variant, and
-/// its i18n keys — so no orphaned solutions or keys linger. Best-effort (dev
-/// tool): missing pieces are skipped silently.
+/// its level-specific i18n keys (`level.<id>.*`). `station.<label>` keys are
+/// deliberately left — labels like `OST` are shared across levels, so removing
+/// one level's must not drop a station another level still uses. Best-effort
+/// (dev tool): missing pieces are skipped silently.
 pub fn delete_level(id: &str) {
     let _ = std::fs::remove_file(levels_dir().join(format!("{id}.ron")));
     if let Ok(rd) = std::fs::read_dir(solutions_dir()) {
@@ -96,7 +98,7 @@ pub fn delete_level(id: &str) {
 }
 
 /// Appends keys missing from the table before its closing brace (preserving
-/// order). German = authored value; English = `⟨TODO⟩`-marked placeholder.
+/// order). German = authored value; English = `[TODO]`-marked placeholder.
 fn append_missing(path: &PathBuf, pairs: &[(String, String)], placeholder: bool) {
     let Ok(text) = std::fs::read_to_string(path) else {
         return;
@@ -130,20 +132,20 @@ fn append_missing(path: &PathBuf, pairs: &[(String, String)], placeholder: bool)
 }
 
 /// Drops every line whose (trimmed) start is `"<key>":` — one entry per line in
-/// our tables. Keeps both tables in lock-step so the i18n parity test stays
-/// green.
+/// our tables. `split_inclusive` keeps each line's terminator, so the file's
+/// existing newline style (LF/CRLF) and trailing structure survive untouched —
+/// no spurious whole-file diffs. Keeps both tables in lock-step so the i18n
+/// parity test stays green.
 fn remove_lines_for_keys(path: &PathBuf, keys: &[String]) {
     let Ok(text) = std::fs::read_to_string(path) else {
         return;
     };
-    let kept: Vec<&str> = text
-        .lines()
+    let out: String = text
+        .split_inclusive('\n')
         .filter(|line| {
             let trimmed = line.trim_start();
             !keys.iter().any(|k| trimmed.starts_with(&format!("{k:?}:")))
         })
         .collect();
-    let mut out = kept.join("\n");
-    out.push('\n');
     let _ = std::fs::write(path, out);
 }

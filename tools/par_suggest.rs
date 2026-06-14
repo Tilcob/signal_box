@@ -120,9 +120,12 @@ fn main() {
 
 /// Replaces the single `par: ( … )` block — its contents have no nested
 /// parens, so the first `)` after `par:` closes it. Everything else (comments,
-/// formatting) is preserved verbatim.
+/// formatting) is preserved verbatim. The search is anchored after `sim:`: par
+/// lives inside `sim`, so a briefing in the earlier `meta` block that happens
+/// to contain "par:" cannot be matched first.
 fn replace_par(text: &str, new_par: &str) -> Option<String> {
-    let start = text.find("par:")?;
+    let sim = text.find("sim:")?;
+    let start = sim + text[sim..].find("par:")?;
     let open = text[start..].find('(')? + start;
     let close = text[open..].find(')')? + open;
     let mut out = String::with_capacity(text.len());
