@@ -30,14 +30,20 @@ impl Plugin for AudioManagerPlugin {
             .add_audio_channel::<MusicChannel>()
             .add_audio_channel::<SfxChannel>()
             .init_resource::<music::CurrentTrack>()
+            .init_resource::<music::LevelPlaylist>()
             .add_systems(Startup, assets::load_audio_assets)
             .add_observer(sfx::on_sfx)
             .add_systems(Update, sfx::button_click_sfx)
-            // Menu-side states share the calm menu track; the desk (Edit/Run)
-            // gets the gameplay track. CurrentTrack dedups re-entries.
+            // Menu-side states share the calm menu loop; the desk (Edit/Run) runs
+            // a random non-repeating playlist that persists across Edit<->Run.
             .add_systems(OnEnter(GameState::MainMenu), music::menu_music)
             .add_systems(OnEnter(GameState::LevelSelect), music::menu_music)
-            .add_systems(OnEnter(GameState::Edit), music::level_music)
-            .add_systems(OnEnter(GameState::Run), music::level_music);
+            .add_systems(OnEnter(GameState::Edit), music::start_level_playlist)
+            .add_systems(OnEnter(GameState::Run), music::start_level_playlist)
+            .add_systems(
+                Update,
+                music::drive_level_playlist
+                    .run_if(in_state(GameState::Edit).or(in_state(GameState::Run))),
+            );
     }
 }

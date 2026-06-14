@@ -8,7 +8,7 @@
         chapter: 4,
         order: 30,
         optional_hard: true,
-        briefing: "Ein kriechender Güterzug quert die enge S-Bahn-Linie. Lassen Sie die Kettensignale entscheiden, wer zuerst durch darf — die S-Bahn-Soll-Zeiten sind knapp.",
+        briefing: "Ein kriechender Güterzug quert die enge S-Bahn-Linie. Lasse die Kettensignale entscheiden, wer zuerst durch darf — die S-Bahn-Soll-Zeiten sind knapp.",
     ),
     sim: (
         name: "4.3 Mischverkehr",

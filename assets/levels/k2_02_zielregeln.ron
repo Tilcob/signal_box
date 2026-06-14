@@ -7,7 +7,7 @@
         chapter: 2,
         order: 20,
         optional_hard: false,
-        briefing: "Vier Züge, abwechselnd nach OST und NORD. Programmieren Sie die Weiche mit einer Zielregel, die jeden Zug an sein Ziel schickt.",
+        briefing: "Vier Züge, abwechselnd nach OST und NORD. Programmiere die Weiche mit einer Zielregel, die jeden Zug an sein Ziel schickt.",
     ),
     sim: (
         name: "2.2 Zielregeln",

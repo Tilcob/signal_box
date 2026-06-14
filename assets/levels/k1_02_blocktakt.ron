@@ -7,7 +7,7 @@
         chapter: 1,
         order: 20,
         optional_hard: false,
-        briefing: "Zwei Züge, eine Strecke: Setzen Sie ein Blocksignal, das den schnellen Folgezug zurückhält, bis der Block vor ihm frei ist.",
+        briefing: "Zwei Züge, eine Strecke: Setze ein Blocksignal, dass den schnellen Folgezug zurückhält, bis der Block vor ihm frei ist.",
     ),
     sim: (
         name: "1.2 Blocktakt",

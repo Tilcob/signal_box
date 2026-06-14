@@ -8,7 +8,7 @@
         chapter: 1,
         order: 40,
         optional_hard: false,
-        briefing: "Ein überlanger Zug belegt mehrere Blöcke. Sichern Sie die Strecke so, dass der schnelle Folgezug erst nachrückt, wenn der Mittelblock wirklich frei ist.",
+        briefing: "Ein überlanger Zug belegt mehrere Blöcke. Sichere die Strecke so, dass der schnelle Folgezug erst nachrückt, wenn der Mittelblock wirklich frei ist.",
     ),
     sim: (
         name: "1.4 Der Langzug",

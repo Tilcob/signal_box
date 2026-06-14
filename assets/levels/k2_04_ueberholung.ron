@@ -7,7 +7,7 @@
         chapter: 2,
         order: 40,
         optional_hard: true,
-        briefing: "Der Güterzug kriecht, die S-Bahn hat einen engen Soll-Tick. Lassen Sie die S-Bahn über das Ausweichgleis überholen — eine Klassenregel an der Weiche steuert es.",
+        briefing: "Der Güterzug kriecht, die S-Bahn hat einen engen Soll-Tick. Lasse die S-Bahn über das Ausweichgleis überholen — eine Klassenregel an der Weiche steuert es.",
     ),
     sim: (
         name: "2.4 Die Überholung",

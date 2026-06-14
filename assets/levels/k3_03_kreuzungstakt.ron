@@ -7,7 +7,7 @@
         chapter: 3,
         order: 30,
         optional_hard: true,
-        briefing: "Querverkehr in zwei Wellen über dieselbe Kreuzung. Halten Sie die Kettensignale im Takt, damit beide Richtungen pünktlich durchkommen.",
+        briefing: "Querverkehr in zwei Wellen über dieselbe Kreuzung. Halte die Kettensignale im Takt, damit beide Richtungen pünktlich durchkommen.",
     ),
     sim: (
         name: "3.3 Kreuzungstakt",

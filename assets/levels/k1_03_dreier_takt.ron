@@ -7,7 +7,7 @@
         chapter: 1,
         order: 30,
         optional_hard: false,
-        briefing: "Drei Züge gleicher Geschwindigkeit nach OST. Halten Sie den Takt sauber — bei richtiger Folge reibt hier nichts.",
+        briefing: "Drei Züge gleicher Geschwindigkeit nach OST. Halte den Takt sauber — bei richtiger Folge reibt hier nichts.",
     ),
     sim: (
         name: "1.3 Dreiertakt",

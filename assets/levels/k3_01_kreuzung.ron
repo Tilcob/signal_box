@@ -7,7 +7,7 @@
         chapter: 3,
         order: 10,
         optional_hard: false,
-        briefing: "Zwei Linien kreuzen sich. Sichern Sie den Kreuzungsbereich mit Kettensignalen, damit kein Zug mitten in der Kreuzung halten muss.",
+        briefing: "Zwei Linien kreuzen sich. Sichere den Kreuzungsbereich mit Kettensignalen, damit kein Zug mitten in der Kreuzung halten muss.",
     ),
     sim: (
         name: "3.1 Die Kreuzung",

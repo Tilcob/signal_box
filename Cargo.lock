@@ -4879,6 +4879,7 @@ dependencies = [
  "bevy-inspector-egui",
  "bevy_kira_audio",
  "directories",
+ "fastrand",
  "ron",
  "serde",
  "stellwerk_codes",

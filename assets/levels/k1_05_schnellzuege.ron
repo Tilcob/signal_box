@@ -7,7 +7,7 @@
         chapter: 1,
         order: 50,
         optional_hard: true,
-        briefing: "Zwei Schnellzüge drängen hinter einem Bummler. Teilen Sie die Strecke fein genug, dass sich kein Stau bis in die Verspätung aufbaut.",
+        briefing: "Zwei Schnellzüge drängen hinter einem Bummler. Teile die Strecke fein genug, dass sich kein Stau bis in die Verspätung aufbaut.",
     ),
     sim: (
         name: "1.5 Schnellzüge",

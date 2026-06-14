@@ -7,7 +7,7 @@
         chapter: 4,
         order: 20,
         optional_hard: false,
-        briefing: "Drei Ziele, zwei Weichen in Kaskade. Staffeln Sie die Zielregeln so, dass jeder Zug ohne Umweg an seinen Bahnhof gelangt.",
+        briefing: "Drei Ziele, zwei Weichen in Kaskade. Staffle die Zielregeln so, dass jeder Zug ohne Umweg an seinen Bahnhof gelangt.",
     ),
     sim: (
         name: "4.2 Drei Ziele",

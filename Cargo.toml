@@ -38,6 +38,9 @@ directories = "6"
 bevy-inspector-egui = { version = "0.36", optional = true }
 # ogg (default) für Musik-Loops; wav für kurze SFX; mp3 optional dazu.
 bevy_kira_audio = { version = "0.25.0", features = ["wav"] }
+# Zufall für die Level-Musik-Playlist. Bewusst NUR in der Bevy-Schicht — der
+# stellwerk_sim-Kern bleibt deterministisch und randomness-frei.
+fastrand = "2"
 
 # Vendored bevy_text 0.18.1 with ONE patched constant (font atlas page size
 # 512 → 2048, see vendor/bevy_text/src/font_atlas.rs): texts whose glyphs
