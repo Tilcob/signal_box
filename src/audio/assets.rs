@@ -14,7 +14,6 @@ const LEVEL_TRACKS: &[&str] = &[
     "audio/music/4379051-about-trains-passing-by-179886.ogg",
     "audio/music/4379051-siberia-express-192132.ogg",
     "audio/music/bransboynd-night-city-418052.ogg",
-    "audio/music/grand_project-technology-modern-electronic-railway-track-470218.ogg",
     "audio/music/juliush-metro-urban-adventure-music-288519.ogg",
     "audio/music/songshu888-nighttrain-145794.ogg",
 ];
@@ -28,18 +27,20 @@ pub struct AudioAssets {
     pub switch_sound: Handle<AudioSource>,
     pub rail_sound: Handle<AudioSource>,
     pub signal_sound: Handle<AudioSource>,
+    pub train_horn_sound: Handle<AudioSource>,
 }
 
 pub(super) fn load_audio_assets(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.insert_resource(AudioAssets {
-        menu_music: asset_server.load("audio/music/menu_music.ogg"),
+        menu_music: asset_server.load("audio/music/grand_project-technology-modern-electronic-railway-track-470218.ogg"),
         level_tracks: LEVEL_TRACKS
             .iter()
             .map(|path| asset_server.load(*path))
             .collect(),
         button_click: asset_server.load("audio/sfx/button_click.wav"),
-        switch_sound: asset_server.load("audio/sfx/switch.wav"),
+        switch_sound: asset_server.load("audio/sfx/railway-switch-track.wav"),
         rail_sound: asset_server.load("audio/sfx/rail.wav"),
-        signal_sound: asset_server.load("audio/sfx/signal.wav"),
+        signal_sound: asset_server.load("audio/sfx/signal_click.wav"),
+        train_horn_sound: asset_server.load("audio/sfx/train-horn.wav"),
     });
 }
