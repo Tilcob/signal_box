@@ -20,6 +20,7 @@ pub(super) fn draw_overlays(
     cameras: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
     active: Option<Res<ActiveLevel>>,
     editor: Res<Editor>,
+    merged: Res<super::MergedLayout>,
     diagnostics: Res<Diagnostics>,
 ) {
     if let Some(cursor) = cursor_world(&windows, &cameras) {
@@ -30,20 +31,18 @@ pub(super) fn draw_overlays(
             Vec2::splat(CELL - 4.0),
             Color::srgba(0.6, 0.7, 0.9, 0.35),
         );
-        let merged = active
-            .as_ref()
-            .map(|a| a.level.fixed.merged(&editor.layout));
+        let merged = &merged.0;
         let blocked = Color::srgba(1.0, 0.35, 0.3, 0.6);
         match editor.tool {
             // The radial menu owns the Track preview while open.
             Tool::Track if editor.radial.is_some() => {}
             Tool::Track => {
                 let (a, b) = editor.track_form;
-                let ok = match (&active, &merged) {
-                    (Some(active), Some(merged)) => {
+                let ok = match &active {
+                    Some(active) => {
                         can_place_piece(&active.level, merged, &TrackPiece { cell, a, b })
                     }
-                    _ => true,
+                    None => true,
                 };
                 let ghost = if ok {
                     Color::srgba(0.7, 0.8, 1.0, 0.5)
@@ -57,9 +56,9 @@ pub(super) fn draw_overlays(
                 let variants = switch_variants();
                 let (stem, branches) =
                     variants[editor.variant.rem_euclid(variants.len() as i32) as usize];
-                let ok = match (&active, &merged) {
-                    (Some(active), Some(merged)) => can_place_switch(&active.level, merged, cell),
-                    _ => true,
+                let ok = match &active {
+                    Some(active) => can_place_switch(&active.level, merged, cell),
+                    None => true,
                 };
                 let ghost = if ok {
                     Color::srgba(1.0, 0.9, 0.4, 0.5)
@@ -73,16 +72,11 @@ pub(super) fn draw_overlays(
             }
             Tool::SignalBlock | Tool::SignalChain => {
                 // R/T pick the gated connector among the cell's stubs.
-                if let Some(at) = merged
-                    .as_ref()
-                    .and_then(|m| signal_stub(m, cell, editor.variant))
-                {
+                if let Some(at) = signal_stub(merged, cell, editor.variant) {
                     let connector = board::connector_world(cell, at);
-                    let ok = match (&active, &merged) {
-                        (Some(active), Some(merged)) => {
-                            can_place_signal(&active.level, merged, cell, at)
-                        }
-                        _ => true,
+                    let ok = match &active {
+                        Some(active) => can_place_signal(&active.level, merged, cell, at),
+                        None => true,
                     };
                     let ghost = if ok {
                         Color::srgba(0.4, 1.0, 0.6, 0.6)

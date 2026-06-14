@@ -15,11 +15,19 @@ pub struct DevToolsPlugin;
 
 impl Plugin for DevToolsPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(EguiPlugin::default())
-            .add_plugins(
+        // egui + the world inspector are the per-frame-expensive part of the
+        // dev build: bevy_egui runs a full egui pass AND processes every input
+        // event (incl. each mouse-move) every frame, which shows up as stutter
+        // while sweeping the cursor. Make them opt-in via STELLWERK_INSPECTOR so
+        // a plain `cargo run` no longer pays for them — set the env var when you
+        // actually want the F12 inspector. The FPS overlay (F3) is bevy_dev_tools
+        // (no egui) and stays always-on under `dev`.
+        if std::env::var_os("STELLWERK_INSPECTOR").is_some() {
+            app.add_plugins(EguiPlugin::default()).add_plugins(
                 WorldInspectorPlugin::new().run_if(input_toggle_active(false, KeyCode::F12)),
-            )
-            .add_plugins(FpsOverlayPlugin {
+            );
+        }
+        app.add_plugins(FpsOverlayPlugin {
                 config: FpsOverlayConfig {
                     enabled: false,
                     // The graph has its own flag and DEFAULTS TO ON — without

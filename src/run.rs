@@ -185,7 +185,9 @@ fn tick(
                     finish(&outcome, &active, &mut progress, &mut commands, &mut next);
                     return;
                 }
-                SimEvent::TrainArrived { .. } => {}
+                SimEvent::TrainArrived { .. } => {
+                    commands.trigger(crate::audio::SfxKind::TrainHorn);
+                }
             }
         }
         // Safety net: a run that never ends within the sim cap.

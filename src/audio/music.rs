@@ -10,15 +10,26 @@
 use super::MusicChannel;
 use super::assets::AudioAssets;
 use bevy::prelude::*;
+use std::time::Duration;
 // Explicit imports (not the kira prelude glob) so `AudioSource` is
 // unambiguously kira's, not Bevy's built-in one.
 use bevy_kira_audio::{
-    AudioChannel, AudioControl, AudioInstance, AudioSource, PlaybackState,
+    AudioChannel, AudioControl, AudioEasing, AudioInstance, AudioSource, AudioTween, PlaybackState,
 };
 
 /// Random silent pause between two level tracks, in seconds (uniform). The
 /// example was "~25s with some spread" — tune the two ends to taste.
 const GAP_SECS: std::ops::RangeInclusive<f32> = 20.0..=30.0;
+
+/// Cross-fade length for every music start/stop. The desk's ASMR mix wants no
+/// hard cuts (GDD §11/§12, the reason this project picked kira). `const` works
+/// because `AudioTween::new` is a const fn.
+const FADE: AudioTween = AudioTween::new(Duration::from_millis(600), AudioEasing::Linear);
+
+/// If a chosen level track has not actually started playing within this long,
+/// its source is treated as failed/missing and skipped — otherwise a missing
+/// file retries forever in kira and the playlist hangs silently.
+const WATCHDOG_SECS: f32 = 5.0;
 
 /// Which track is currently looping in the *menu* — avoids restarting it on
 /// re-entry. The desk uses [`LevelPlaylist`] instead, not this enum.
@@ -44,13 +55,15 @@ enum Phase {
     /// Nothing scheduled — fresh from a menu. `start_level_playlist` kicks off.
     #[default]
     Idle,
-    /// A track is playing. `confirmed` flips true once we've actually seen the
-    /// instance in a live state: kira reports `Stopped` for a brand-new instance
-    /// for a frame or two (command drained from the queue but not yet in the
-    /// state map), so we must NOT treat that startup window as "finished".
+    /// A track is playing. `confirmed` flips true once kira reports the instance
+    /// actually `Playing`, so a never-started track (still loading / missing
+    /// source) is never mistaken for a finished one.
     Playing {
         handle: Handle<AudioInstance>,
         confirmed: bool,
+        /// Counts up while the track has not yet started. If it elapses before
+        /// `confirmed`, the source failed to load — skip instead of hanging.
+        watchdog: Timer,
     },
     /// Silent pause before the next track.
     Gap(Timer),
@@ -84,11 +97,19 @@ fn play_track(
     playlist: &mut LevelPlaylist,
     i: usize,
 ) {
-    let handle = channel.play(audio.level_tracks[i].clone()).handle();
+    // Clear the channel first: fades out whatever is playing AND cancels any
+    // pending (still-loading or stuck) play command, so a slow track skipped by
+    // the watchdog can't start on top of this one later.
+    channel.stop().fade_out(FADE);
+    let handle = channel
+        .play(audio.level_tracks[i].clone())
+        .fade_in(FADE)
+        .handle();
     playlist.last = Some(i);
     playlist.phase = Phase::Playing {
         handle,
         confirmed: false,
+        watchdog: Timer::from_seconds(WATCHDOG_SECS, TimerMode::Once),
     };
 }
 
@@ -101,8 +122,8 @@ fn switch_to(
     if *current == want {
         return;
     }
-    channel.stop();
-    channel.play(handle.clone()).looped();
+    channel.stop().fade_out(FADE);
+    channel.play(handle.clone()).looped().fade_in(FADE);
     *current = want;
 }
 
@@ -138,7 +159,7 @@ pub(super) fn start_level_playlist(
     if audio.level_tracks.is_empty() {
         return;
     }
-    channel.stop(); // kill the menu loop before the first track
+    // `play_track` stops the channel first, so the menu loop is faded out here.
     *current = CurrentTrack::Level;
     let i = playlist.pick(audio.level_tracks.len());
     play_track(&channel, &audio, &mut playlist, i);
@@ -155,20 +176,31 @@ pub(super) fn drive_level_playlist(
     let Some(audio) = audio else {
         return;
     };
+    if audio.level_tracks.is_empty() {
+        return; // nothing to play; also guards the `level_tracks[i]` indexing
+    }
     match &mut playlist.phase {
         Phase::Idle => {}
-        Phase::Playing { handle, confirmed } => {
-            match channel.state(handle) {
-                PlaybackState::Stopped => {
-                    // Only a real end if we'd previously seen it live; otherwise
-                    // it's the startup window — wait for the instance to appear.
-                    if *confirmed {
-                        playlist.phase = Phase::Gap(random_gap());
-                    }
-                }
-                _ => *confirmed = true,
+        Phase::Playing {
+            handle,
+            confirmed,
+            watchdog,
+        } => match channel.state(handle) {
+            PlaybackState::Playing { .. } => *confirmed = true,
+            PlaybackState::Stopped if *confirmed => {
+                playlist.phase = Phase::Gap(random_gap());
             }
-        }
+            _ => {
+                // Still queued/loading (or the brief startup blip). If it never
+                // reaches `Playing`, the source is missing/failed — skip to the
+                // next track instead of hanging the playlist forever.
+                if !*confirmed && watchdog.tick(time.delta()).just_finished() {
+                    warn!("level music: a track did not start within {WATCHDOG_SECS}s — skipping");
+                    let i = playlist.pick(audio.level_tracks.len());
+                    play_track(&channel, &audio, &mut playlist, i);
+                }
+            }
+        },
         Phase::Gap(timer) => {
             if timer.tick(time.delta()).just_finished() {
                 let i = playlist.pick(audio.level_tracks.len());

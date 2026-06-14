@@ -45,18 +45,15 @@ fn pan(
     zoom: Res<Zoom>,
     mut cameras: Query<&mut Transform, With<MainCamera>>,
 ) {
-    let Ok(mut transform) = cameras.single_mut() else {
-        return;
-    };
-    // Drag with middle/right mouse button…
+    // Drag with middle/right mouse button… (always drain the motion events,
+    // even when not dragging, so they don't pile up).
+    let dragging = buttons.pressed(MouseButton::Middle) || buttons.pressed(MouseButton::Right);
     let mut delta = Vec2::ZERO;
     for event in motion.read() {
-        if buttons.pressed(MouseButton::Middle) || buttons.pressed(MouseButton::Right) {
+        if dragging {
             delta += event.delta;
         }
     }
-    transform.translation.x -= delta.x / zoom.0;
-    transform.translation.y += delta.y / zoom.0;
     // …or WASD/arrows.
     let mut dir = Vec2::ZERO;
     if keys.pressed(KeyCode::KeyW) || keys.pressed(KeyCode::ArrowUp) {
@@ -71,6 +68,18 @@ fn pan(
     if keys.pressed(KeyCode::KeyD) || keys.pressed(KeyCode::ArrowRight) {
         dir.x += 1.0;
     }
+
+    // No input → do NOT touch the Transform. Writing it (even by +0.0) trips
+    // change detection every frame, forcing GlobalTransform propagation and a
+    // 2D visibility recompute over every board sprite — in every state.
+    if delta == Vec2::ZERO && dir == Vec2::ZERO {
+        return;
+    }
+    let Ok(mut transform) = cameras.single_mut() else {
+        return;
+    };
+    transform.translation.x -= delta.x / zoom.0;
+    transform.translation.y += delta.y / zoom.0;
     let speed = 600.0 / zoom.0;
     transform.translation.x += dir.x * speed * time.delta_secs();
     transform.translation.y += dir.y * speed * time.delta_secs();

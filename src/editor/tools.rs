@@ -99,6 +99,7 @@ pub(super) fn pointer(
     ui: Query<&Interaction>,
     active: Option<ResMut<ActiveLevel>>,
     mut editor: ResMut<Editor>,
+    merged: Res<super::MergedLayout>,
     mut commands: Commands,
 ) {
     let Some(mut active) = active else { return };
@@ -111,7 +112,7 @@ pub(super) fn pointer(
     // hidden behind the panel.
     let over_ui = ui.iter().any(|i| *i != Interaction::None);
     let cell = board::world_cell(cursor);
-    let merged = active.level.fixed.merged(&editor.layout);
+    let merged = &merged.0;
 
     // While the radial track menu is open it owns the mouse — placement and
     // drag are suppressed (handled by `radial::radial_menu`, which runs after
@@ -139,7 +140,7 @@ pub(super) fn pointer(
                 .drag
                 .take()
                 .unwrap_or_default();
-            finish_track_drag(&mut editor, &active.level, &merged, &path);
+            finish_track_drag(&mut editor, &active.level, merged, &path);
         }
         return;
     }
@@ -151,7 +152,7 @@ pub(super) fn pointer(
     match editor.tool {
         Tool::Track => unreachable!("handled above"),
         Tool::Switch => {
-            if !can_place_switch(&active.level, &merged, cell) {
+            if !can_place_switch(&active.level, merged, cell) {
                 return;
             }
             let variants = switch_variants();
@@ -172,10 +173,10 @@ pub(super) fn pointer(
         Tool::SignalBlock | Tool::SignalChain => {
             // Direction is keyboard-driven (R/T cycle the cell's stubs), not
             // taken from the cursor angle.
-            let Some(at) = signal_stub(&merged, cell, editor.variant) else {
+            let Some(at) = signal_stub(merged, cell, editor.variant) else {
                 return;
             };
-            if !can_place_signal(&active.level, &merged, cell, at) {
+            if !can_place_signal(&active.level, merged, cell, at) {
                 return;
             }
             let kind = if editor.tool == Tool::SignalBlock {

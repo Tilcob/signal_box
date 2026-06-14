@@ -19,16 +19,25 @@ mod validation;
 pub use ops::{EditOp, do_op};
 
 use bevy::prelude::*;
+use stellwerk_sim::Layout;
 
-use crate::state::GameState;
+use crate::state::{ActiveLevel, Editor, GameState};
+
+/// `fixed ⊕ player` layout, rebuilt only when the build or level changes.
+/// Both the pointer (placement gates) and the overlays (ghost colouring) read
+/// it every frame — without the cache each rebuilt it independently, two full
+/// `Layout` clones per frame for the whole time the editor was open.
+#[derive(Resource, Default)]
+pub(crate) struct MergedLayout(pub(crate) Layout);
 
 pub struct EditorPlugin;
 
 impl Plugin for EditorPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
+        app.init_resource::<MergedLayout>().add_systems(
             Update,
             (
+                sync_merged_layout,
                 tools::hotkeys,
                 tools::pointer,
                 overlays::draw_overlays,
@@ -42,4 +51,19 @@ impl Plugin for EditorPlugin {
                 .run_if(in_state(GameState::Edit)),
         );
     }
+}
+
+/// Refreshes [`MergedLayout`] when the player build or the level changed.
+/// Runs first in the edit chain; an edit made later this frame shows up in the
+/// cache next frame (the ghost overlay catches up one frame later — invisible).
+fn sync_merged_layout(
+    active: Option<Res<ActiveLevel>>,
+    editor: Res<Editor>,
+    mut merged: ResMut<MergedLayout>,
+) {
+    let Some(active) = active else { return };
+    if !editor.is_changed() && !active.is_changed() {
+        return;
+    }
+    merged.0 = active.level.fixed.merged(&editor.layout);
 }

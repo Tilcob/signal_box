@@ -45,7 +45,13 @@ impl Plugin for EditHudPlugin {
         // without an Editor/ActiveLevel change (e.g. back from Result).
         app.add_systems(
             OnEnter(GameState::Edit),
-            (spawn_edit_hud, rebuild_switch_panel, rebuild_schedule_panel).chain(),
+            (
+                spawn_edit_hud,
+                rebuild_switch_panel,
+                rebuild_schedule_panel,
+                fill_edit_texts,
+            )
+                .chain(),
         )
         .add_systems(OnExit(GameState::Edit), despawn_all::<UiEdit>)
         .add_systems(
@@ -186,7 +192,44 @@ fn spawn_edit_hud(
     ));
 }
 
-fn update_edit_texts(
+/// Tool/sandbox status line.
+fn tool_line(tool: Tool, sandbox: bool) -> String {
+    let extra = if sandbox {
+        t("edit.tools_sandbox")
+    } else {
+        String::new()
+    };
+    format!(
+        "{}{extra}   |   {}{}",
+        t("edit.tools"),
+        t("edit.tool_label"),
+        t(tool_key(tool))
+    )
+}
+
+/// Diagnostics line (first errors, then reachability warnings).
+fn diag_line(diagnostics: &Diagnostics) -> String {
+    let mut lines = Vec::new();
+    for error in diagnostics.errors.iter().take(3) {
+        lines.push(format!("✗ {}", valerr_text(error)));
+    }
+    if diagnostics.errors.len() > 3 {
+        lines.push(format!(
+            "… +{} {}",
+            diagnostics.errors.len() - 3,
+            t("edit.more_errors")
+        ));
+    }
+    for unreachable in diagnostics.unreachable.iter().take(2) {
+        lines.push(format!("{}{}", t("edit.unreachable"), unreachable.train.0));
+    }
+    lines.join("\n")
+}
+
+/// One-shot fill on entering Edit: the HUD text entities are respawned on every
+/// entry (incl. Result → "back to edit", which changes no resource), so the
+/// guarded per-frame updater alone would leave them empty.
+fn fill_edit_texts(
     editor: Res<Editor>,
     diagnostics: Res<Diagnostics>,
     active: Option<Res<ActiveLevel>>,
@@ -195,37 +238,37 @@ fn update_edit_texts(
 ) {
     let sandbox = active.as_ref().is_some_and(|a| a.sandbox);
     if let Ok(mut text) = tool_texts.single_mut() {
-        let extra = if sandbox {
-            t("edit.tools_sandbox")
-        } else {
-            String::new()
-        };
-        set_text(
-            &mut text,
-            format!(
-                "{}{extra}   |   {}{}",
-                t("edit.tools"),
-                t("edit.tool_label"),
-                t(tool_key(editor.tool))
-            ),
-        );
+        set_text(&mut text, tool_line(editor.tool, sandbox));
     }
     if let Ok(mut text) = diag_texts.single_mut() {
-        let mut lines = Vec::new();
-        for error in diagnostics.errors.iter().take(3) {
-            lines.push(format!("✗ {}", valerr_text(error)));
+        set_text(&mut text, diag_line(&diagnostics));
+    }
+}
+
+/// Per-frame refresh, but each block only rebuilds its string when its inputs
+/// actually changed — idle frames allocate nothing. The tool is switched via
+/// `bypass_change_detection` (so it doesn't trigger the board rebuild), hence a
+/// `Local` compare instead of `editor.is_changed()`; diagnostics use normal
+/// change detection.
+fn update_edit_texts(
+    editor: Res<Editor>,
+    diagnostics: Res<Diagnostics>,
+    active: Option<Res<ActiveLevel>>,
+    mut tool_texts: Query<&mut Text, (With<ToolText>, Without<DiagText>)>,
+    mut diag_texts: Query<&mut Text, (With<DiagText>, Without<ToolText>)>,
+    mut last_tool: Local<Option<(Tool, bool)>>,
+) {
+    let sandbox = active.as_ref().is_some_and(|a| a.sandbox);
+    if *last_tool != Some((editor.tool, sandbox)) {
+        *last_tool = Some((editor.tool, sandbox));
+        if let Ok(mut text) = tool_texts.single_mut() {
+            set_text(&mut text, tool_line(editor.tool, sandbox));
         }
-        if diagnostics.errors.len() > 3 {
-            lines.push(format!(
-                "… +{} {}",
-                diagnostics.errors.len() - 3,
-                t("edit.more_errors")
-            ));
-        }
-        for unreachable in diagnostics.unreachable.iter().take(2) {
-            lines.push(format!("{}{}", t("edit.unreachable"), unreachable.train.0));
-        }
-        set_text(&mut text, lines.join("\n"));
+    }
+    if diagnostics.is_changed()
+        && let Ok(mut text) = diag_texts.single_mut()
+    {
+        set_text(&mut text, diag_line(&diagnostics));
     }
 }
 

@@ -59,12 +59,22 @@ pub(super) struct SelectUiPlugin;
 impl Plugin for SelectUiPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<UiStatus>()
-            .add_systems(OnEnter(GameState::LevelSelect), spawn_select)
+            .add_systems(
+                OnEnter(GameState::LevelSelect),
+                (spawn_select, update_status).chain(),
+            )
             .add_systems(OnExit(GameState::LevelSelect), despawn_all::<UiSelect>)
             .add_systems(
                 Update,
-                (click_level, select_buttons, update_status, leave_to_menu)
+                (click_level, select_buttons, leave_to_menu)
                     .run_if(in_state(GameState::LevelSelect)),
+            )
+            // Status line changes only on explicit actions (import/lang) — no
+            // need to rebuild + clone the string every frame.
+            .add_systems(
+                Update,
+                update_status
+                    .run_if(in_state(GameState::LevelSelect).and(resource_changed::<UiStatus>)),
             );
         #[cfg(feature = "dev")]
         app.init_resource::<DevDeleteArmed>().add_systems(

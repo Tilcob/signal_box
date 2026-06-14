@@ -51,8 +51,13 @@ impl Plugin for AudioManagerPlugin {
             .add_systems(OnEnter(GameState::Run), music::start_level_playlist)
             .add_systems(
                 Update,
-                music::drive_level_playlist
-                    .run_if(in_state(GameState::Edit).or(in_state(GameState::Run))),
+                // Result keeps the desk playlist alive too, so the music does not
+                // cut out (or fall silent mid-gap) on the outcome screen.
+                music::drive_level_playlist.run_if(
+                    in_state(GameState::Edit)
+                        .or(in_state(GameState::Run))
+                        .or(in_state(GameState::Result)),
+                ),
             );
     }
 }
