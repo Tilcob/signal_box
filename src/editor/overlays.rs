@@ -8,7 +8,7 @@ use stellwerk_sim::layout::TrackPiece;
 
 use super::placement::{
     can_place_piece, can_place_signal, can_place_station, can_place_switch, signal_stub,
-    switch_variants,
+    station_dir, switch_variants,
 };
 use crate::board::{self, CELL};
 use crate::camera::{MainCamera, cursor_world};
@@ -91,7 +91,9 @@ pub(super) fn draw_overlays(
                 }
             }
             Tool::Source | Tool::Sink => {
-                let at = board::nearest_connector(cell, cursor);
+                // R/T pick the connector; the mouse only picks the cell.
+                let at = station_dir(editor.variant);
+                let connector = board::connector_world(cell, at);
                 let ok = active
                     .as_ref()
                     .is_none_or(|a| can_place_station(&a.level, cell, at));
@@ -100,11 +102,11 @@ pub(super) fn draw_overlays(
                 } else {
                     blocked
                 };
-                gizmos.circle_2d(
-                    Isometry2d::from_translation(board::connector_world(cell, at)),
-                    10.0,
-                    ghost,
-                );
+                gizmos.circle_2d(Isometry2d::from_translation(connector), 10.0, ghost);
+                // Entry/exit direction (across `at`), shown before placing so
+                // the R/T-chosen orientation is visible.
+                let outward = (connector - center).normalize_or_zero();
+                gizmos.line_2d(connector, connector + outward * 26.0, ghost);
             }
             _ => {}
         }

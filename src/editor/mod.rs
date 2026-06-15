@@ -6,8 +6,9 @@
 //! switch stays locked while errors exist. Reachability problems are
 //! warnings only — watching the misrouting happen is a lesson (Säule 4).
 //!
-//! Sandbox note (M2-minimal): source/sink placement and the schedule editor
-//! mutate the LEVEL, not the layout — they sit outside the undo stack.
+//! Sandbox edits (source/sink placement, the schedule editor) mutate the
+//! LEVEL rather than the layout, but share the SAME undo stack as layout ops
+//! via [`ops::EditOp`]'s level variants (restfeature 02) — one Ctrl+Z timeline.
 
 mod ops;
 mod overlays;
@@ -21,7 +22,7 @@ pub use ops::{EditOp, do_op};
 use bevy::prelude::*;
 use stellwerk_sim::Layout;
 
-use crate::state::{ActiveLevel, Editor, GameState, not_paused};
+use crate::state::{ActiveLevel, Editor, GameState, no_field_focused, not_paused};
 
 /// `fixed ⊕ player` layout, rebuilt only when the build or level changes.
 /// Both the pointer (placement gates) and the overlays (ghost colouring) read
@@ -38,8 +39,11 @@ impl Plugin for EditorPlugin {
             Update,
             (
                 sync_merged_layout,
-                tools::hotkeys.run_if(not_paused),
-                tools::pointer.run_if(not_paused),
+                // Suppressed while a numeric field is focused, so typing digits
+                // can't switch tools / undo, and a focus-blur click can't also
+                // place track (restfeature 03).
+                tools::hotkeys.run_if(not_paused).run_if(no_field_focused),
+                tools::pointer.run_if(not_paused).run_if(no_field_focused),
                 overlays::draw_overlays.run_if(not_paused),
                 validation::revalidate,
                 // Esc opens/closes the pause menu in place of leaving the

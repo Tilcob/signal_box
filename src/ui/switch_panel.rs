@@ -140,10 +140,10 @@ pub(super) fn rebuild_switch_panel(
 fn panel_clicks(
     mut interactions: Query<(&Interaction, &PanelAction), Changed<Interaction>>,
     mut editor: ResMut<Editor>,
-    active: Option<Res<ActiveLevel>>,
+    active: Option<ResMut<ActiveLevel>>,
     mut commands: Commands,
 ) {
-    let Some(active) = active else { return };
+    let Some(mut active) = active else { return };
     for (interaction, action) in &mut interactions {
         if *interaction != Interaction::Pressed {
             continue;
@@ -174,6 +174,7 @@ fn panel_clicks(
         normalize_rules(&mut after, &active.level);
         do_op(
             &mut editor,
+            &mut active.level,
             EditOp::Configure {
                 cell,
                 before,

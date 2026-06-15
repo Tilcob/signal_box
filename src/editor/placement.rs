@@ -56,6 +56,13 @@ pub(super) fn can_place_signal(level: &Level, merged: &Layout, cell: Cell, at: D
         && !merged.signals.iter().any(|s| s.cell == cell && s.at == at)
 }
 
+/// The station connector chosen by the R/T-cycled `variant`. Stations have no
+/// track requirement (unlike signals), so the mouse only picks the cell and
+/// the direction cycles through all 8 connectors via R/T — never the cursor.
+pub(super) fn station_dir(variant: i32) -> Dir8 {
+    Dir8::ALL[variant.rem_euclid(8) as usize]
+}
+
 /// Sandbox sources/sinks: a buildable cell's connector, not already occupied
 /// by another station (a connector hosts at most one entry/exit). Like the
 /// other gates this is enforced at the tool, not left for validation.

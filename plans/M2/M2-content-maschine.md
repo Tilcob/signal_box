@@ -156,13 +156,17 @@ vollständig. Offen ist allein die **Content-Menge (15 → 30+)** — siehe Plan
    Export/Import laufen über die Systemzwischenablage (`arboard`, GDD §12.2);
    `stellwerk_code.txt`/`stellwerk_import.txt` bleiben verlustfreier Fallback.
    → [restfeatures/01](restfeatures/01-sharing-zwischenablage.md) (erledigt).
-2. **Sandbox-Level-Änderungen (Quellen/Ziele/Fahrplan) sind nicht im
-   Undo-Stack** — nur Layout-Bauaktionen. Dokumentierte M2-Minimal-Grenze. →
-   [restfeatures/02](restfeatures/02-sandbox-undo.md) (offen).
-3. **Fahrplan-Editor ist bewusst grob** (Zyklus-Knöpfe statt Eingabefelder);
-   reicht für Community-Puzzles, Politur nach Playtest-Feedback. →
-   [restfeatures/03](restfeatures/03-fahrplan-eingabefelder.md) (offen,
-   setzt 02 voraus).
+2. ~~**Sandbox-Level-Änderungen sind nicht im Undo-Stack**~~ **ERLEDIGT
+   (2026-06-15):** Quellen/Senken/Fahrplan laufen über dieselbe `EditOp`-Kette
+   und denselben Undo-Stack wie Layout-Aktionen (eine Ctrl+Z-Zeitachse);
+   Sink-Löschung räumt abhängige Fahrplanzeilen als `Group` mit weg. →
+   [restfeatures/02](restfeatures/02-sandbox-undo.md) (erledigt).
+3. ~~**Fahrplan-Editor ist bewusst grob** (Zyklus-Knöpfe)~~ **ERLEDIGT
+   (2026-06-15):** depart/due/speed/length werden über ein fokussierbares
+   `numeric_field`-Widget direkt eingetippt (Enter/Blur committet, geclampt),
+   jeder Commit ein `ScheduleEdit`-Op (über Restfeature 02). Quelle/Ziel/Klasse
+   bleiben Zyklus-Knöpfe. →
+   [restfeatures/03](restfeatures/03-fahrplan-eingabefelder.md) (erledigt).
 4. **Schrift (§3) ist unbelegt:** ausgeliefert wird `DejaVuSansMono` (nicht
    DIN-artig), eine echte Schriftprüfung fehlt. →
    [restfeatures/04](restfeatures/04-din-schrift.md) (offen).

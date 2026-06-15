@@ -8,6 +8,7 @@ mod campaign_save;
 pub(crate) mod edit_hud;
 pub(crate) mod encyclopedia;
 mod main_menu;
+mod numeric_field;
 pub(crate) mod pause;
 mod result;
 mod run_hud;
@@ -33,6 +34,7 @@ impl Plugin for UiPlugin {
             sandbox_setup::SandboxSetupUiPlugin,
             edit_hud::EditHudPlugin,
             switch_panel::SwitchPanelPlugin,
+            numeric_field::NumericFieldPlugin,
             schedule_panel::SchedulePanelPlugin,
             run_hud::RunHudPlugin,
             result::ResultPlugin,

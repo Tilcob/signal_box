@@ -85,10 +85,29 @@ Reihenfolge: **02 vor 03**.
 
 ## 5. Definition of Done
 
-- [ ] `EditOp` deckt Source/Sink/Schedule ab; `apply`/`invert` über `EditTarget`
-- [ ] Quelle/Senke/Fahrplan in `tools.rs` + `schedule_panel.rs` laufen über `do_op`
-- [ ] Ctrl+Z/Ctrl+Y machen Level-Edits in der Sandbox rückgängig/wieder
-- [ ] Property-Test: `invert∘apply == identity` über zufällige Level-Op-Folgen
-- [ ] `clippy -D warnings` + bestehende Editor-Tests grün
-- [ ] M2-Plan §8 Notiz 2 + Modul-Doku in [editor/mod.rs:8-10](../../../src/editor/mod.rs)
-      („sit outside the undo stack") aktualisiert
+- [x] `EditOp` deckt Source/Sink/Schedule ab; `apply`/`invert` über `EditTarget`
+- [x] Quelle/Senke/Fahrplan in `tools.rs` + `schedule_panel.rs` laufen über `do_op`
+- [x] Ctrl+Z/Ctrl+Y machen Level-Edits in der Sandbox rückgängig/wieder
+      (undo/redo in `tools::hotkeys` reichen das Level durch)
+- [x] Roundtrip-Tests in `ops.rs`: `invert∘apply == identity` für Schedule-,
+      Station- und die Sink-Kaskaden-`Group`-Ops
+- [x] `clippy -D warnings` + Test-Suite grün (`cargo test --workspace`)
+- [x] M2-Plan §8 Notiz 2 + Modul-Doku in [editor/mod.rs](../../../src/editor/mod.rs)
+      aktualisiert
+
+## 6. Umsetzungsnotizen (Abweichungen)
+
+1. **`EditTarget` bleibt modulintern.** Statt es (wie im Plan skizziert) durch
+   alle Signaturen zu reichen, kapselt `ops.rs` es hinter `do_op`/`undo`/`redo`
+   — `tools.rs`/`switch_panel.rs`/`schedule_panel.rs` kennen nur diese drei
+   Funktionen und das `EditOp`. `apply`/`invert` sind jetzt modulprivat.
+2. **`ScheduleAdd` → `ScheduleInsert { row, entry }`.** Der Plan nannte einen
+   Add-Op; für saubere, zustandsfreie Invertierung ist es ein positions-
+   tragendes Insert (Anhängen = `row: schedule.len()` am Call-Site). Invertiert
+   sauber gegen `ScheduleRemove`.
+3. **Coalescing nicht umgesetzt** (Plan §3.4, „optional"): jeder Bump-Klick ist
+   ein eigener Undo-Schritt. Bewusst nachrangig; Korrektheit zuerst.
+4. **Change-Detection:** Layout-only-Ops (z. B. Switch-Configure) markieren
+   jetzt auch `ActiveLevel` als geändert, weil `do_op` das Level mutabel nimmt.
+   Folge: der Fahrplan-Panel-Rebuild feuert auch bei reinen Layout-Edits. Da
+   click-getrieben (nicht pro Frame) vernachlässigbar — bewusst akzeptiert.

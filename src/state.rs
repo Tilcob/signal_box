@@ -123,6 +123,26 @@ impl Tool {
     ];
 }
 
+/// Transient feedback shown in the Edit HUD — e.g. why a sandbox action was
+/// refused (adding a train with no source/sink). Set by an action handler,
+/// ticked down and rendered by the HUD (`crate::ui::edit_hud`); auto-clears
+/// when the timer elapses.
+#[derive(Resource, Default)]
+pub struct EditNotice(pub Option<(String, Timer)>);
+
+/// The numeric input field (schedule editor) that currently holds keyboard
+/// focus, if any. While set, the edit hotkeys/board pointer/start key are
+/// suppressed so typing digits doesn't leak into the game.
+/// See `crate::ui::numeric_field`.
+#[derive(Resource, Default)]
+pub struct FocusedField(pub Option<Entity>);
+
+/// Run condition: no numeric field is focused. Gates the systems that read raw
+/// keyboard/mouse so they don't fight a field being typed into.
+pub fn no_field_focused(focus: Res<FocusedField>) -> bool {
+    focus.0.is_none()
+}
+
 /// Live validation + reachability results for the current build.
 #[derive(Resource, Default)]
 pub struct Diagnostics {
@@ -143,6 +163,8 @@ impl Plugin for StatePlugin {
         app.init_state::<GameState>()
             .init_resource::<Editor>()
             .init_resource::<Paused>()
+            .init_resource::<EditNotice>()
+            .init_resource::<FocusedField>()
             .init_resource::<Diagnostics>();
     }
 }

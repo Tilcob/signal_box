@@ -15,7 +15,10 @@ use super::widgets::{
 use crate::font::UiFont;
 use crate::i18n::{level_name, t};
 use crate::levels::{Progress, SOLUTION_SLOTS, save_sandbox};
-use crate::state::{ActiveLevel, Diagnostics, Editor, GameState, Tool, not_paused};
+use crate::state::{
+    ActiveLevel, Diagnostics, EditNotice, Editor, FocusedField, GameState, Tool, no_field_focused,
+    not_paused,
+};
 
 /// Marker for everything despawned when leaving Edit (incl. panel roots).
 #[derive(Component)]
@@ -25,6 +28,10 @@ pub(super) struct UiEdit;
 struct StartButton;
 #[derive(Component)]
 struct DiagText;
+/// Transient action-feedback line (e.g. "set a source first"); driven by
+/// [`EditNotice`], separate from the validation [`DiagText`].
+#[derive(Component)]
+struct NoticeText;
 #[derive(Component)]
 struct ToolText;
 #[derive(Component)]
@@ -59,9 +66,11 @@ impl Plugin for EditHudPlugin {
             Update,
             (
                 update_edit_texts,
+                tick_edit_notice,
                 // Gated so Space/Enter cannot start the run behind the pause
-                // menu (the overlay already absorbs the start button click).
-                start_button.run_if(not_paused),
+                // menu (the overlay already absorbs the start button click), nor
+                // while typing into a numeric field (Enter commits the field).
+                start_button.run_if(not_paused).run_if(no_field_focused),
                 slot_clicks,
                 export_level_click,
             )
@@ -111,6 +120,12 @@ fn spawn_edit_hud(
             c.spawn((
                 text_bundle(&font, String::new(), 14.0, Color::srgb(1.0, 0.45, 0.35)),
                 DiagText,
+            ));
+            // Amber, below the red validation line: transient "why that action
+            // was refused" feedback (M2 restfeature 02 follow-up).
+            c.spawn((
+                text_bundle(&font, String::new(), 13.0, Color::srgb(1.0, 0.78, 0.35)),
+                NoticeText,
             ));
             // Solution slots.
             c.spawn(Node {
@@ -236,9 +251,15 @@ fn fill_edit_texts(
     editor: Res<Editor>,
     diagnostics: Res<Diagnostics>,
     active: Option<Res<ActiveLevel>>,
+    mut notice: ResMut<EditNotice>,
+    mut focus: ResMut<FocusedField>,
     mut tool_texts: Query<&mut Text, (With<ToolText>, Without<DiagText>)>,
     mut diag_texts: Query<&mut Text, (With<DiagText>, Without<ToolText>)>,
 ) {
+    // Drop any stale notice / focus from a previous Edit session (the text
+    // entities and fields are respawned on entry).
+    notice.0 = None;
+    focus.0 = None;
     let sandbox = active.as_ref().is_some_and(|a| a.sandbox);
     if let Ok(mut text) = tool_texts.single_mut() {
         set_text(&mut text, tool_line(editor.tool, sandbox));
@@ -272,6 +293,27 @@ fn update_edit_texts(
         && let Ok(mut text) = diag_texts.single_mut()
     {
         set_text(&mut text, diag_line(&diagnostics));
+    }
+}
+
+/// Ticks the transient [`EditNotice`] and mirrors it into [`NoticeText`],
+/// clearing both when the timer elapses.
+fn tick_edit_notice(
+    time: Res<Time>,
+    mut notice: ResMut<EditNotice>,
+    mut texts: Query<&mut Text, With<NoticeText>>,
+) {
+    let Some((msg, timer)) = notice.0.as_mut() else {
+        return;
+    };
+    timer.tick(time.delta());
+    let finished = timer.just_finished();
+    let line = if finished { String::new() } else { msg.clone() };
+    if let Ok(mut text) = texts.single_mut() {
+        set_text(&mut text, line);
+    }
+    if finished {
+        notice.0 = None;
     }
 }
 

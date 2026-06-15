@@ -69,10 +69,32 @@ Unsinn (negativ/Null), kein Game-Design.
 
 ## 5. Definition of Done
 
-- [ ] `numeric_field`-Widget: fokussierbar, `Key`-basiert, clamp, Commit-Event
-- [ ] depart/due/speed/length im Sandbox-Fahrplan direkt eingebbar;
+- [x] `numeric_field`-Widget (`ui/numeric_field.rs`): fokussierbar, `Key`-basiert,
+      clamp, `NumericFieldCommit`-Message (Bevy 0.18: Message statt Event)
+- [x] depart/due/speed/length im Sandbox-Fahrplan direkt eingebbar;
       source/sink/class weiter als Zyklus
-- [ ] Jeder Commit = genau ein `ScheduleEdit` auf dem Undo-Stack (Restfeature 02)
-- [ ] Reine Parse/Clamp-Funktionen headless unit-getestet
-- [ ] QWERTZ-Tastatur tippt korrekt (manuell verifiziert, `STELLWERK_WINDOWED`)
-- [ ] `clippy -D warnings` grün; M2-Plan §8 Notiz 3 aktualisiert
+- [x] Jeder Commit = genau ein `ScheduleEdit` auf dem Undo-Stack (Restfeature 02)
+- [x] Reine `commit_value`-Parse/Clamp-Funktion headless unit-getestet
+- [~] QWERTZ: Code liest `ButtonInput<Key>` (logisch), nicht `KeyCode` — korrekt
+      per Konstruktion; der manuelle Tastatur-Test am Spiel steht noch aus
+- [x] `clippy -D warnings` + `cargo test --workspace` grün; M2-Plan §8 Notiz 3 aktualisiert
+
+## 6. Umsetzungsnotizen (Abweichungen)
+
+1. **Tasten-Gating statt nur Feld-Fokus.** Zifferntasten lösen sonst die
+   Tool-Hotkeys (1/2/3/4/6/7) aus, Enter den Run-Start. Gelöst über eine
+   Resource `FocusedField` + Run-Condition `no_field_focused` (in `state.rs`),
+   die `editor::tools::hotkeys`/`pointer` **und** `start_button` deaktiviert,
+   solange ein Feld fokussiert ist. Auch der Blur-Klick auf das Board legt so
+   kein Gleis.
+2. **Esc verworfen, nicht implementiert.** Der Plan nannte „Esc verwirft", aber
+   Esc öffnet in Edit das Pausemenü — Hijacking wäre überraschend. Commit per
+   Enter; Verwerfen entfällt (Blur committet den geclampten Wert).
+3. **Buffer auf aktuellen Wert vorbefüllt** statt leer: klick rein, editier per
+   Backspace/Tippen; leerer Buffer = unverändert.
+4. **Feld-zu-Feld-Klick:** committet das erste Feld → Panel-Rebuild despawnt das
+   eben fokussierte zweite Feld; Fokus wird auf das tote Entity erkannt und
+   gelöscht. Folge: zum Editieren des zweiten Felds nochmal klicken. Kleiner
+   Wermutstropfen, dokumentiert.
+5. **Kurze Präfixe (ab/soll/v/L)** bleiben wie zuvor hartkodiert (keine
+   i18n-Keys) — sie waren es bei den Zyklus-Knöpfen schon.

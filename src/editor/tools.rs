@@ -9,10 +9,10 @@ use stellwerk_sim::layout::{Layout, SignalDef, SignalKind, SwitchDef, TrackPiece
 use stellwerk_sim::level::Level;
 use stellwerk_sim::units::{SinkId, SourceId};
 
-use super::ops::{EditOp, Element, apply, do_op, invert};
+use super::ops::{EditOp, Element, do_op, redo, undo};
 use super::placement::{
     can_place_piece, can_place_signal, can_place_station, can_place_switch, signal_stub,
-    switch_variants,
+    station_dir, switch_variants,
 };
 use crate::board;
 use crate::camera::{MainCamera, cursor_world};
@@ -21,10 +21,11 @@ use crate::state::{ActiveLevel, Editor, Tool};
 pub(super) fn hotkeys(
     keys: Res<ButtonInput<KeyCode>>,
     logical: Res<ButtonInput<Key>>,
-    active: Option<Res<ActiveLevel>>,
+    active: Option<ResMut<ActiveLevel>>,
     mut editor: ResMut<Editor>,
 ) {
-    let sandbox = active.is_some_and(|a| a.sandbox);
+    let mut active = active;
+    let sandbox = active.as_ref().is_some_and(|a| a.sandbox);
     let bypass = editor.bypass_change_detection();
     if keys.just_pressed(KeyCode::KeyQ) {
         bypass.tool = Tool::Select;
@@ -71,22 +72,16 @@ pub(super) fn hotkeys(
     // arrives as KeyCode::KeyY — Ctrl+Z would silently trigger redo.
     let chr = |s: &str| Key::Character(s.into());
     let ctrl = keys.pressed(KeyCode::ControlLeft) || keys.pressed(KeyCode::ControlRight);
-    let undo = logical.just_pressed(chr("z")) || logical.just_pressed(chr("Z"));
-    let redo = logical.just_pressed(chr("y")) || logical.just_pressed(chr("Y"));
-    if ctrl && undo {
-        let editor = &mut *editor; // re-borrow WITH change detection
-        if let Some(op) = editor.undo.pop() {
-            let inverse = invert(&op);
-            apply(&mut editor.layout, &inverse);
-            editor.redo.push(op);
-        }
+    let undo_pressed = logical.just_pressed(chr("z")) || logical.just_pressed(chr("Z"));
+    let redo_pressed = logical.just_pressed(chr("y")) || logical.just_pressed(chr("Y"));
+    // undo/redo replay layout AND sandbox level ops, so they need the level.
+    // `&mut editor`/`&mut active.level` re-borrow WITH change detection on
+    // purpose: the merged layout and schedule panel must rebuild afterwards.
+    if ctrl && undo_pressed && let Some(active) = active.as_deref_mut() {
+        undo(&mut editor, &mut active.level);
     }
-    if ctrl && redo {
-        let editor = &mut *editor;
-        if let Some(op) = editor.redo.pop() {
-            apply(&mut editor.layout, &op);
-            editor.undo.push(op);
-        }
+    if ctrl && redo_pressed && let Some(active) = active.as_deref_mut() {
+        redo(&mut editor, &mut active.level);
     }
 }
 
@@ -139,7 +134,7 @@ pub(super) fn pointer(
                 .drag
                 .take()
                 .unwrap_or_default();
-            if finish_track_drag(&mut editor, &active.level, merged, &path) {
+            if finish_track_drag(&mut editor, &mut active.level, merged, &path) {
                 commands.trigger(crate::audio::SfxKind::BuildingSound);
             }
         }
@@ -161,6 +156,7 @@ pub(super) fn pointer(
                 variants[editor.variant.rem_euclid(variants.len() as i32) as usize];
             do_op(
                 &mut editor,
+                &mut active.level,
                 EditOp::Place(Element::Switch(SwitchDef {
                     cell,
                     stem,
@@ -187,34 +183,40 @@ pub(super) fn pointer(
             };
             do_op(
                 &mut editor,
+                &mut active.level,
                 EditOp::Place(Element::Signal(SignalDef { cell, at, kind })),
             );
             commands.trigger(crate::audio::SfxKind::BuildingSound);
         }
         Tool::Source if active.sandbox => {
-            let dir = board::nearest_connector(cell, cursor);
+            let dir = station_dir(editor.variant);
             if !can_place_station(&active.level, cell, dir) {
                 return;
             }
             let id = SourceId(next_id(active.level.sources.iter().map(|s| s.id.0)));
-            active
-                .level
-                .sources
-                .push(stellwerk_sim::level::SourceDef { id, cell, dir });
+            do_op(
+                &mut editor,
+                &mut active.level,
+                EditOp::PlaceSource(stellwerk_sim::level::SourceDef { id, cell, dir }),
+            );
             commands.trigger(crate::audio::SfxKind::BuildingSound);
         }
         Tool::Sink if active.sandbox => {
-            let dir = board::nearest_connector(cell, cursor);
+            let dir = station_dir(editor.variant);
             if !can_place_station(&active.level, cell, dir) {
                 return;
             }
             let id = SinkId(next_id(active.level.sinks.iter().map(|s| s.id.0)));
-            active.level.sinks.push(stellwerk_sim::level::SinkDef {
-                id,
-                cell,
-                dir,
-                label: format!("Z{}", id.0),
-            });
+            do_op(
+                &mut editor,
+                &mut active.level,
+                EditOp::PlaceSink(stellwerk_sim::level::SinkDef {
+                    id,
+                    cell,
+                    dir,
+                    label: format!("Z{}", id.0),
+                }),
+            );
             commands.trigger(crate::audio::SfxKind::BuildingSound);
         }
         Tool::Source | Tool::Sink => {}
@@ -234,7 +236,7 @@ fn next_id(used: impl Iterator<Item = u32>) -> u32 {
 /// direction; start/end cells stay open (drags begin/end on existing track).
 /// Returns `true` when at least one piece was actually placed (so the caller
 /// can play the build sound only on a real placement, not an empty/blocked drag).
-fn finish_track_drag(editor: &mut Editor, level: &Level, merged: &Layout, path: &[Cell]) -> bool {
+fn finish_track_drag(editor: &mut Editor, level: &mut Level, merged: &Layout, path: &[Cell]) -> bool {
     let dir_between = |from: Cell, to: Cell| -> Option<Dir8> {
         let delta = (to.x - from.x, to.y - from.y);
         Dir8::ALL.into_iter().find(|d| d.cell_offset() == delta)
@@ -277,13 +279,13 @@ fn finish_track_drag(editor: &mut Editor, level: &Level, merged: &Layout, path: 
             b,
         };
         if can_place_piece(level, merged, &piece) {
-            do_op(editor, EditOp::Place(Element::Piece(piece)));
+            do_op(editor, level, EditOp::Place(Element::Piece(piece)));
             return true;
         }
         return false;
     }
     if !ops.is_empty() {
-        do_op(editor, EditOp::Group(ops));
+        do_op(editor, level, EditOp::Group(ops));
         return true;
     }
     false
@@ -294,30 +296,41 @@ fn finish_track_drag(editor: &mut Editor, level: &Level, merged: &Layout, path: 
 fn erase_at(editor: &mut Editor, active: &mut ActiveLevel, cell: Cell, cursor: Vec2) {
     let at = board::nearest_connector(cell, cursor);
     if active.sandbox {
-        let sources_before = active.level.sources.len();
-        active
+        if let Some(source) = active
             .level
             .sources
-            .retain(|s| !(s.cell == cell && s.dir == at));
-        if active.level.sources.len() != sources_before {
+            .iter()
+            .find(|s| s.cell == cell && s.dir == at)
+            .cloned()
+        {
+            do_op(editor, &mut active.level, EditOp::RemoveSource(source));
             return;
         }
-        let sinks_before = active.level.sinks.len();
-        let removed: Vec<SinkId> = active
+        if let Some(sink) = active
             .level
             .sinks
             .iter()
-            .filter(|s| s.cell == cell && s.dir == at)
-            .map(|s| s.id)
-            .collect();
-        active
-            .level
-            .sinks
-            .retain(|s| !(s.cell == cell && s.dir == at));
-        if active.level.sinks.len() != sinks_before {
-            // Schedule entries pointing at a removed sink would be a
-            // permanent validation error — drop them along.
-            active.level.schedule.retain(|e| !removed.contains(&e.sink));
+            .find(|s| s.cell == cell && s.dir == at)
+            .cloned()
+        {
+            // Schedule entries pointing at the removed sink would be a
+            // permanent validation error — drop them too. Bundle them with the
+            // sink into one Group (rows highest-first so earlier removals don't
+            // shift the later indices) so a single undo restores all of it.
+            let mut ops: Vec<EditOp> = active
+                .level
+                .schedule
+                .iter()
+                .enumerate()
+                .filter(|(_, e)| e.sink == sink.id)
+                .map(|(row, e)| EditOp::ScheduleRemove {
+                    row,
+                    entry: e.clone(),
+                })
+                .collect();
+            ops.reverse();
+            ops.push(EditOp::RemoveSink(sink));
+            do_op(editor, &mut active.level, EditOp::Group(ops));
             return;
         }
     }
@@ -329,7 +342,7 @@ fn erase_at(editor: &mut Editor, active: &mut ActiveLevel, cell: Cell, cursor: V
         .or_else(|| editor.layout.signals.iter().find(|s| s.cell == cell))
         .copied()
     {
-        do_op(editor, EditOp::Remove(Element::Signal(signal)));
+        do_op(editor, &mut active.level, EditOp::Remove(Element::Signal(signal)));
         return;
     }
     if let Some(switch) = editor
@@ -342,7 +355,7 @@ fn erase_at(editor: &mut Editor, active: &mut ActiveLevel, cell: Cell, cursor: V
         if editor.selected_switch == Some(cell) {
             editor.selected_switch = None;
         }
-        do_op(editor, EditOp::Remove(Element::Switch(switch)));
+        do_op(editor, &mut active.level, EditOp::Remove(Element::Switch(switch)));
         return;
     }
     if let Some(piece) = editor
@@ -352,6 +365,6 @@ fn erase_at(editor: &mut Editor, active: &mut ActiveLevel, cell: Cell, cursor: V
         .find(|p| p.cell == cell)
         .copied()
     {
-        do_op(editor, EditOp::Remove(Element::Piece(piece)));
+        do_op(editor, &mut active.level, EditOp::Remove(Element::Piece(piece)));
     }
 }
