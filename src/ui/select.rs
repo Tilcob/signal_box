@@ -13,8 +13,8 @@ use super::widgets::{
     set_text, text_bundle,
 };
 use crate::font::UiFont;
-use crate::i18n::{level_name, set_lang, t};
-use crate::levels::{Catalog, Progress, SANDBOX_ID, load_sandbox, save_sandbox};
+use crate::i18n::{level_name, set_lang, t, t_or};
+use crate::levels::{Catalog, LevelEntry, Progress, SANDBOX_ID, load_sandbox, save_sandbox};
 #[cfg(feature = "dev")]
 use crate::levels::load_catalog;
 use crate::state::{Editor, GameState};
@@ -23,6 +23,12 @@ use crate::state::{Editor, GameState};
 struct UiSelect;
 #[derive(Component)]
 struct LevelButton(usize);
+/// Opens the level view for a chapter (the campaign `chapter` number).
+#[derive(Component)]
+struct ChapterButton(u8);
+/// Returns from a chapter's level view to the chapter overview.
+#[derive(Component)]
+struct BackButton;
 #[derive(Component)]
 struct SandboxButton;
 #[derive(Component)]
@@ -35,6 +41,12 @@ struct LangButton;
 /// Status line content (import results etc.).
 #[derive(Resource, Default)]
 struct UiStatus(String);
+
+/// Which chapter's level view is open. `None` = the chapter overview (the
+/// screen's home), `Some(n)` = the level list of chapter `n`. Drives which of
+/// the two layouts [`build_select`] builds; navigation rebuilds in place.
+#[derive(Resource, Default)]
+struct OpenChapter(Option<u8>);
 
 // --- Dev authoring (optimierung/07): only built with feature `dev` ---------
 /// Per-level delete (carries the level id, stable across re-indexing).
@@ -59,14 +71,26 @@ pub(super) struct SelectUiPlugin;
 impl Plugin for SelectUiPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<UiStatus>()
+            .init_resource::<OpenChapter>()
             .add_systems(
                 OnEnter(GameState::LevelSelect),
                 (spawn_select, update_status).chain(),
             )
-            .add_systems(OnExit(GameState::LevelSelect), despawn_all::<UiSelect>)
+            .add_systems(
+                OnExit(GameState::LevelSelect),
+                (despawn_all::<UiSelect>, reset_open_chapter),
+            )
             .add_systems(
                 Update,
-                (click_level, select_buttons, leave_to_menu)
+                (
+                    click_level,
+                    select_buttons,
+                    chapter_clicks,
+                    back_click,
+                    // Reads `HelpOpen` before the help overlay's Esc-close can
+                    // flip it (see `encyclopedia::HelpEscClose`).
+                    leave_to_menu.before(super::encyclopedia::HelpEscClose),
+                )
                     .run_if(in_state(GameState::LevelSelect)),
             )
             // Status line changes only on explicit actions (import/lang) — no
@@ -84,16 +108,36 @@ impl Plugin for SelectUiPlugin {
     }
 }
 
-/// Esc returns to the main menu — unless the help overlay is open (it owns
-/// Esc to close itself first).
+/// Esc hierarchy on the level select: the help overlay owns Esc first (closes
+/// itself); then a chapter's level view (back to the overview); only an Esc on
+/// the bare overview leaves to the main menu.
+#[allow(clippy::too_many_arguments)]
 fn leave_to_menu(
     keys: Res<ButtonInput<KeyCode>>,
     help: Res<HelpOpen>,
+    roots: Query<Entity, With<UiSelect>>,
+    ui_font: Res<UiFont>,
+    catalog: Res<Catalog>,
+    progress: Res<Progress>,
+    status: Res<UiStatus>,
+    mut open: ResMut<OpenChapter>,
+    mut commands: Commands,
     mut next: ResMut<NextState<GameState>>,
 ) {
-    if !help.0 && keys.just_pressed(KeyCode::Escape) {
+    if help.0 || !keys.just_pressed(KeyCode::Escape) {
+        return;
+    }
+    if open.0.is_some() {
+        open.0 = None;
+        rebuild_select(&mut commands, &roots, &ui_font.0, &catalog, &progress, None, &status.0);
+    } else {
         next.set(GameState::MainMenu);
     }
+}
+
+/// Always land on the overview when (re)entering the screen.
+fn reset_open_chapter(mut open: ResMut<OpenChapter>) {
+    open.0 = None;
 }
 
 fn spawn_select(
@@ -101,18 +145,42 @@ fn spawn_select(
     ui_font: Res<UiFont>,
     catalog: Res<Catalog>,
     progress: Res<Progress>,
+    open: Res<OpenChapter>,
+    status: Res<UiStatus>,
 ) {
-    build_select(&mut commands, &ui_font.0, &catalog, &progress);
+    build_select(&mut commands, &ui_font.0, &catalog, &progress, open.0, &status.0);
 }
 
-/// Builds the whole level-select screen. Extracted from the `OnEnter` system so
-/// the dev authoring actions can rebuild it in place (after writing/deleting a
-/// level) without bouncing through another state.
+/// Despawns the current screen and rebuilds it in place. Used by chapter
+/// navigation and the dev authoring actions so they need not bounce through
+/// another state — the only way to refresh the screen mid-`LevelSelect`.
+#[allow(clippy::too_many_arguments)]
+fn rebuild_select(
+    commands: &mut Commands,
+    roots: &Query<Entity, With<UiSelect>>,
+    font: &Handle<Font>,
+    catalog: &Catalog,
+    progress: &Progress,
+    open_chapter: Option<u8>,
+    status: &str,
+) {
+    for e in roots {
+        commands.entity(e).despawn();
+    }
+    build_select(commands, font, catalog, progress, open_chapter, status);
+}
+
+/// Builds the level-select screen for the current view: the chapter overview
+/// (`open_chapter == None`) or one chapter's level list. `status` is passed in
+/// (not left to `update_status`) so an import/language message survives an
+/// in-place rebuild — the rebuild path does not re-run `update_status`.
 fn build_select(
     commands: &mut Commands,
     font: &Handle<Font>,
     catalog: &Catalog,
     progress: &Progress,
+    open_chapter: Option<u8>,
+    status: &str,
 ) {
     let font = font.clone();
     commands
@@ -131,83 +199,186 @@ fn build_select(
             UiSelect,
         ))
         .with_children(|root| {
-            root.spawn(text_bundle(&font, t("select.title"), 30.0, TEXT_BRIGHT));
-            root.spawn(text_bundle(&font, t("select.hint"), 14.0, TEXT_DIM));
-            for (index, entry) in catalog.0.iter().enumerate() {
-                let progress_entry = progress.levels.get(&entry.id);
-                let medals = progress_entry
-                    .map(|p| p.medals(&entry.level))
-                    .unwrap_or_default();
-                let solved = progress_entry.is_some_and(|p| p.solved);
-                let medal_str: String =
-                    medals.iter().map(|m| if *m { '●' } else { '○' }).collect();
-                let check = if solved { "✓ " } else { "   " };
-                let hard = if entry.meta.optional_hard {
-                    format!("  {}", t("select.optional_hard"))
-                } else {
-                    String::new()
-                };
-                let label = format!(
-                    "{check}{}  {medal_str}{hard}",
-                    level_name(&entry.id, &entry.level.name)
-                );
-                // Dev: a per-level delete sits right beside each level button.
-                #[cfg(feature = "dev")]
-                root.spawn(Node {
-                    flex_direction: FlexDirection::Row,
-                    align_items: AlignItems::Center,
-                    ..default()
-                })
-                .with_children(|r| {
-                    button(r, &font, &label, BUTTON_BG, LevelButton(index));
-                    small_button(r, &font, "DEL", DevDeleteLevel(entry.id.clone()));
-                });
-                #[cfg(not(feature = "dev"))]
-                button(root, &font, &label, BUTTON_BG, LevelButton(index));
+            match open_chapter {
+                None => build_overview(root, &font, catalog, progress),
+                Some(ch) => build_chapter_view(root, &font, catalog, progress, ch),
             }
-            root.spawn(Node {
-                flex_direction: FlexDirection::Row,
-                margin: UiRect::top(Val::Px(10.0)),
-                ..default()
-            })
-            .with_children(|row| {
-                button(
-                    row,
-                    &font,
-                    &t("select.sandbox"),
-                    BUTTON_BG_PRIMARY,
-                    SandboxButton,
-                );
-                button(
-                    row,
-                    &font,
-                    &t("select.new_sandbox"),
-                    BUTTON_BG,
-                    NewSandboxButton,
-                );
-                button(row, &font, &t("select.import"), BUTTON_BG, ImportButton);
-                button(row, &font, &t("select.lang"), BUTTON_BG, LangButton);
-                button(row, &font, &t("help.button"), BUTTON_BG, HelpButton);
-            });
-            // Dev authoring controls (never in a ship build).
-            #[cfg(feature = "dev")]
-            root.spawn(Node {
-                flex_direction: FlexDirection::Row,
-                margin: UiRect::top(Val::Px(6.0)),
-                ..default()
-            })
-            .with_children(|row| {
-                button(
-                    row,
-                    &font,
-                    "DEV: Fortschritt zurücksetzen",
-                    BUTTON_BG,
-                    DevResetProgress,
-                );
-                button(row, &font, "DEV: ALLE Level löschen", BUTTON_BG, DevDeleteAll);
-            });
-            root.spawn((text_bundle(&font, String::new(), 14.0, TEXT_DIM), StatusText));
+            root.spawn((text_bundle(&font, status.to_string(), 14.0, TEXT_DIM), StatusText));
         });
+}
+
+/// Localized chapter name (authored, fallback "Kapitel N" — like level names,
+/// so an unauthored chapter never breaks).
+fn chapter_name(chapter: u8) -> String {
+    t_or(&format!("chapter.{chapter}.name"), &format!("Kapitel {chapter}"))
+}
+
+/// Home view: one button per campaign chapter (with a solved/total summary),
+/// plus the global sandbox/import/language/help row and dev controls.
+fn build_overview(
+    root: &mut ChildSpawnerCommands,
+    font: &Handle<Font>,
+    catalog: &Catalog,
+    progress: &Progress,
+) {
+    root.spawn(text_bundle(font, t("select.title"), 30.0, TEXT_BRIGHT));
+    root.spawn(text_bundle(font, t("select.chapter_hint"), 14.0, TEXT_DIM));
+
+    // Distinct chapters in catalog order (the catalog is sorted by chapter).
+    let mut chapters: Vec<u8> = Vec::new();
+    for entry in &catalog.0 {
+        if !chapters.contains(&entry.meta.chapter) {
+            chapters.push(entry.meta.chapter);
+        }
+    }
+    for ch in chapters {
+        let total = catalog.0.iter().filter(|e| e.meta.chapter == ch).count();
+        let solved = catalog
+            .0
+            .iter()
+            .filter(|e| e.meta.chapter == ch)
+            .filter(|e| progress.levels.get(&e.id).is_some_and(|p| p.solved))
+            .count();
+        let label = format!("{}   {solved}/{total} ✓", chapter_name(ch));
+        button(root, font, &label, BUTTON_BG, ChapterButton(ch));
+    }
+
+    root.spawn(Node {
+        flex_direction: FlexDirection::Row,
+        margin: UiRect::top(Val::Px(10.0)),
+        ..default()
+    })
+    .with_children(|row| {
+        button(row, font, &t("select.sandbox"), BUTTON_BG_PRIMARY, SandboxButton);
+        button(row, font, &t("select.new_sandbox"), BUTTON_BG, NewSandboxButton);
+        button(row, font, &t("select.import"), BUTTON_BG, ImportButton);
+        button(row, font, &t("select.lang"), BUTTON_BG, LangButton);
+        button(row, font, &t("help.button"), BUTTON_BG, HelpButton);
+    });
+    // Dev authoring controls (never in a ship build).
+    #[cfg(feature = "dev")]
+    root.spawn(Node {
+        flex_direction: FlexDirection::Row,
+        margin: UiRect::top(Val::Px(6.0)),
+        ..default()
+    })
+    .with_children(|row| {
+        button(row, font, "DEV: Fortschritt zurücksetzen", BUTTON_BG, DevResetProgress);
+        button(row, font, "DEV: ALLE Level löschen", BUTTON_BG, DevDeleteAll);
+    });
+}
+
+/// Chapter view: the levels of one chapter (with the global catalog index so
+/// `click_level` is unchanged) plus a back button.
+fn build_chapter_view(
+    root: &mut ChildSpawnerCommands,
+    font: &Handle<Font>,
+    catalog: &Catalog,
+    progress: &Progress,
+    chapter: u8,
+) {
+    root.spawn(text_bundle(font, chapter_name(chapter), 30.0, TEXT_BRIGHT));
+    root.spawn(text_bundle(font, t("select.hint"), 14.0, TEXT_DIM));
+    for (index, entry) in catalog
+        .0
+        .iter()
+        .enumerate()
+        .filter(|(_, e)| e.meta.chapter == chapter)
+    {
+        spawn_level_button(root, font, index, entry, progress);
+    }
+    root.spawn(Node {
+        margin: UiRect::top(Val::Px(10.0)),
+        ..default()
+    })
+    .with_children(|row| {
+        button(row, font, &t("select.chapter_back"), BUTTON_BG, BackButton);
+    });
+}
+
+/// A single level button (label = medals/solved/hard), with the dev per-level
+/// delete beside it in a `dev` build.
+fn spawn_level_button(
+    parent: &mut ChildSpawnerCommands,
+    font: &Handle<Font>,
+    index: usize,
+    entry: &LevelEntry,
+    progress: &Progress,
+) {
+    let label = level_label(entry, progress);
+    #[cfg(feature = "dev")]
+    parent
+        .spawn(Node {
+            flex_direction: FlexDirection::Row,
+            align_items: AlignItems::Center,
+            ..default()
+        })
+        .with_children(|r| {
+            button(r, font, &label, BUTTON_BG, LevelButton(index));
+            small_button(r, font, "DEL", DevDeleteLevel(entry.id.clone()));
+        });
+    #[cfg(not(feature = "dev"))]
+    button(parent, font, &label, BUTTON_BG, LevelButton(index));
+}
+
+/// Level button label: solved check, name, medal dots, optional-hard tag.
+fn level_label(entry: &LevelEntry, progress: &Progress) -> String {
+    let progress_entry = progress.levels.get(&entry.id);
+    let medals = progress_entry
+        .map(|p| p.medals(&entry.level))
+        .unwrap_or_default();
+    let solved = progress_entry.is_some_and(|p| p.solved);
+    let medal_str: String = medals.iter().map(|m| if *m { '●' } else { '○' }).collect();
+    let check = if solved { "✓ " } else { "   " };
+    let hard = if entry.meta.optional_hard {
+        format!("  {}", t("select.optional_hard"))
+    } else {
+        String::new()
+    };
+    format!(
+        "{check}{}  {medal_str}{hard}",
+        level_name(&entry.id, &entry.level.name)
+    )
+}
+
+/// Chapter button → open that chapter's level view (rebuild in place).
+#[allow(clippy::too_many_arguments)]
+fn chapter_clicks(
+    interactions: Query<(&Interaction, &ChapterButton), Changed<Interaction>>,
+    roots: Query<Entity, With<UiSelect>>,
+    ui_font: Res<UiFont>,
+    catalog: Res<Catalog>,
+    progress: Res<Progress>,
+    status: Res<UiStatus>,
+    mut open: ResMut<OpenChapter>,
+    mut commands: Commands,
+) {
+    for (interaction, btn) in &interactions {
+        if *interaction != Interaction::Pressed {
+            continue;
+        }
+        open.0 = Some(btn.0);
+        rebuild_select(&mut commands, &roots, &ui_font.0, &catalog, &progress, open.0, &status.0);
+        return;
+    }
+}
+
+/// Back button → return to the chapter overview (rebuild in place).
+#[allow(clippy::too_many_arguments)]
+fn back_click(
+    interactions: Query<&Interaction, (Changed<Interaction>, With<BackButton>)>,
+    roots: Query<Entity, With<UiSelect>>,
+    ui_font: Res<UiFont>,
+    catalog: Res<Catalog>,
+    progress: Res<Progress>,
+    status: Res<UiStatus>,
+    mut open: ResMut<OpenChapter>,
+    mut commands: Commands,
+) {
+    if interactions.iter().any(|i| *i == Interaction::Pressed) {
+        open.0 = None;
+        rebuild_select(&mut commands, &roots, &ui_font.0, &catalog, &progress, None, &status.0);
+    }
 }
 
 fn update_status(status: Res<UiStatus>, mut texts: Query<&mut Text, With<StatusText>>) {
@@ -321,6 +492,11 @@ pub(crate) const DECODE_ERROR_KEYS: &[&str] = &[
     "import.error.corrupt",
 ];
 
+/// Static chapter-navigation keys (the chapter names themselves use `t_or`
+/// with an authored fallback, like level names, so they are not required here).
+#[cfg(test)]
+pub(crate) const SELECT_CHAPTER_KEYS: &[&str] = &["select.chapter_hint", "select.chapter_back"];
+
 /// Localized import-failure text. `DecodeError`'s own `Display` stays English
 /// (logs); the player-facing message is translated here — same split as
 /// `edit_hud::valerr_text` for `ValidationError`.
@@ -348,6 +524,7 @@ fn dev_select_actions(
     mut progress: ResMut<Progress>,
     mut status: ResMut<UiStatus>,
     mut armed: ResMut<DevDeleteArmed>,
+    mut open: ResMut<OpenChapter>,
     mut commands: Commands,
 ) {
     let mut dirty = false;
@@ -409,8 +586,7 @@ fn dev_select_actions(
     if catalog_changed {
         *catalog = load_catalog();
     }
-    for e in &roots {
-        commands.entity(e).despawn();
-    }
-    build_select(&mut commands, &ui_font.0, &catalog, &progress);
+    // Indices shift after a catalog change — drop back to the overview.
+    open.0 = None;
+    rebuild_select(&mut commands, &roots, &ui_font.0, &catalog, &progress, None, &status.0);
 }

@@ -21,6 +21,13 @@ pub(super) struct HelpOpen(pub(super) bool);
 #[derive(Component)]
 pub(super) struct HelpButton;
 
+/// The Esc-driven help close. Other Esc consumers on the level select
+/// (`select::leave_to_menu`) order themselves `.before` this set so they read
+/// [`HelpOpen`] before it is flipped — otherwise an Esc that closes the help
+/// overlay could also fall through and leave the screen the same frame.
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+pub(crate) struct HelpEscClose;
+
 #[derive(Component)]
 struct HelpRoot;
 
@@ -71,7 +78,7 @@ impl Plugin for EncyclopediaPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<HelpOpen>().add_systems(
             Update,
-            (open_clicks, close_actions, sync_overlay)
+            (open_clicks, close_actions.in_set(HelpEscClose), sync_overlay)
                 .run_if(in_state(GameState::MainMenu).or(in_state(GameState::LevelSelect))),
         );
         // Leaving either entry screen tears the overlay down with the screen
