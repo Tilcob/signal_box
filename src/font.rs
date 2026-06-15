@@ -5,6 +5,12 @@
 use bevy::prelude::*;
 use bevy::text::Font;
 
+/// The shipped UI face. Swapping it (e.g. to the DIN-like signage font of
+/// GDD §10 / restfeature 04) is a one-liner here plus dropping the new `.ttf`
+/// and its OFL/Apache/PD license beside it — the `shipped_font_covers_all_ui_glyphs`
+/// test then guarantees the replacement still renders every UI character.
+/// A proportional face must keep tabular figures (or the read-only schedule's
+/// `·`-separated columns lose their alignment).
 const PATH: &str = "assets/fonts/DejaVuSansMono.ttf";
 
 /// Handle to the UI font, passed explicitly into every `TextFont`.
@@ -41,5 +47,49 @@ impl Plugin for FontPlugin {
             }
         };
         app.insert_resource(UiFont(handle));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::{BTreeMap, BTreeSet};
+
+    /// Symbols the UI draws from source string literals, i.e. NOT via the i18n
+    /// tables (separators, arrows, marks). Keep in sync when a new symbol is
+    /// added to the UI — same `#[cfg(test)]` const pattern as the i18n
+    /// decode-error keys.
+    const UI_GLYPHS: &str = "·→×✓✗●○…»≈";
+
+    fn i18n_chars(lang: &str) -> BTreeSet<char> {
+        let path = format!("{}/assets/i18n/{lang}.ron", env!("CARGO_MANIFEST_DIR"));
+        let text = std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {path}: {e}"));
+        let map: BTreeMap<String, String> =
+            ron::from_str(&text).unwrap_or_else(|e| panic!("parse {path}: {e}"));
+        map.values().flat_map(|v| v.chars()).collect()
+    }
+
+    /// The "Schriftprüfung" (M2 restfeature 04 / GDD §10): the shipped font must
+    /// render every character the UI can display — both i18n tables (incl. all
+    /// umlauts and ß) plus the hardcoded symbols — otherwise it shows tofu.
+    #[test]
+    fn shipped_font_covers_all_ui_glyphs() {
+        let font_path = format!("{}/{}", env!("CARGO_MANIFEST_DIR"), super::PATH);
+        let data = std::fs::read(&font_path).unwrap_or_else(|e| panic!("read {font_path}: {e}"));
+        let face = ttf_parser::Face::parse(&data, 0).expect("shipped font parses");
+
+        let mut required = i18n_chars("en");
+        required.extend(i18n_chars("de"));
+        required.extend(UI_GLYPHS.chars());
+
+        let missing: Vec<char> = required
+            .into_iter()
+            .filter(|&c| !c.is_control() && face.glyph_index(c).is_none())
+            .collect();
+
+        assert!(
+            missing.is_empty(),
+            "shipped font {} lacks glyphs for: {missing:?}",
+            super::PATH
+        );
     }
 }

@@ -46,6 +46,12 @@ bevy_kira_audio = { version = "0.25.0", features = ["wav"] }
 # stellwerk_sim-Kern bleibt deterministisch und randomness-frei.
 fastrand = "2"
 
+[dev-dependencies]
+# Schriftprüfung (M2-Restfeature 04): Glyph-Abdeckung der ausgelieferten Font
+# gegen alle UI-Zeichen prüfen. Test-only, schon transitiv im Baum (cosmic-text)
+# → kein Laufzeit-§12.4-Vorgang.
+ttf-parser = "0.25"
+
 # Vendored bevy_text 0.18.1 with ONE patched constant (font atlas page size
 # 512 → 2048, see vendor/bevy_text/src/font_atlas.rs): texts whose glyphs
 # overflow onto a second atlas page render corrupted glyphs in bevy 0.18.

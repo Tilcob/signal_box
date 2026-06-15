@@ -4885,6 +4885,7 @@ dependencies = [
  "serde",
  "stellwerk_codes",
  "stellwerk_sim",
+ "ttf-parser",
 ]
 
 [[package]]

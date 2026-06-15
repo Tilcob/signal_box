@@ -80,10 +80,26 @@ auseinanderdriften.
 
 ## 5. Definition of Done
 
-- [ ] DIN-artige, OFL/Apache/PD-Schrift eingebunden; `font.rs` zeigt darauf;
-      DejaVu + alte Lizenzdatei entfernt, neue Lizenzdatei ausgeliefert
-- [ ] `tests/font_coverage.rs` prüft volle Glyph-Abdeckung (de ∪ en ∪
-      UI-Sonderzeichen) und ist rot bei Lücke
-- [ ] Fahrplan-Spalten bleiben ausgerichtet (Tabular-Ziffern/feste Breiten)
-- [ ] Keine Atlas-Korruption nach AUTOCYCLE-Menüdurchlauf (manuell verifiziert)
-- [ ] `clippy -D warnings` grün; M2-Plan §3 Schrift-Häkchen jetzt belegt
+- [x] **Schriftprüfung** vorhanden: `font::tests::shipped_font_covers_all_ui_glyphs`
+      prüft volle Glyph-Abdeckung (de ∪ en ∪ `UI_GLYPHS`) und ist rot bei Lücke.
+      (Unit-Test in `font.rs` statt `tests/font_coverage.rs` — der bin-Crate hat
+      kein lib-Target, ein Integrationstest käme nicht an `PATH`/Konstanten.)
+- [x] `clippy -D warnings` + `cargo test --workspace` grün; M2-Plan §3/§8
+      aktualisiert. `ttf-parser` als dev-dependency (test-only).
+- [ ] **OFFEN — braucht Asset-Drop:** DIN-artige, OFL/Apache/PD-Schrift
+      einbinden; `PATH` in `font.rs` umstellen, DejaVu + Lizenz raus, neue
+      Lizenz rein. Kann ich nicht autonom: die Binärdatei lässt sich hier nicht
+      beschaffen. Shortlist siehe §3.1.
+- [ ] **OFFEN (beim Swap):** Fahrplan-Spalten ausgerichtet halten
+      (Tabular-Ziffern / feste Breiten — `font.rs`-Doc weist darauf hin).
+- [ ] **OFFEN (beim Swap):** keine Atlas-Korruption nach AUTOCYCLE (manuell).
+
+## 6. Umsetzungsnotiz
+
+Aufgeteilt in die zwei Hälften aus §2: Die **Schriftprüfung** (reiner Code, der
+in der DoH fälschlich als erledigt galt) ist eingebaut und grün — sie deckt die
+i18n-Tabellen (inkl. Umlaute/ß) plus die hartkodierten UI-Symbole
+(`· → × ✓ ✗ ● ○ … » ≈`) ab und macht jeden künftigen Font-Tausch sicher. Die
+**DIN-Schrift** selbst bleibt offen, weil das Beschaffen der lizenzierten
+Binärdatei ein menschlicher Schritt ist; `font.rs` ist dafür auf einen
+Einzeiler vorbereitet.
