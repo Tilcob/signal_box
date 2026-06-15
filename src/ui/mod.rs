@@ -8,6 +8,7 @@ mod campaign_save;
 pub(crate) mod edit_hud;
 pub(crate) mod encyclopedia;
 mod main_menu;
+pub(crate) mod pause;
 mod result;
 mod run_hud;
 mod sandbox_setup;
@@ -35,6 +36,7 @@ impl Plugin for UiPlugin {
             run_hud::RunHudPlugin,
             result::ResultPlugin,
             encyclopedia::EncyclopediaPlugin,
+            pause::PausePlugin,
         ))
         // All states: hover/press feedback for every button.
         .add_systems(Update, widgets::button_feedback);

@@ -16,8 +16,7 @@ use super::placement::{
 };
 use crate::board;
 use crate::camera::{MainCamera, cursor_world};
-use crate::levels::{Progress, save_sandbox};
-use crate::state::{ActiveLevel, Editor, GameState, Tool};
+use crate::state::{ActiveLevel, Editor, Tool};
 
 pub(super) fn hotkeys(
     keys: Res<ButtonInput<KeyCode>>,
@@ -355,30 +354,4 @@ fn erase_at(editor: &mut Editor, active: &mut ActiveLevel, cell: Cell, cursor: V
     {
         do_op(editor, EditOp::Remove(Element::Piece(piece)));
     }
-}
-
-/// Esc returns to level select (build and sandbox level are autosaved).
-pub(super) fn leave_to_select(
-    keys: Res<ButtonInput<KeyCode>>,
-    active: Option<Res<ActiveLevel>>,
-    editor: Res<Editor>,
-    mut progress: ResMut<Progress>,
-    mut next: ResMut<NextState<GameState>>,
-) {
-    if !keys.just_pressed(KeyCode::Escape) {
-        return;
-    }
-    // Esc first closes an open radial menu (handled by `radial_menu`, which
-    // runs after this); only an Esc with no menu open leaves the level.
-    if editor.radial.is_some() {
-        return;
-    }
-    if let Some(active) = active {
-        progress.entry(&active.id).layout = editor.layout.clone();
-        progress.save();
-        if active.sandbox {
-            save_sandbox(&active.level);
-        }
-    }
-    next.set(GameState::LevelSelect);
 }

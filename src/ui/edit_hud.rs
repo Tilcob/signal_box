@@ -14,7 +14,7 @@ use super::widgets::{
 use crate::font::UiFont;
 use crate::i18n::{level_name, t};
 use crate::levels::{Progress, SOLUTION_SLOTS, save_sandbox};
-use crate::state::{ActiveLevel, Diagnostics, Editor, GameState, Tool};
+use crate::state::{ActiveLevel, Diagnostics, Editor, GameState, Tool, not_paused};
 
 /// Marker for everything despawned when leaving Edit (incl. panel roots).
 #[derive(Component)]
@@ -58,7 +58,9 @@ impl Plugin for EditHudPlugin {
             Update,
             (
                 update_edit_texts,
-                start_button,
+                // Gated so Space/Enter cannot start the run behind the pause
+                // menu (the overlay already absorbs the start button click).
+                start_button.run_if(not_paused),
                 slot_clicks,
                 export_level_click,
             )

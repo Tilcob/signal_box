@@ -42,6 +42,18 @@ pub struct ActiveLevel {
 #[derive(Resource, Clone)]
 pub struct LastOutcome(pub Outcome);
 
+/// Whether the in-level pause menu is open (Edit and Run). While true the
+/// gameplay input is gated off and the pause overlay covers the screen; Esc
+/// toggles it. See `crate::ui::pause`.
+#[derive(Resource, Default)]
+pub struct Paused(pub bool);
+
+/// Run condition for the gameplay systems that must freeze while the pause
+/// menu is open (edit tools, the sim tick, the start hotkey).
+pub fn not_paused(paused: Res<Paused>) -> bool {
+    !paused.0
+}
+
 /// The player's build, with full undo/redo (plan M1 §2: every build action
 /// is an invertible operation — the same op vocabulary carries the M2
 /// sharing format).
@@ -130,6 +142,7 @@ impl Plugin for StatePlugin {
     fn build(&self, app: &mut App) {
         app.init_state::<GameState>()
             .init_resource::<Editor>()
+            .init_resource::<Paused>()
             .init_resource::<Diagnostics>();
     }
 }

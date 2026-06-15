@@ -14,7 +14,7 @@ use crate::board::point_world;
 use crate::camera::{MainCamera, cursor_world};
 use crate::i18n::{station_label, t};
 use crate::levels::Progress;
-use crate::state::{ActiveLevel, Editor, GameState, LastOutcome};
+use crate::state::{ActiveLevel, Editor, GameState, LastOutcome, not_paused};
 
 pub const TICKS_PER_SECOND: f32 = 10.0;
 /// Hard cap so a hung run cannot freeze the app (sim has its own caps too).
@@ -68,7 +68,15 @@ impl Plugin for RunPlugin {
             .add_systems(OnEnter(GameState::Run), start_run)
             .add_systems(
                 Update,
-                (speed_input, tick, click_train).run_if(in_state(GameState::Run)),
+                (
+                    // Frozen while the pause menu is open; `toggle_pause` stays
+                    // ungated so Esc can still close it.
+                    speed_input.run_if(not_paused),
+                    tick.run_if(not_paused),
+                    click_train.run_if(not_paused),
+                    crate::ui::pause::toggle_pause,
+                )
+                    .run_if(in_state(GameState::Run)),
             )
             .add_systems(OnEnter(GameState::Edit), cleanup)
             .add_systems(OnEnter(GameState::LevelSelect), cleanup);
@@ -116,11 +124,7 @@ fn start_run(
     }
 }
 
-fn speed_input(
-    keys: Res<ButtonInput<KeyCode>>,
-    ctl: Option<ResMut<RunCtl>>,
-    mut next: ResMut<NextState<GameState>>,
-) {
+fn speed_input(keys: Res<ButtonInput<KeyCode>>, ctl: Option<ResMut<RunCtl>>) {
     let Some(mut ctl) = ctl else { return };
     if keys.just_pressed(KeyCode::Space) {
         if ctl.speed == 0 {
@@ -138,9 +142,6 @@ fn speed_input(
     }
     if keys.just_pressed(KeyCode::Digit3) {
         ctl.speed = 16;
-    }
-    if keys.just_pressed(KeyCode::Escape) {
-        next.set(GameState::Edit);
     }
 }
 

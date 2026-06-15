@@ -21,7 +21,7 @@ pub use ops::{EditOp, do_op};
 use bevy::prelude::*;
 use stellwerk_sim::Layout;
 
-use crate::state::{ActiveLevel, Editor, GameState};
+use crate::state::{ActiveLevel, Editor, GameState, not_paused};
 
 /// `fixed ⊕ player` layout, rebuilt only when the build or level changes.
 /// Both the pointer (placement gates) and the overlays (ghost colouring) read
@@ -38,14 +38,15 @@ impl Plugin for EditorPlugin {
             Update,
             (
                 sync_merged_layout,
-                tools::hotkeys,
-                tools::pointer,
+                tools::hotkeys.run_if(not_paused),
+                tools::pointer.run_if(not_paused),
                 overlays::draw_overlays,
                 validation::revalidate,
-                tools::leave_to_select,
-                // After leave_to_select: it yields to an open menu, so the
-                // menu must still be open when it runs — close happens here.
-                radial::radial_menu,
+                // Esc opens/closes the pause menu in place of leaving the
+                // level. It yields to an open radial menu, so it must run
+                // before `radial_menu` (which closes the radial after).
+                crate::ui::pause::toggle_pause,
+                radial::radial_menu.run_if(not_paused),
             )
                 .chain()
                 .run_if(in_state(GameState::Edit)),

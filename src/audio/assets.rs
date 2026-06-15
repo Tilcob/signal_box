@@ -14,7 +14,7 @@ const LEVEL_TRACKS: &[&str] = &[
     "audio/music/4379051-about-trains-passing-by-179886.ogg",
     "audio/music/4379051-siberia-express-192132.ogg",
     "audio/music/bransboynd-night-city-418052.ogg",
-    "audio/music/grand_project-technology-modern-electronic-railway-track-470218.oggs",
+    "audio/music/grand_project-technology-modern-electronic-railway-track-470218.ogg",
     "audio/music/songshu888-nighttrain-145794.ogg",
 ];
 

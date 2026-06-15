@@ -130,6 +130,7 @@ mod tests {
         use crate::state::Tool;
         use crate::ui::edit_hud::{VALERR_KEYS, tool_key};
         use crate::ui::encyclopedia::TOOL_HELP_KEYS;
+        use crate::ui::pause::PAUSE_KEYS;
         use crate::ui::select::DECODE_ERROR_KEYS;
 
         fn table(lang: &str) -> BTreeMap<String, String> {
@@ -158,6 +159,7 @@ mod tests {
         keys.extend(VALERR_KEYS.iter().map(|k| k.to_string()));
         keys.extend(DECODE_ERROR_KEYS.iter().map(|k| k.to_string()));
         keys.extend(TOOL_HELP_KEYS.iter().map(|k| k.to_string()));
+        keys.extend(PAUSE_KEYS.iter().map(|k| k.to_string()));
         keys.extend(Tool::ALL.iter().map(|&tool| tool_key(tool).to_string()));
 
         for key in keys {
