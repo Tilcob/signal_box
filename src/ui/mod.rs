@@ -15,6 +15,7 @@ mod sandbox_setup;
 mod schedule_panel;
 pub(crate) mod select;
 mod switch_panel;
+pub(crate) mod valerr;
 mod widgets;
 
 use bevy::prelude::*;

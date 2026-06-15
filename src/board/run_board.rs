@@ -24,7 +24,7 @@ use super::geometry::{CELL, cell_world, point_world};
 use super::palette::*;
 use crate::font::UiFont;
 use crate::run::RunCtl;
-use crate::state::ActiveLevel;
+use crate::state::{ActiveLevel, GameState};
 
 /// Track band of one block — its colour/width is recoloured in place by
 /// [`update_run_board`] instead of being respawned each frame.
@@ -126,6 +126,7 @@ pub(super) fn spawn_run_board_static(
 
 pub(super) fn update_run_board(
     ctl: Option<Res<RunCtl>>,
+    state: Res<State<GameState>>,
     mut bands: Query<(&BlockBand, &mut Sprite), Without<SignalLamp>>,
     mut lamps: Query<(&SignalLamp, &mut Sprite), Without<BlockBand>>,
     mut commands: Commands,
@@ -150,7 +151,10 @@ pub(super) fn update_run_board(
         switched |= sprite.color != color;
         sprite.color = color;
     }
-    if switched {
+    // Only sound a flip during live play — the once-off recolour on entering
+    // Result must stay silent (a final-tick flip would otherwise click on the
+    // outcome screen).
+    if switched && *state.get() == GameState::Run {
         commands.trigger(crate::audio::SfxKind::Signal);
     }
 }

@@ -40,7 +40,7 @@ impl Plugin for EditorPlugin {
                 sync_merged_layout,
                 tools::hotkeys.run_if(not_paused),
                 tools::pointer.run_if(not_paused),
-                overlays::draw_overlays,
+                overlays::draw_overlays.run_if(not_paused),
                 validation::revalidate,
                 // Esc opens/closes the pause menu in place of leaving the
                 // level. It yields to an open radial menu, so it must run

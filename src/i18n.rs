@@ -128,10 +128,11 @@ mod tests {
     #[test]
     fn dynamic_keys_present_in_both_tables() {
         use crate::state::Tool;
-        use crate::ui::edit_hud::{VALERR_KEYS, tool_key};
+        use crate::ui::edit_hud::tool_key;
         use crate::ui::encyclopedia::TOOL_HELP_KEYS;
         use crate::ui::pause::PAUSE_KEYS;
         use crate::ui::select::{DECODE_ERROR_KEYS, SELECT_CHAPTER_KEYS};
+        use crate::ui::valerr::VALERR_KEYS;
 
         fn table(lang: &str) -> BTreeMap<String, String> {
             let path = format!("{}/assets/i18n/{lang}.ron", env!("CARGO_MANIFEST_DIR"));

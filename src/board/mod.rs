@@ -19,7 +19,7 @@ pub use geometry::{CELL, cell_world, connector_world, nearest_connector, point_w
 
 use bevy::prelude::*;
 
-use crate::state::{ActiveLevel, Editor, GameState};
+use crate::state::{ActiveLevel, Editor, GameState, not_paused};
 use draw::{BoardGfx, LiveGfx, despawn_all};
 
 pub struct BoardPlugin;
@@ -39,9 +39,12 @@ impl Plugin for BoardPlugin {
             .add_systems(
                 Update,
                 (
+                    // `spawn_run_board_static` stays ungated (it must build the
+                    // board on the first Run frame); the per-frame state update
+                    // and train redraw are frozen behind the pause menu.
                     run_board::spawn_run_board_static,
-                    run_board::update_run_board,
-                    run_board::redraw_trains,
+                    run_board::update_run_board.run_if(not_paused),
+                    run_board::redraw_trains.run_if(not_paused),
                 )
                     .chain()
                     .run_if(in_state(GameState::Run)),
