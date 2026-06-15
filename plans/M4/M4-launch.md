@@ -31,6 +31,12 @@
   frische-Maschine-Test ohne Dev-Umgebung
 - v1.x-Triage: GDD-§16-Liste priorisieren (Histogramme? Tages-Challenge?) —
   Launch ist nicht das Ende der Roadmap, der Plan dafür entsteht hier
+- Asset-Finalisierung: die in M2 (restfeatures/04) als gezeichnete
+  `bevy_ui`-Shapes interim gebauten Status-Icons (Par-Medaillen, „gelöst",
+  sowie die als »«× ersetzten play/back/error) durch echte **PNG-Icons**
+  ersetzen — kein neues Feature, nur Politur eines Platzhalters (also kein
+  Feature-Freeze-Verstoß). Symbole aus den i18n-Strings in eigene `ImageNode`s
+  lösen; `font::tests::shipped_font_covers_all_ui_glyphs` muss grün bleiben.
 
 **Nicht in M4:** neue Features, neue Bausteine, neue Modi — Feature-Freeze
 ab M4-Start; alles Neue ist v1.x (GDD §15: Scope-Creep-Schutz).
@@ -63,6 +69,7 @@ ab M4-Start; alles Neue ist v1.x (GDD §15: Scope-Creep-Schutz).
 - [ ] Save-Migration von jeder je veröffentlichten Version (Demo!) getestet
 - [ ] Goldcodes aus M2 dekodieren noch (Sharing-Kompatibilität)
 - [ ] Achievements feuern; Cloud-Sync zwischen zwei Rechnern geprüft
+- [ ] Interim-Icon-Shapes durch PNG-Icons ersetzt (M2 restfeatures/04), Schriftprüfung weiter grün
 - [ ] Build ohne `dev`-Feature, ohne Inspector, ohne file_watcher (GDD-Release-Disziplin)
 - [ ] Presskit + Trailer live; Launch-Post-Texte (Steam/Reddit/Discord) vorbereitet
 - [ ] Day-1-Patch-Prozess einmal trocken geübt (Hotfix-Branch → Build → Depot)

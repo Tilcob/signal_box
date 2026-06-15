@@ -10,6 +10,59 @@ pub(super) const BUTTON_BG_PRIMARY: Color = Color::srgb(0.10, 0.22, 0.14);
 pub(super) const BUTTON_BG_BLOCKED: Color = Color::srgb(0.22, 0.10, 0.10);
 pub(super) const TEXT_DIM: Color = Color::srgb(0.55, 0.58, 0.65);
 pub(super) const TEXT_BRIGHT: Color = Color::srgb(0.88, 0.90, 0.95);
+/// Achieved-par medal fill.
+pub(super) const MEDAL: Color = Color::srgb(0.95, 0.80, 0.38);
+/// Solved-level marker (matches the success headline green).
+pub(super) const SOLVED: Color = Color::srgb(0.40, 1.0, 0.55);
+
+/// A status dot drawn as a UI shape, not a font glyph — the DIN UI font has no
+/// ●/○ (restfeature 04). `filled` = solid disc in `color`, else a dim hollow
+/// ring. Used for par medals and the solved marker; PNG icons replace these
+/// before release.
+pub(super) fn dot(parent: &mut ChildSpawnerCommands, filled: bool, color: Color) {
+    let (bg, border) = if filled {
+        (color, color)
+    } else {
+        (Color::NONE, TEXT_DIM)
+    };
+    parent.spawn((
+        Node {
+            width: Val::Px(10.0),
+            height: Val::Px(10.0),
+            margin: UiRect::all(Val::Px(2.0)),
+            border: UiRect::all(Val::Px(2.0)),
+            border_radius: BorderRadius::MAX,
+            ..default()
+        },
+        BackgroundColor(bg),
+        BorderColor::all(border),
+    ));
+}
+
+/// Like [`button`] but the caller fills the inner row (text plus icon nodes
+/// like [`dot`]) instead of a single label.
+pub(super) fn button_row<M: Component>(
+    parent: &mut ChildSpawnerCommands,
+    bg: Color,
+    marker: M,
+    children: impl FnOnce(&mut ChildSpawnerCommands),
+) {
+    parent
+        .spawn((
+            Button,
+            Node {
+                padding: UiRect::axes(Val::Px(14.0), Val::Px(7.0)),
+                margin: UiRect::all(Val::Px(3.0)),
+                flex_direction: FlexDirection::Row,
+                align_items: AlignItems::Center,
+                ..default()
+            },
+            BackgroundColor(bg),
+            ButtonBase(bg),
+            marker,
+        ))
+        .with_children(children);
+}
 
 /// Status line shared by the level select and the result overlay.
 #[derive(Component)]

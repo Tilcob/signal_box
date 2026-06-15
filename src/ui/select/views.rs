@@ -5,7 +5,10 @@ use bevy::prelude::*;
 
 #[cfg(feature = "dev")]
 use crate::ui::widgets::small_button;
-use crate::ui::widgets::{BUTTON_BG, BUTTON_BG_PRIMARY, TEXT_BRIGHT, TEXT_DIM, button, text_bundle};
+use crate::ui::widgets::{
+    BUTTON_BG, BUTTON_BG_PRIMARY, MEDAL, SOLVED, TEXT_BRIGHT, TEXT_DIM, button, button_row, dot,
+    text_bundle,
+};
 use crate::font::UiFont;
 use crate::i18n::{level_name, t, t_or};
 use crate::levels::{Catalog, LevelEntry, Progress};
@@ -52,7 +55,7 @@ pub(super) fn build_overview(
             .filter(|e| e.meta.chapter == ch)
             .filter(|e| progress.levels.get(&e.id).is_some_and(|p| p.solved))
             .count();
-        let label = format!("{}   {solved}/{total} ✓", chapter_name(ch));
+        let label = format!("{}   {solved}/{total}", chapter_name(ch));
         button(root, font, &label, BUTTON_BG, ChapterButton(ch));
     }
 
@@ -109,8 +112,9 @@ pub(super) fn build_chapter_view(
     });
 }
 
-/// A single level button (label = medals/solved/hard), with the dev per-level
-/// delete beside it in a `dev` build.
+/// A single level button: a solved dot, the name (+ optional-hard tag) and one
+/// medal dot per score axis — all drawn icons, not font glyphs (restfeature 04).
+/// In a `dev` build the per-level delete sits beside it.
 fn spawn_level_button(
     parent: &mut ChildSpawnerCommands,
     font: &Handle<Font>,
@@ -118,7 +122,31 @@ fn spawn_level_button(
     entry: &LevelEntry,
     progress: &Progress,
 ) {
-    let label = level_label(entry, progress);
+    let progress_entry = progress.levels.get(&entry.id);
+    let medals = progress_entry
+        .map(|p| p.medals(&entry.level))
+        .unwrap_or_default();
+    let solved = progress_entry.is_some_and(|p| p.solved);
+    let mut label = level_name(&entry.id, &entry.level.name);
+    if entry.meta.optional_hard {
+        label.push_str("  ");
+        label.push_str(&t("select.optional_hard"));
+    }
+    let fill = |r: &mut ChildSpawnerCommands| {
+        if solved {
+            dot(r, true, SOLVED);
+        }
+        r.spawn((
+            text_bundle(font, label.clone(), 16.0, TEXT_BRIGHT),
+            Node {
+                margin: UiRect::horizontal(Val::Px(6.0)),
+                ..default()
+            },
+        ));
+        for achieved in &medals {
+            dot(r, *achieved, MEDAL);
+        }
+    };
     #[cfg(feature = "dev")]
     parent
         .spawn(Node {
@@ -127,31 +155,11 @@ fn spawn_level_button(
             ..default()
         })
         .with_children(|r| {
-            button(r, font, &label, BUTTON_BG, LevelButton(index));
+            button_row(r, BUTTON_BG, LevelButton(index), fill);
             small_button(r, font, "DEL", DevDeleteLevel(entry.id.clone()));
         });
     #[cfg(not(feature = "dev"))]
-    button(parent, font, &label, BUTTON_BG, LevelButton(index));
-}
-
-/// Level button label: solved check, name, medal dots, optional-hard tag.
-fn level_label(entry: &LevelEntry, progress: &Progress) -> String {
-    let progress_entry = progress.levels.get(&entry.id);
-    let medals = progress_entry
-        .map(|p| p.medals(&entry.level))
-        .unwrap_or_default();
-    let solved = progress_entry.is_some_and(|p| p.solved);
-    let medal_str: String = medals.iter().map(|m| if *m { '●' } else { '○' }).collect();
-    let check = if solved { "✓ " } else { "   " };
-    let hard = if entry.meta.optional_hard {
-        format!("  {}", t("select.optional_hard"))
-    } else {
-        String::new()
-    };
-    format!(
-        "{check}{}  {medal_str}{hard}",
-        level_name(&entry.id, &entry.level.name)
-    )
+    button_row(parent, BUTTON_BG, LevelButton(index), fill);
 }
 
 /// Chapter button → open that chapter's level view (rebuild in place).

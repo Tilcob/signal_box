@@ -84,22 +84,30 @@ auseinanderdriften.
       prüft volle Glyph-Abdeckung (de ∪ en ∪ `UI_GLYPHS`) und ist rot bei Lücke.
       (Unit-Test in `font.rs` statt `tests/font_coverage.rs` — der bin-Crate hat
       kein lib-Target, ein Integrationstest käme nicht an `PATH`/Konstanten.)
-- [x] `clippy -D warnings` + `cargo test --workspace` grün; M2-Plan §3/§8
-      aktualisiert. `ttf-parser` als dev-dependency (test-only).
-- [ ] **OFFEN — braucht Asset-Drop:** DIN-artige, OFL/Apache/PD-Schrift
-      einbinden; `PATH` in `font.rs` umstellen, DejaVu + Lizenz raus, neue
-      Lizenz rein. Kann ich nicht autonom: die Binärdatei lässt sich hier nicht
-      beschaffen. Shortlist siehe §3.1.
-- [ ] **OFFEN (beim Swap):** Fahrplan-Spalten ausgerichtet halten
-      (Tabular-Ziffern / feste Breiten — `font.rs`-Doc weist darauf hin).
-- [ ] **OFFEN (beim Swap):** keine Atlas-Korruption nach AUTOCYCLE (manuell).
+- [x] **DIN-artige Schrift eingebunden:** Saira Semi Condensed (OFL) als
+      `PATH` in `font.rs`; DejaVu + dessen Lizenz entfernt, `OFL.txt`
+      ausgeliefert. Schriftprüfung grün gegen Saira.
+- [x] **Symbol-Icons gezeichnet (Weg A):** Saira hat keine ●○✓✗▶◀. Medaillen
+      und „gelöst" sind jetzt UI-Shapes (`widgets::dot` — Kreis via
+      `Node.border_radius`); ▶◀✗ wurden zu »«× (Saira). Betrifft Ergebnis-
+      Screen, Level-Liste, Start-/Schließen-Buttons, Diagnosezeile.
+- [x] **Fahrplan-Ausrichtung:** kein Problem — der read-only-Kampagnenfahrplan
+      ist eine `·`-getrennte Inline-Zeile (keine vertikalen Spalten), die
+      Sandbox-Felder haben feste Breiten. Kein Tabular-Figures-Umbau nötig.
+- [x] `clippy -D warnings` + `cargo test --workspace` grün. `ttf-parser` als
+      dev-dependency (test-only).
+- [~] **Atlas-Korruption nach AUTOCYCLE:** manueller Sicht-Check am laufenden
+      Spiel steht noch aus (headless nicht prüfbar).
+- [ ] **Nach M2 (in [M4](../../M4/M4-launch.md) eingeplant):** echte PNG-Icons
+      statt der gezeichneten Shapes (play/back/check/cross/medal-voll/-leer).
 
 ## 6. Umsetzungsnotiz
 
-Aufgeteilt in die zwei Hälften aus §2: Die **Schriftprüfung** (reiner Code, der
-in der DoH fälschlich als erledigt galt) ist eingebaut und grün — sie deckt die
-i18n-Tabellen (inkl. Umlaute/ß) plus die hartkodierten UI-Symbole
-(`· → × ✓ ✗ ● ○ … » ≈`) ab und macht jeden künftigen Font-Tausch sicher. Die
-**DIN-Schrift** selbst bleibt offen, weil das Beschaffen der lizenzierten
-Binärdatei ein menschlicher Schritt ist; `font.rs` ist dafür auf einen
-Einzeiler vorbereitet.
+Beide Hälften aus §2 sind drin: Die **Schriftprüfung** (reiner Code, der in der
+DoD fälschlich als erledigt galt) deckt i18n (inkl. Umlaute/ß) plus die
+hartkodierten Symbole ab. Die **DIN-Schrift** ist eingebaut (Saira Semi
+Condensed, OFL). Stolperstein: Saira ist eine reine Textschrift **ohne**
+Symbol-Glyphen (▶◀●○✓✗ fehlten — die Prüfung fing es). Statt zweiter Font wurde
+**Weg A** gewählt: Status-Icons als `bevy_ui`-Shapes (`dot` = Kreis über
+`Node.border_radius`, gefüllt/Ring), Pfeile/Kreuz als Saira-Interpunktion
+(»«×). Vor Release ersetzen echte PNG-Icons die Shapes.

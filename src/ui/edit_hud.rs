@@ -229,7 +229,7 @@ fn tool_line(tool: Tool, sandbox: bool) -> String {
 fn diag_line(diagnostics: &Diagnostics) -> String {
     let mut lines = Vec::new();
     for error in diagnostics.errors.iter().take(3) {
-        lines.push(format!("✗ {}", valerr_text(error)));
+        lines.push(format!("× {}", valerr_text(error)));
     }
     if diagnostics.errors.len() > 3 {
         lines.push(format!(

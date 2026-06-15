@@ -1,6 +1,8 @@
-//! The shared UI font: DejaVu Sans Mono with full Unicode coverage — Bevy's
-//! built-in default font is an ASCII-only Fira Mono subset that renders
-//! umlauts and ● ○ ✓ → · as tofu boxes.
+//! The shared UI font: Saira Semi Condensed (DIN-like signage grotesque,
+//! GDD §10) — Bevy's built-in default is an ASCII-only Fira Mono subset that
+//! renders umlauts as tofu. Saira covers Latin + ß but has no symbol glyphs;
+//! the UI's status icons (medals, solved, errors) are drawn as UI shapes
+//! (`widgets::dot`) or use punctuation (»«×), see restfeature 04.
 
 use bevy::prelude::*;
 use bevy::text::Font;
@@ -11,7 +13,7 @@ use bevy::text::Font;
 /// test then guarantees the replacement still renders every UI character.
 /// A proportional face must keep tabular figures (or the read-only schedule's
 /// `·`-separated columns lose their alignment).
-const PATH: &str = "assets/fonts/DejaVuSansMono.ttf";
+const PATH: &str = "assets/fonts/Saira_Semi_Condensed/SairaSemiCondensed-Regular.ttf";
 
 /// Handle to the UI font, passed explicitly into every `TextFont`.
 ///
@@ -58,7 +60,9 @@ mod tests {
     /// tables (separators, arrows, marks). Keep in sync when a new symbol is
     /// added to the UI — same `#[cfg(test)]` const pattern as the i18n
     /// decode-error keys.
-    const UI_GLYPHS: &str = "·→×✓✗●○…»≈";
+    // ●○✓ are drawn as UI shapes now, ▶◀✗ replaced by »«× (restfeature 04),
+    // so the font only needs these punctuation/arrow symbols.
+    const UI_GLYPHS: &str = "·→×…»≈";
 
     fn i18n_chars(lang: &str) -> BTreeSet<char> {
         let path = format!("{}/assets/i18n/{lang}.ron", env!("CARGO_MANIFEST_DIR"));

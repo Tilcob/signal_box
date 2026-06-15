@@ -8,8 +8,8 @@ use stellwerk_sim::grid::Cell;
 
 use super::enter_level;
 use super::widgets::{
-    BUTTON_BG, BUTTON_BG_PRIMARY, StatusText, TEXT_BRIGHT, TEXT_DIM, button, despawn_all,
-    text_bundle,
+    BUTTON_BG, BUTTON_BG_PRIMARY, MEDAL, StatusText, TEXT_BRIGHT, TEXT_DIM, button, despawn_all,
+    dot, text_bundle,
 };
 use crate::clipboard::CopyOutcome;
 use crate::font::UiFont;
@@ -83,35 +83,31 @@ fn spawn_result(
             root.spawn(text_bundle(&font, detail, 18.0, TEXT_BRIGHT));
             if let Outcome::Success { score } = &outcome.0 {
                 let par = &active.level.par;
-                let line = |name: String, value: u64, par_value: u64| {
-                    let medal = if value <= par_value { '●' } else { '○' };
-                    format!(
-                        "{medal} {name}: {value}   ({}: {par_value})",
-                        t("result.par")
-                    )
+                // Medal is a drawn dot (filled = at/under par), not a glyph —
+                // the DIN UI font has no ●/○ (restfeature 04).
+                let score_row = |root: &mut ChildSpawnerCommands,
+                                     name: String,
+                                     value: u64,
+                                     par_value: u64| {
+                    root.spawn(Node {
+                        flex_direction: FlexDirection::Row,
+                        align_items: AlignItems::Center,
+                        column_gap: Val::Px(6.0),
+                        ..default()
+                    })
+                    .with_children(|r| {
+                        dot(r, value <= par_value, MEDAL);
+                        r.spawn(text_bundle(
+                            &font,
+                            format!("{name}: {value}   ({}: {par_value})", t("result.par")),
+                            18.0,
+                            TEXT_BRIGHT,
+                        ));
+                    });
                 };
-                root.spawn(text_bundle(
-                    &font,
-                    line(t("result.throughput"), score.throughput.0, par.throughput.0),
-                    18.0,
-                    TEXT_BRIGHT,
-                ));
-                root.spawn(text_bundle(
-                    &font,
-                    line(
-                        t("result.material"),
-                        score.material as u64,
-                        par.material as u64,
-                    ),
-                    18.0,
-                    TEXT_BRIGHT,
-                ));
-                root.spawn(text_bundle(
-                    &font,
-                    line(t("result.lateness"), score.lateness, par.lateness),
-                    18.0,
-                    TEXT_BRIGHT,
-                ));
+                score_row(root, t("result.throughput"), score.throughput.0, par.throughput.0);
+                score_row(root, t("result.material"), score.material as u64, par.material as u64);
+                score_row(root, t("result.lateness"), score.lateness, par.lateness);
             }
             root.spawn(Node {
                 flex_direction: FlexDirection::Row,

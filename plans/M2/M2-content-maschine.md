@@ -167,14 +167,13 @@ vollständig. Offen ist allein die **Content-Menge (15 → 30+)** — siehe Plan
    jeder Commit ein `ScheduleEdit`-Op (über Restfeature 02). Quelle/Ziel/Klasse
    bleiben Zyklus-Knöpfe. →
    [restfeatures/03](restfeatures/03-fahrplan-eingabefelder.md) (erledigt).
-4. **Schrift (§3) — TEILWEISE (2026-06-15):** Die fehlende **Schriftprüfung**
-   existiert jetzt (`font::tests::shipped_font_covers_all_ui_glyphs` prüft
-   Glyph-Abdeckung über beide i18n-Tabellen + UI-Symbole, bewacht jeden
-   Font-Tausch). Der **DIN-artige Font** selbst ist noch nicht eingebunden —
-   das braucht eine OFL-/Apache-/PD-Binärdatei (Asset-Drop), bis dahin bleibt
-   `DejaVuSansMono` (mit voller Abdeckung). →
-   [restfeatures/04](restfeatures/04-din-schrift.md) (Prüfung erledigt,
-   Font-Asset offen).
+4. ~~**Schrift (§3) unbelegt**~~ **ERLEDIGT (2026-06-15):** Schriftprüfung
+   (`font::tests::shipped_font_covers_all_ui_glyphs`) plus **DIN-artige Schrift
+   Saira Semi Condensed** (OFL) eingebunden, DejaVu raus. Saira hat keine
+   Symbol-Glyphen → Medaillen/„gelöst" als gezeichnete UI-Shapes, ▶◀✗ → »«×
+   (Weg A; echte PNG-Icons vor Release). →
+   [restfeatures/04](restfeatures/04-din-schrift.md) (erledigt; Atlas-Sichtcheck
+   + PNG-Icons offen).
 5. **Level-Inhalte über i18n-Keys (inzwischen erledigt):** Level-Namen,
    Stationslabels und Briefings laufen seit `optimierung/03`+`04` über
    `level.*`/`station.*`-Keys mit dem authored (deutschen) Wert als Fallback.
