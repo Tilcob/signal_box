@@ -141,6 +141,7 @@ fn panel_clicks(
     mut interactions: Query<(&Interaction, &PanelAction), Changed<Interaction>>,
     mut editor: ResMut<Editor>,
     active: Option<Res<ActiveLevel>>,
+    mut commands: Commands,
 ) {
     let Some(active) = active else { return };
     for (interaction, action) in &mut interactions {
@@ -179,6 +180,9 @@ fn panel_clicks(
                 after,
             },
         );
+        // Throwing the switch (default exit) or changing a routing rule: the
+        // physical switch-track sound. The global button-click still fires too.
+        commands.trigger(crate::audio::SfxKind::Switch);
     }
 }
 

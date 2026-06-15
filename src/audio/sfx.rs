@@ -17,6 +17,7 @@ pub enum SfxKind {
     /// A train rolls into the world during a run.
     Rail,
     TrainHorn,
+    BuildingSound,
 }
 
 pub(super) fn on_sfx(
@@ -33,6 +34,7 @@ pub(super) fn on_sfx(
         SfxKind::Signal => &audio.signal_sound,
         SfxKind::Rail => &audio.rail_sound,
         SfxKind::TrainHorn => &audio.train_horn_sound,
+        SfxKind::BuildingSound => &audio.building_sound,
     };
     channel.play(handle.clone());
 }

@@ -128,6 +128,7 @@ pub(super) fn update_run_board(
     ctl: Option<Res<RunCtl>>,
     mut bands: Query<(&BlockBand, &mut Sprite), Without<SignalLamp>>,
     mut lamps: Query<(&SignalLamp, &mut Sprite), Without<BlockBand>>,
+    mut commands: Commands,
 ) {
     let Some(ctl) = ctl else {
         return;
@@ -140,8 +141,17 @@ pub(super) fn update_run_board(
             size.y = width;
         }
     }
+    // A signal "switches" when its lamp changes aspect (green↔red). Each signal
+    // owns several SignalLamp sprites (lamp + arrow); fire ONE sound per frame
+    // no matter how many lamps/sprites flipped, like `button_click_sfx`.
+    let mut switched = false;
     for (signal, mut sprite) in &mut lamps {
-        sprite.color = lamp_color(signal.next_block, &occupied, &reserved);
+        let color = lamp_color(signal.next_block, &occupied, &reserved);
+        switched |= sprite.color != color;
+        sprite.color = color;
+    }
+    if switched {
+        commands.trigger(crate::audio::SfxKind::Signal);
     }
 }
 

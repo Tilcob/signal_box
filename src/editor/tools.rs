@@ -140,7 +140,9 @@ pub(super) fn pointer(
                 .drag
                 .take()
                 .unwrap_or_default();
-            finish_track_drag(&mut editor, &active.level, merged, &path);
+            if finish_track_drag(&mut editor, &active.level, merged, &path) {
+                commands.trigger(crate::audio::SfxKind::BuildingSound);
+            }
         }
         return;
     }
@@ -168,7 +170,7 @@ pub(super) fn pointer(
                     rules: vec![],
                 })),
             );
-            commands.trigger(crate::audio::SfxKind::Switch);
+            commands.trigger(crate::audio::SfxKind::BuildingSound);
         }
         Tool::SignalBlock | Tool::SignalChain => {
             // Direction is keyboard-driven (R/T cycle the cell's stubs), not
@@ -188,6 +190,7 @@ pub(super) fn pointer(
                 &mut editor,
                 EditOp::Place(Element::Signal(SignalDef { cell, at, kind })),
             );
+            commands.trigger(crate::audio::SfxKind::BuildingSound);
         }
         Tool::Source if active.sandbox => {
             let dir = board::nearest_connector(cell, cursor);
@@ -199,6 +202,7 @@ pub(super) fn pointer(
                 .level
                 .sources
                 .push(stellwerk_sim::level::SourceDef { id, cell, dir });
+            commands.trigger(crate::audio::SfxKind::BuildingSound);
         }
         Tool::Sink if active.sandbox => {
             let dir = board::nearest_connector(cell, cursor);
@@ -212,6 +216,7 @@ pub(super) fn pointer(
                 dir,
                 label: format!("Z{}", id.0),
             });
+            commands.trigger(crate::audio::SfxKind::BuildingSound);
         }
         Tool::Source | Tool::Sink => {}
         Tool::Erase => erase_at(&mut editor, &mut active, cell, cursor),
@@ -228,7 +233,9 @@ fn next_id(used: impl Iterator<Item = u32>) -> u32 {
 
 /// Interior cells of the drag path get the piece connecting entry and exit
 /// direction; start/end cells stay open (drags begin/end on existing track).
-fn finish_track_drag(editor: &mut Editor, level: &Level, merged: &Layout, path: &[Cell]) {
+/// Returns `true` when at least one piece was actually placed (so the caller
+/// can play the build sound only on a real placement, not an empty/blocked drag).
+fn finish_track_drag(editor: &mut Editor, level: &Level, merged: &Layout, path: &[Cell]) -> bool {
     let dir_between = |from: Cell, to: Cell| -> Option<Dir8> {
         let delta = (to.x - from.x, to.y - from.y);
         Dir8::ALL.into_iter().find(|d| d.cell_offset() == delta)
@@ -272,12 +279,15 @@ fn finish_track_drag(editor: &mut Editor, level: &Level, merged: &Layout, path: 
         };
         if can_place_piece(level, merged, &piece) {
             do_op(editor, EditOp::Place(Element::Piece(piece)));
+            return true;
         }
-        return;
+        return false;
     }
     if !ops.is_empty() {
         do_op(editor, EditOp::Group(ops));
+        return true;
     }
+    false
 }
 
 /// Removal priority: (sandbox: source/sink at the connector) → signal at the

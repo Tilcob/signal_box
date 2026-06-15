@@ -14,7 +14,7 @@ const LEVEL_TRACKS: &[&str] = &[
     "audio/music/4379051-about-trains-passing-by-179886.ogg",
     "audio/music/4379051-siberia-express-192132.ogg",
     "audio/music/bransboynd-night-city-418052.ogg",
-    "audio/music/juliush-metro-urban-adventure-music-288519.ogg",
+    "audio/music/grand_project-technology-modern-electronic-railway-track-470218.oggs",
     "audio/music/songshu888-nighttrain-145794.ogg",
 ];
 
@@ -28,6 +28,7 @@ pub struct AudioAssets {
     pub rail_sound: Handle<AudioSource>,
     pub signal_sound: Handle<AudioSource>,
     pub train_horn_sound: Handle<AudioSource>,
+    pub building_sound: Handle<AudioSource>,
 }
 
 /// Builds the audio handles. Called at plugin-BUILD time (not via a `Startup`
@@ -37,7 +38,7 @@ pub struct AudioAssets {
 /// screen silent forever. Same race + fix as `FontPlugin` (see `src/font.rs`).
 pub(super) fn build_audio_assets(asset_server: &AssetServer) -> AudioAssets {
     AudioAssets {
-        menu_music: asset_server.load("audio/music/grand_project-technology-modern-electronic-railway-track-470218.ogg"),
+        menu_music: asset_server.load("audio/music/juliush-metro-urban-adventure-music-288519.ogg"),
         level_tracks: LEVEL_TRACKS
             .iter()
             .map(|path| asset_server.load(*path))
@@ -47,5 +48,6 @@ pub(super) fn build_audio_assets(asset_server: &AssetServer) -> AudioAssets {
         rail_sound: asset_server.load("audio/sfx/rail.wav"),
         signal_sound: asset_server.load("audio/sfx/signal_click.wav"),
         train_horn_sound: asset_server.load("audio/sfx/train-horn.wav"),
+        building_sound: asset_server.load("audio/sfx/building-sound.wav"),
     }
 }
