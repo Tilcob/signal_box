@@ -1,4 +1,4 @@
-//! Block derivation: signals cut the track net into blocks (GDD §7.4).
+//! Block derivation: signals cut the track net into blocks.
 //!
 //! A block is a connected set of tracks; two stubs belong to the same block
 //! if they are reachable from each other without passing a node where a

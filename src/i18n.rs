@@ -1,4 +1,4 @@
-//! i18n (M2): all UI strings come from RON tables under `assets/i18n/`
+//! i18n: all UI strings come from RON tables under `assets/i18n/`
 //! (`de.ron`, `en.ron`). [`t`] looks up the active language with fallback
 //! chain: active table → German table → the raw key (visible programmer
 //! error, never a panic). The language toggle lives in the level select;

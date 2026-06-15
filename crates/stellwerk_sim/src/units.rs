@@ -40,7 +40,7 @@ pub mod segment_lengths {
     pub const MAX_SPEED_EXCLUSIVE: i64 = HALF_CARDINAL.0;
 }
 
-/// Stall fallback (plan §4.4): this many consecutive ticks without any
+/// Stall fallback: this many consecutive ticks without any
 /// movement, spawn or arrival — while the schedule is unfinished — end the
 /// run as `Outcome::Stalled`. Frozen like the length table.
 pub const STALL_TICKS: u64 = 600;

@@ -1,4 +1,4 @@
-//! The Pult color palette (GDD §10). HDR values > 1.0 feed the bloom pass.
+//! The Pult color palette. HDR values > 1.0 feed the bloom pass.
 
 use bevy::prelude::*;
 use stellwerk_sim::units::BlockId;

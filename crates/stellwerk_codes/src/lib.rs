@@ -1,4 +1,4 @@
-//! # stellwerk_codes — sharing codes (GDD §8.3)
+//! # stellwerk_codes — sharing codes
 //!
 //! Solutions and levels travel as short text codes through Discord, Reddit
 //! and forums — no server, no workshop. Format: `SW1-` prefix, then base64
@@ -206,7 +206,7 @@ mod tests {
     }
 
     /// Frozen golden code: this exact string must decode forever — the
-    /// regression guard against silent format breaks (M2 plan §2.1). If this
+    /// regression guard against silent format breaks. If this
     /// fails you broke compatibility: bump VERSION and add a migration,
     /// don't re-bless.
     #[test]

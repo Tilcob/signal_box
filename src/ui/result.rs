@@ -28,7 +28,7 @@ enum ResultAction {
     ExportCode,
 }
 
-/// Dev authoring (optimierung/07 #2): saves the just-succeeded build straight
+/// Dev authoring: saves the just-succeeded build straight
 /// into `solutions/<id>.ron` — no export/import detour.
 #[cfg(feature = "dev")]
 #[derive(Component)]
@@ -84,7 +84,7 @@ fn spawn_result(
             if let Outcome::Success { score } = &outcome.0 {
                 let par = &active.level.par;
                 // Medal is a drawn dot (filled = at/under par), not a glyph —
-                // the DIN UI font has no ●/○ (restfeature 04).
+                // the DIN UI font has no ●/○.
                 let score_row = |root: &mut ChildSpawnerCommands,
                                      name: String,
                                      value: u64,

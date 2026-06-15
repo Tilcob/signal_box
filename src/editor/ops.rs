@@ -1,7 +1,7 @@
-//! Invertible edit operations — the undo/redo vocabulary, and in M2 the
+//! Invertible edit operations — the undo/redo vocabulary, and the
 //! basis of the sharing format.
 //!
-//! Two edit surfaces share ONE timeline (restfeature 02): layout build actions
+//! Two edit surfaces share ONE timeline: layout build actions
 //! (track/switch/signal, every level) and sandbox-only level edits
 //! (sources/sinks/schedule). Both apply through [`EditTarget`] so a single
 //! Ctrl+Z unwinds them in order — no second stack to interleave.
@@ -29,7 +29,7 @@ pub enum EditOp {
         before: SwitchDef,
         after: SwitchDef,
     },
-    // Sandbox-only level edits (M2 restfeature 02). Stations carry their full
+    // Sandbox-only level edits. Stations carry their full
     // def so Place/Remove invert by value, like the layout `Element` ops.
     PlaceSource(SourceDef),
     RemoveSource(SourceDef),

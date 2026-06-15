@@ -1,13 +1,13 @@
-//! The deterministic tick loop (plan §4.1).
+//! The deterministic tick loop.
 //!
 //! Phase order per tick — part of the API contract; changing it changes
 //! gameplay and every replay hash:
 //!
 //! 1. **Spawn:** due schedule entries join their source's FIFO; the queue
 //!    head enters when the entry edge is physically clear and its block is
-//!    not chain-reserved for another train (GDD §7.5, §7.4).
+//!    not chain-reserved for another train.
 //! 2. **Signal claims:** trains standing at a red signal request clearance
-//!    in (waiting-since, id) order — first come, first served (GDD §7.4).
+//!    in (waiting-since, id) order — first come, first served.
 //!    Granted chain signals reserve their route blocks here.
 //! 3. **Movement:** trains advance in ascending id order; crossings through
 //!    signals re-check clearance against live occupancy + claims.
@@ -20,7 +20,7 @@
 //! train itself occupies it. Normally a train's own body is never ahead of
 //! it, so this changes nothing — but on a ring, where one cut does not
 //! split the block, it stops a train from driving through its own tail.
-//! That self-jam ends as `Stalled` (scenario 18), the diagnosable outcome.
+//! That self-jam ends as `Stalled`, the diagnosable outcome.
 
 use crate::failure;
 use crate::graph::{self, Next, TrackGraph};
@@ -43,7 +43,7 @@ pub enum Outcome {
         trains: (TrainId, TrainId),
         edge: EdgeId,
     },
-    /// A train reached a wrong sink or a dead end (GDD §7.6).
+    /// A train reached a wrong sink or a dead end.
     Misrouting {
         train: TrainId,
         /// What was actually reached (`None` = dead end).
@@ -72,13 +72,13 @@ pub struct Sim {
     /// Schedule sorted by (depart, train) — the order is contract.
     schedule: Vec<ScheduleEntry>,
     next_departure: usize,
-    /// FIFO of schedule indices per source (GDD §7.5).
+    /// FIFO of schedule indices per source.
     queues: BTreeMap<SourceId, VecDeque<u32>>,
     trains: Vec<Train>, // always sorted by ascending id
     now: Tick,
     arrivals: Vec<(TrainId, Tick)>,
     lateness_total: u64,
-    /// Chain-signal route reservations (GDD §7.4). A reservation is dropped
+    /// Chain-signal route reservations. A reservation is dropped
     /// once its owner occupies the block (occupancy takes over) or despawns.
     reservations: BTreeMap<BlockId, TrainId>,
     sink_by_arrival: BTreeMap<EdgeId, SinkId>,
@@ -150,7 +150,7 @@ impl Sim {
     }
 
     /// Active chain-signal reservations (read-only, for the frontend's
-    /// block lighting — GDD §9 "Reservierungen permanent sichtbar").
+    /// block lighting — reservations stay visible permanently).
     pub fn reservations(&self) -> &BTreeMap<BlockId, TrainId> {
         &self.reservations
     }
@@ -254,7 +254,7 @@ impl Sim {
             if busy.contains(&entry_edge) {
                 continue;
             }
-            // A chain reservation makes the entry block busy (GDD §7.4): its
+            // A chain reservation makes the entry block busy: its
             // owner crosses block boundaries without re-checking clearance,
             // so a train spawning here could not be protected by any signal.
             if self
@@ -408,7 +408,7 @@ impl Sim {
         }
     }
 
-    /// Blocks a chain signal must secure (GDD §7.4): along the train's
+    /// Blocks a chain signal must secure: along the train's
     /// effective route, through further chain signals, up to and including
     /// the block behind the first block signal — or up to the sink.
     fn chain_route_blocks(&self, train: &Train, first: EdgeId) -> Vec<BlockId> {
@@ -476,7 +476,7 @@ impl Sim {
 
             // Head exactly at the edge end. End-of-edge handling runs even
             // with an exhausted budget: crossings cost no distance, and the
-            // arrival tick is "head reaches the anchor" (plan §3.5), not
+            // arrival tick is "head reaches the anchor", not
             // "head rests on the anchor one tick later".
             // Arrival beats everything else.
             if let Some(&sink) = self.sink_by_arrival.get(&head) {
@@ -574,7 +574,7 @@ impl Sim {
     }
 
     /// Last passed switch whose *other* branch would have reached the
-    /// target sink (walking backwards — plan §4.4).
+    /// target sink (walking backwards).
     fn blame(&self, train: &Train) -> Option<Cell> {
         for &(cell, taken) in train.passed_switches.iter().rev() {
             let switch = self
@@ -869,7 +869,7 @@ mod tests {
     }
 
     /// Both trains reach their signals in the same tick and want the same
-    /// block: the lower id must win, the other must wait (GDD §7.4).
+    /// block: the lower id must win, the other must wait.
     #[test]
     fn same_tick_contention_goes_to_lower_id() {
         let (level, layout) = merge_level();

@@ -1,13 +1,13 @@
-//! Board rendering — the Pult look (GDD §10): near-black desk, tracks as
-//! narrow light bands, state shown by glow color AND shape (accessibility,
-//! GDD §9: occupied bands are wider, reservations narrower; chain signals
+//! Board rendering — the Pult look: near-black desk, tracks as
+//! narrow light bands, state shown by glow color AND shape (accessibility:
+//! occupied bands are wider, reservations narrower; chain signals
 //! are diamonds, block signals squares — never color alone).
 //!
-//! Strategy (M1-minimal): retained sprites, fully rebuilt when the build
+//! Strategy: retained sprites, fully rebuilt when the build
 //! changes (edit) or every frame (run — states change constantly, boards
 //! are small). No lyon yet: every stub is a straight segment in the stub
 //! model, so rotated quads cover the whole look. Revisit when curves or
-//! round caps are wanted (GDD §12.2 note).
+//! round caps are wanted.
 
 mod draw;
 mod edit_board;

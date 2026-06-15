@@ -1,6 +1,6 @@
-//! Size picker before creating a new sandbox (M2 §2.2). Its own screen because
+//! Size picker before creating a new sandbox. Its own screen because
 //! creating is destructive (it overwrites the single sandbox.ron) — the warning
-//! shown here is the confirmation (plan 06 §5). Picking the size resets both
+//! shown here is the confirmation. Picking the size resets both
 //! places the sandbox lives: the area file AND the autosaved player build.
 
 use bevy::prelude::*;

@@ -1,4 +1,4 @@
-//! Dev authoring (optimierung/07): per-level delete, full progress reset, and a
+//! Dev authoring: per-level delete, full progress reset, and a
 //! two-click "delete all". Only compiled with `feature = "dev"`.
 
 use bevy::prelude::*;

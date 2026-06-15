@@ -1,4 +1,4 @@
-//! Tool 1 of optimierung/07 (dev only): "save the sandbox as a campaign level".
+//! Dev-only tool: "save the sandbox as a campaign level".
 //! A small panel in the sandbox edit screen that writes the current sandbox
 //! `sim` block out to `assets/levels/<id>.ron` with a filled `meta` block, plus
 //! placeholder i18n keys — so the painful part (hand-writing buildable cells,
@@ -7,8 +7,8 @@
 //! Deliberately no free-text entry (the engine has no text field and a
 //! hand-rolled one is fragile): chapter/order are cycle buttons, the id is
 //! generated (`k<chapter>_<order>_neu`, de-duplicated) and the briefing starts
-//! empty — to be filled via the `i18n_fill` CLI and then translated. This is
-//! the pragmatic path the plan sanctions; rename/refine in the file afterwards.
+//! empty — to be filled via the `i18n_fill` CLI and then translated.
+//! Rename/refine in the file afterwards.
 
 use bevy::prelude::*;
 use stellwerk_sim::level::{LEVEL_SCHEMA_VERSION, LevelMeta};

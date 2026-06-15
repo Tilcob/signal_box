@@ -210,8 +210,8 @@ fn rule_matches(a: &RuleWhen, b: &RuleWhen) -> bool {
     }
 }
 
-/// Panel-defined rule order: sink rows first, then class rows (M1-minimal —
-/// free ordering comes with later editor polish).
+/// Panel-defined rule order: sink rows first, then class rows (free
+/// ordering comes with later editor polish).
 fn normalize_rules(switch: &mut SwitchDef, level: &stellwerk_sim::Level) {
     let old = switch.rules.clone();
     let mut rules = Vec::new();

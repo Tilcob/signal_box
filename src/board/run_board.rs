@@ -1,6 +1,6 @@
 //! Run/Result rendering.
 //!
-//! Performance contract (see plans/optimierung/02-fps-killer.md): the board
+//! Performance contract: the board
 //! geometry never changes during a run, so it is spawned ONCE on entering
 //! `Run`. Per frame only the dynamic state is mutated **in place**:
 //! - block bands recolour / resize by occupancy ([`update_run_board`]),
@@ -33,7 +33,7 @@ pub(super) struct BlockBand(BlockId);
 
 /// Signal lamp (and its direction tick). The block the signal protects is
 /// baked in at spawn, so the per-frame recolour needs no graph walk and no
-/// per-frame `(point, point) → edge` map (the former FPS-killer #2).
+/// per-frame `(point, point) → edge` map.
 /// `None` = always green (dead end or no gated edge).
 #[derive(Component, Clone, Copy)]
 pub(super) struct SignalLamp {
@@ -231,7 +231,7 @@ fn block_states(sim: &Sim) -> (BTreeSet<BlockId>, BTreeSet<BlockId>) {
 }
 
 /// Colour + width of a block band by state (colour AND shape — never colour
-/// alone, GDD §9 accessibility).
+/// alone, for accessibility).
 fn band_style(block: BlockId, occupied: &BTreeSet<BlockId>, reserved: &BTreeSet<BlockId>) -> (Color, f32) {
     if occupied.contains(&block) {
         (col_occupied(), 9.0)

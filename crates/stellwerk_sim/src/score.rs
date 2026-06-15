@@ -1,5 +1,5 @@
-//! The three score axes (GDD §7.7). Material counts the *player* layout
-//! only — designer-fixed track is free (GDD §6).
+//! The three score axes. Material counts the *player* layout
+//! only — designer-fixed track is free.
 
 use crate::layout::{Layout, SignalKind};
 use crate::units::Tick;

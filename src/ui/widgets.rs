@@ -16,7 +16,7 @@ pub(super) const MEDAL: Color = Color::srgb(0.95, 0.80, 0.38);
 pub(super) const SOLVED: Color = Color::srgb(0.40, 1.0, 0.55);
 
 /// A status dot drawn as a UI shape, not a font glyph — the DIN UI font has no
-/// ●/○ (restfeature 04). `filled` = solid disc in `color`, else a dim hollow
+/// ●/○. `filled` = solid disc in `color`, else a dim hollow
 /// ring. Used for par medals and the solved marker; PNG icons replace these
 /// before release.
 pub(super) fn dot(parent: &mut ChildSpawnerCommands, filled: bool, color: Color) {

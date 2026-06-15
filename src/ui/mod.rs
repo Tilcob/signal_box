@@ -1,7 +1,7 @@
 //! bevy_ui screens, one plugin per screen: level select (with sandbox, code
 //! import, language toggle), edit HUD (solution slots, start button), switch
 //! config panel, schedule panel, run HUD and the result overlay with code
-//! export (M2 plan §2). Shared theme + widget helpers live in [`widgets`].
+//! export. Shared theme + widget helpers live in [`widgets`].
 
 #[cfg(feature = "dev")]
 mod campaign_save;

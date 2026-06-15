@@ -54,7 +54,7 @@ struct UiStatus(String);
 #[derive(Resource, Default)]
 struct OpenChapter(Option<u8>);
 
-// --- Dev authoring (optimierung/07): only built with feature `dev` ---------
+// --- Dev authoring: only built with feature `dev` ---------
 /// Per-level delete (carries the level id, stable across re-indexing).
 #[cfg(feature = "dev")]
 #[derive(Component)]

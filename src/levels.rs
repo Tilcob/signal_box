@@ -1,8 +1,8 @@
 //! Level catalog (RON files under `assets/levels/`), local progress with
-//! solution slots (Save v2, M2 plan §3) and the sandbox level file.
+//! solution slots (Save v2) and the sandbox level file.
 //!
-//! Save location: the platform config directory via `directories`
-//! (GDD §12.2). A progress file from M1 in the working directory is
+//! Save location: the platform config directory via `directories`.
+//! A progress file from M1 in the working directory is
 //! migrated once, read-only — the old file stays untouched.
 
 use bevy::prelude::*;
@@ -32,13 +32,13 @@ pub struct Catalog(pub Vec<LevelEntry>);
 #[derive(Serialize, Deserialize, Default, Clone)]
 pub struct LevelProgress {
     pub solved: bool,
-    /// Best value per axis — across solutions, like GDD §7.7.
+    /// Best value per axis — across solutions.
     pub best_throughput: Option<u64>,
     pub best_material: Option<u32>,
     pub best_lateness: Option<u64>,
     /// Autosaved build (slot 0 in spirit; kept separate for compatibility).
     pub layout: Layout,
-    /// Manual solution slots (GDD §7.7: mehrere Lösungs-Slots).
+    /// Manual solution slots (multiple solutions per level).
     #[serde(default)]
     pub slots: Vec<Option<Layout>>,
 }
@@ -71,6 +71,12 @@ impl LevelProgress {
     }
 
     pub fn set_slot(&mut self, index: usize, layout: Layout) {
+        // Defensive: callers only pass `0..SOLUTION_SLOTS`, but this struct is
+        // also deserialized from on-disk saves a player could hand-edit — an
+        // out-of-range index must never index-panic.
+        if index >= SOLUTION_SLOTS {
+            return;
+        }
         if self.slots.len() < SOLUTION_SLOTS {
             self.slots.resize(SOLUTION_SLOTS, None);
         }
@@ -226,14 +232,14 @@ pub const SANDBOX_DEFAULT_W: u32 = 12;
 pub const SANDBOX_DEFAULT_H: u32 = 7;
 /// Lower bound: anything smaller cannot hold a real run (source + track + sink).
 pub const SANDBOX_MIN: u32 = 3;
-/// Upper bound, tied to the level-code budget (plan 06 §6): the largest empty
+/// Upper bound, tied to the level-code budget: the largest empty
 /// area must still encode to a Level-Code under the compression threshold
-/// (~1500 chars, M2 §2.1). At ~2 bytes/cell (postcard) plus base64's 4/3
+/// (~1500 chars). At ~2 bytes/cell (postcard) plus base64's 4/3
 /// expansion, a square `SANDBOX_MAX`×`SANDBOX_MAX` area (~484 cells) lands near
 /// 1300 chars. Guarded by `largest_empty_sandbox_fits_code_budget`.
 pub const SANDBOX_MAX: u32 = 22;
 
-/// An empty sandbox area of size `w`×`h`, **centered on (0,0)** (plan 06 §7):
+/// An empty sandbox area of size `w`×`h`, **centered on (0,0)**:
 /// the start camera sits at (0,0), so every size lands in view. `w`/`h` are
 /// clamped to `[SANDBOX_MIN, SANDBOX_MAX]` — callers need not validate.
 pub fn empty_sandbox(w: u32, h: u32) -> Level {
@@ -390,9 +396,9 @@ mod tests {
         assert_eq!(lvl.buildable.len() as u32, SANDBOX_MIN * SANDBOX_MAX);
     }
 
-    /// Guards `SANDBOX_MAX` against the level-code budget (plan 06 §6): the
+    /// Guards `SANDBOX_MAX` against the level-code budget: the
     /// largest empty area must still encode under the ~1500-char compression
-    /// threshold (M2 §2.1). If this breaks, shrink `SANDBOX_MAX` / the presets.
+    /// threshold. If this breaks, shrink `SANDBOX_MAX` / the presets.
     #[test]
     fn largest_empty_sandbox_fits_code_budget() {
         let level = empty_sandbox(SANDBOX_MAX, SANDBOX_MAX);

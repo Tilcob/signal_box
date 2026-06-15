@@ -1,8 +1,8 @@
-//! Stellwerk — M1 vertical slice (plan: plans/M1/M1-vertical-slice.md).
+//! Stellwerk — the Bevy frontend.
 //!
 //! Composition root ONLY: window setup and one plugin per module. The
 //! simulation lives entirely in `stellwerk_sim`; this app is editor UX,
-//! rendering and UI on top of its public API (GDD §12.1).
+//! rendering and UI on top of its public API.
 
 mod board;
 mod camera;

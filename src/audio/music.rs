@@ -22,7 +22,7 @@ use bevy_kira_audio::{
 const GAP_SECS: std::ops::RangeInclusive<f32> = 20.0..=30.0;
 
 /// Cross-fade length for every music start/stop. The desk's ASMR mix wants no
-/// hard cuts (GDD §11/§12, the reason this project picked kira). `const` works
+/// hard cuts (the reason this project picked kira). `const` works
 /// because `AudioTween::new` is a const fn.
 const FADE: AudioTween = AudioTween::new(Duration::from_millis(600), AudioEasing::Linear);
 

@@ -1,4 +1,4 @@
-//! Campaign metadata (M2 §2.3): how a level is organised INTO the campaign —
+//! Campaign metadata: how a level is organised INTO the campaign —
 //! chapter, order, the optional-hard marker and the authored briefing.
 //!
 //! None of this is part of the playable puzzle, and crucially none of it ever
@@ -31,7 +31,7 @@ pub struct LevelMeta {
     /// file written before the field existed still loads.
     #[serde(default = "default_schema_version")]
     pub schema_version: u16,
-    /// Chapter this level belongs to (1-based; GDD §8.1). Drives grouping in
+    /// Chapter this level belongs to (1-based). Drives grouping in
     /// the level select and, later, chapter unlock ("N solved opens the next").
     pub chapter: u8,
     /// Sort order WITHIN the chapter. Deliberately decoupled from the file
@@ -39,11 +39,11 @@ pub struct LevelMeta {
     /// so renaming it to renumber would break saves and codes. Authoring in
     /// steps of 10 leaves room to insert a level between two others later.
     pub order: u16,
-    /// One of a chapter's last "optional-hard" levels (GDD §8.1): shown and
+    /// One of a chapter's last "optional-hard" levels: shown and
     /// playable, but never a progression blocker.
     #[serde(default)]
     pub optional_hard: bool,
-    /// Authored briefing in the style of an operating order (GDD §8.1: 1–2
+    /// Authored briefing in the style of an operating order (1–2
     /// sentences). This German text is the i18n fallback for the
     /// `level.<id>.briefing` key — see the frontend's `i18n::briefing`.
     #[serde(default)]

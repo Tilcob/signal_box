@@ -1,7 +1,7 @@
 //! HDR camera with bloom (the Pult glow lives here), pan and zoom.
 //!
-//! M1 note: plain Bevy input for now; the `bevy_enhanced_input` action maps
-//! (GDD §12.2) come with the rebinding UI — tracked as M1 deviation.
+//! Note: plain Bevy input for now; the `bevy_enhanced_input` action maps
+//! come with the rebinding UI.
 
 use bevy::input::mouse::{MouseMotion, MouseWheel};
 use bevy::post_process::bloom::Bloom;

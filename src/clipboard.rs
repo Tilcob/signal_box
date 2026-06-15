@@ -1,4 +1,4 @@
-//! System clipboard for sharing codes (M2 restfeature 01), with a file
+//! System clipboard for sharing codes, with a file
 //! fallback so headless/CI runs and Linux sessions without a clipboard manager
 //! still work.
 //!

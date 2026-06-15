@@ -110,7 +110,7 @@ fn spawn_edit_hud(
         ))
         .with_children(|c| {
             c.spawn(text_bundle(&font, name, 22.0, TEXT_BRIGHT));
-            // Operating order (GDD §8.1): the puzzle statement, shown right on
+            // Operating order: the puzzle statement, shown right on
             // the desk. Campaign levels carry one; the sandbox does not.
             if !brief.is_empty() {
                 c.spawn(text_bundle(&font, brief, 14.0, TEXT_BRIGHT));
@@ -122,7 +122,7 @@ fn spawn_edit_hud(
                 DiagText,
             ));
             // Amber, below the red validation line: transient "why that action
-            // was refused" feedback (M2 restfeature 02 follow-up).
+            // was refused" feedback.
             c.spawn((
                 text_bundle(&font, String::new(), 13.0, Color::srgb(1.0, 0.78, 0.35)),
                 NoticeText,

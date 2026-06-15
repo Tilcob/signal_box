@@ -157,7 +157,7 @@ pub(super) fn rebuild_schedule_panel(
                         SchedAction::CycleClass(row),
                     );
                     // depart/due/speed/length are now typed, not cycled
-                    // (restfeature 03). Prefix label + focusable numeric field.
+                    // Prefix label + focusable numeric field.
                     let field = |r: &mut ChildSpawnerCommands,
                                      label: &str,
                                      value: i64,
@@ -209,8 +209,8 @@ fn schedule_clicks(
                 .map_or(0, |p| (p + 1) % list.len());
             list[pos]
         };
-        // Each edit becomes one invertible op on the shared undo stack
-        // (restfeature 02); the level is mutated only via `do_op` below.
+        // Each edit becomes one invertible op on the shared undo stack; the
+        // level is mutated only via `do_op` below.
         let op = match *action {
             SchedAction::Add => {
                 let (Some(source), Some(sink)) =
@@ -307,14 +307,23 @@ fn schedule_field_commits(
             continue;
         };
         let value = commit.value;
-        let op = edit_row(&active.level, row, |e| match kind {
+        // Mutate the level via `bypass_change_detection`: a pure value edit must
+        // NOT mark `ActiveLevel` as changed, or `rebuild_schedule_panel` would
+        // despawn the very field the player just tabbed into and drop keyboard
+        // focus mid-edit. The field already shows the committed value
+        // (`numeric_field_render`); undo and live validation still fire off the
+        // editor's own change detection (`do_op` mutates `Editor`). Structural
+        // edits (add/remove/cycle) keep normal change detection so the panel
+        // does rebuild for them.
+        let level = &mut active.bypass_change_detection().level;
+        let op = edit_row(level, row, |e| match kind {
             SchedFieldKind::Depart => e.depart = Tick(value as u64),
             SchedFieldKind::Due => e.due = Tick(value as u64),
             SchedFieldKind::Speed => e.speed = Speed(value),
             SchedFieldKind::Length => e.length = Len(value),
         });
         if let Some(op) = op {
-            do_op(&mut editor, &mut active.level, op);
+            do_op(&mut editor, level, op);
         }
     }
 }

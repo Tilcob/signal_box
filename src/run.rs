@@ -1,6 +1,6 @@
 //! Run mode: drives the deterministic sim with a fixed-tick accumulator
 //! (nominal 10 ticks/s × speed), interpolates train heads for rendering and
-//! routes the outcome into the Result state (plan M1 §2).
+//! routes the outcome into the Result state.
 
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
@@ -99,7 +99,7 @@ fn start_run(
         next.set(GameState::LevelSelect);
         return;
     };
-    // Autosave the build the moment the run starts (plan M1 §3).
+    // Autosave the build the moment the run starts.
     progress.entry(&active.id).layout = editor.layout.clone();
     progress.save();
 
@@ -215,8 +215,8 @@ fn finish(
     next.set(GameState::Result);
 }
 
-/// Clicking near a train head shows its details in the HUD (plan M1:
-/// "klickbarer Zug zeigt Ziel + Wartezustand").
+/// Clicking near a train head shows its details in the HUD: destination and
+/// wait state.
 fn click_train(
     buttons: Res<ButtonInput<MouseButton>>,
     windows: Query<&Window, With<PrimaryWindow>>,

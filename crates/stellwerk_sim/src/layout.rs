@@ -1,9 +1,9 @@
 //! Player-built infrastructure (tracks, switches, signals) and its
 //! validation.
 //!
-//! Design decisions are encoded here (plan §3.2):
+//! Design decisions are encoded here:
 //! - **Open track ends are legal.** A dead end is a *runtime* misrouting
-//!   failure (scenario 11), not a build error — and source/sink connectors
+//!   failure, not a build error — and source/sink connectors
 //!   are open by design.
 //! - **Junctions require a switch.** Every connector point may be used by at
 //!   most two stubs; three or more meetings without a switch are rejected.
@@ -28,7 +28,7 @@ pub struct TrackPiece {
 }
 
 /// Routing rule of a switch: first matching rule wins, evaluated in list
-/// order; without a match the default branch is taken (GDD §7.3).
+/// order; without a match the default branch is taken.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SwitchRule {
     pub when: RuleWhen,

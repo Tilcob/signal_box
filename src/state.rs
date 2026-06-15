@@ -1,6 +1,6 @@
 //! App state machine and the shared resources of the slice.
 //!
-//! Mode switching is the Zachlike contract (GDD §5): Edit and Run are
+//! Mode switching is the Zachlike contract: Edit and Run are
 //! strictly separate states; Result shows the outcome and leads back.
 
 use bevy::prelude::*;
@@ -18,7 +18,7 @@ pub enum GameState {
     /// [`LevelSelect`] once everything is resident (see `crate::loading`).
     Loading,
     LevelSelect,
-    /// Size picker before creating a new sandbox (M2 §2.2).
+    /// Size picker before creating a new sandbox.
     SandboxSetup,
     Edit,
     Run,
@@ -26,13 +26,13 @@ pub enum GameState {
 }
 
 /// The level being played, plus its catalog identity. In the sandbox the
-/// level itself is editable (sources, sinks, schedule — M2 plan §2.2).
+/// level itself is editable (sources, sinks, schedule).
 #[derive(Resource, Clone)]
 pub struct ActiveLevel {
     pub id: String,
     pub index: usize,
     pub level: Level,
-    /// Authored briefing (operating order, GDD §8.1); localized at render via
+    /// Authored briefing (operating order); localized at render via
     /// `i18n::briefing`. Empty in the sandbox.
     pub briefing: String,
     pub sandbox: bool,
@@ -54,9 +54,9 @@ pub fn not_paused(paused: Res<Paused>) -> bool {
     !paused.0
 }
 
-/// The player's build, with full undo/redo (plan M1 §2: every build action
-/// is an invertible operation — the same op vocabulary carries the M2
-/// sharing format).
+/// The player's build, with full undo/redo. Every build action
+/// is an invertible operation — the same op vocabulary carries the
+/// sharing format.
 #[derive(Resource)]
 pub struct Editor {
     pub layout: Layout,

@@ -139,7 +139,8 @@ wandert in Sharing-Codes.
 
 Seit Plan [optimierung/07](../plans/optimierung/07-kampagnen-level-werkzeuge.md)
 ist der frühere „Code exportieren → von Hand in eine `.ron` gießen"-Umweg durch
-Werkzeuge ersetzt — zwei Editor-Knöpfe und zwei CLIs.
+Werkzeuge ersetzt — zwei Editor-Knöpfe und zwei CLIs. Ausführliche CLI-Referenz
+mit Beispielen: [autoren-tools.md](autoren-tools.md).
 
 1. **In der Sandbox entwerfen.** Streckenwahl → **NEUE SANDBOX** → Größe wählen.
    Quellen/Senken mit `6`/`7` setzen, Fahrplan unten links (**+ ZUG**, dann

@@ -113,7 +113,7 @@ pub(super) fn build_chapter_view(
 }
 
 /// A single level button: a solved dot, the name (+ optional-hard tag) and one
-/// medal dot per score axis — all drawn icons, not font glyphs (restfeature 04).
+/// medal dot per score axis — all drawn icons, not font glyphs.
 /// In a `dev` build the per-level delete sits beside it.
 fn spawn_level_button(
     parent: &mut ChildSpawnerCommands,

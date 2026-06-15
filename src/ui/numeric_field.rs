@@ -1,6 +1,6 @@
 //! A minimal focusable numeric input for bevy_ui (which ships no text field).
 //! Click to focus, type digits, Enter or click-away commits the value clamped
-//! to `[min, max]`. Reusable beyond the schedule editor (M2 restfeature 03).
+//! to `[min, max]`. Reusable beyond the schedule editor.
 //!
 //! Keys are read from the LOGICAL `ButtonInput<Key>`, never `KeyCode`: on a
 //! QWERTZ layout the physical positions differ, and we want the characters the

@@ -1,4 +1,4 @@
-//! A train is an interval on a path of directed edges (plan §3.5): the head
+//! A train is an interval on a path of directed edges: the head
 //! sits at `head_dist` on `path.back()`, the body extends `length` backwards.
 
 use crate::graph::TrackGraph;
@@ -25,7 +25,7 @@ pub struct Train {
     /// history.
     pub passed_switches: Vec<(Cell, EdgeId)>,
     /// Tick since when the train waits at its current red signal (first-come
-    /// priority, GDD §7.4). Cleared on every crossing.
+    /// priority). Cleared on every crossing.
     pub waiting_since: Option<Tick>,
 }
 
@@ -37,7 +37,7 @@ impl Train {
     /// Occupied intervals `(edge, from, to)` measured from each edge's
     /// start, head edge first. The tail ends at the start of `path.front()`
     /// at the latest — a freshly spawned train therefore grows into the
-    /// world (plan §3.5).
+    /// world.
     pub fn occupied(&self, graph: &TrackGraph) -> Vec<(EdgeId, Len, Len)> {
         let mut out = Vec::new();
         self.occupied_into(graph, &mut out);
@@ -62,7 +62,9 @@ impl Train {
             if hi > lo {
                 out.push((edge, Len(lo), Len(hi)));
             }
-            rest -= hi - lo.max(0);
+            // `lo` is already clamped to `>= 0` in both branches above, so the
+            // consumed length is simply `hi - lo`.
+            rest -= hi - lo;
             if rest <= 0 {
                 break;
             }
@@ -70,7 +72,7 @@ impl Train {
     }
 
     /// Drops tail edges the train has fully left — otherwise the path (and
-    /// from W4 on the replay hash) grows without bound.
+    /// the replay hash) grows without bound.
     pub fn trim_path(&mut self, graph: &TrackGraph) {
         let mut rest = self.length.0;
         let mut keep = 1;

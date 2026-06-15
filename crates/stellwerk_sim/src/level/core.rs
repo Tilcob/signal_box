@@ -31,7 +31,7 @@ pub struct SinkDef {
 }
 
 /// One timetable entry. `due` is the target arrival tick — lateness beyond
-/// it feeds the punctuality score axis (GDD §7.5).
+/// it feeds the punctuality score axis.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ScheduleEntry {
     pub train: TrainId,
@@ -44,7 +44,7 @@ pub struct ScheduleEntry {
     pub due: Tick,
 }
 
-/// Designer reference values per score axis (GDD §7.7).
+/// Designer reference values per score axis.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Par {
     pub throughput: Tick,

@@ -1,7 +1,7 @@
-//! Dev authoring tool (#4 of optimierung/07): fills MISSING `level.*` /
+//! Dev authoring tool: fills MISSING `level.*` /
 //! `station.*` i18n keys for every level under `assets/levels/`, in BOTH
 //! tables, with the authored value as a placeholder. English placeholders get
-//! a `⟨TODO⟩` sentinel so untranslated entries stay findable. Never overwrites
+//! a `[TODO]` sentinel so untranslated entries stay findable. Never overwrites
 //! an existing key, so real translations are safe; never reorders the file
 //! (appends before the closing brace), so diffs stay small.
 //!
@@ -60,7 +60,7 @@ fn main() {
 
 /// Inserts every expected key not already present, preserving file order
 /// (appends before the final `}`). German gets the authored value; English the
-/// `⟨TODO⟩`-marked placeholder. Returns how many keys were added.
+/// `[TODO]`-marked placeholder. Returns how many keys were added.
 fn fill_table(path: &str, expected: &BTreeMap<String, String>, placeholder: bool) -> usize {
     let text = std::fs::read_to_string(path).unwrap_or_else(|e| panic!("read {path}: {e}"));
     let existing: BTreeMap<String, String> =

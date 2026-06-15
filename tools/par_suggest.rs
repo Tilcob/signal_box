@@ -1,4 +1,4 @@
-//! Dev authoring tool (#3 of optimierung/07): the "bless" flow. Runs every
+//! Dev authoring tool: the "bless" flow. Runs every
 //! stored designer solution through the headless sim — exactly like
 //! `tests/par_proof.rs` — and reports the best value reached per axis. With
 //! `--write` it rewrites the `par:` line of each level file in place, replacing

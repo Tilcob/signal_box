@@ -1,4 +1,4 @@
-//! Switch routing ("the switch is the program", GDD §7.3) and the route
+//! Switch routing ("the switch is the program") and the route
 //! walk used for the editor's reachability check and misrouting blame.
 
 use crate::graph::{Next, SwitchData, TrackGraph};
@@ -55,7 +55,7 @@ pub fn walk_route(graph: &TrackGraph, start: EdgeId, class: TrainClass, sink: Si
 }
 
 /// A scheduled train that cannot reach its sink with the current switch
-/// configuration — the editor's pre-flight warning (GDD §7.3).
+/// configuration — the editor's pre-flight warning.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Unreachable {
     pub train: TrainId,

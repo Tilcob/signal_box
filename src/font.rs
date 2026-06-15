@@ -1,14 +1,14 @@
-//! The shared UI font: Saira Semi Condensed (DIN-like signage grotesque,
-//! GDD §10) — Bevy's built-in default is an ASCII-only Fira Mono subset that
+//! The shared UI font: Saira Semi Condensed (DIN-like signage grotesque) —
+//! Bevy's built-in default is an ASCII-only Fira Mono subset that
 //! renders umlauts as tofu. Saira covers Latin + ß but has no symbol glyphs;
 //! the UI's status icons (medals, solved, errors) are drawn as UI shapes
-//! (`widgets::dot`) or use punctuation (»«×), see restfeature 04.
+//! (`widgets::dot`) or use punctuation (»«×).
 
 use bevy::prelude::*;
 use bevy::text::Font;
 
-/// The shipped UI face. Swapping it (e.g. to the DIN-like signage font of
-/// GDD §10 / restfeature 04) is a one-liner here plus dropping the new `.ttf`
+/// The shipped UI face. Swapping it (e.g. to another DIN-like signage font)
+/// is a one-liner here plus dropping the new `.ttf`
 /// and its OFL/Apache/PD license beside it — the `shipped_font_covers_all_ui_glyphs`
 /// test then guarantees the replacement still renders every UI character.
 /// A proportional face must keep tabular figures (or the read-only schedule's
@@ -60,7 +60,7 @@ mod tests {
     /// tables (separators, arrows, marks). Keep in sync when a new symbol is
     /// added to the UI — same `#[cfg(test)]` const pattern as the i18n
     /// decode-error keys.
-    // ●○✓ are drawn as UI shapes now, ▶◀✗ replaced by »«× (restfeature 04),
+    // ●○✓ are drawn as UI shapes now, ▶◀✗ replaced by »«×,
     // so the font only needs these punctuation/arrow symbols.
     const UI_GLYPHS: &str = "·→×…»≈";
 
@@ -72,7 +72,7 @@ mod tests {
         map.values().flat_map(|v| v.chars()).collect()
     }
 
-    /// The "Schriftprüfung" (M2 restfeature 04 / GDD §10): the shipped font must
+    /// The font-coverage check: the shipped font must
     /// render every character the UI can display — both i18n tables (incl. all
     /// umlauts and ß) plus the hardcoded symbols — otherwise it shows tofu.
     #[test]

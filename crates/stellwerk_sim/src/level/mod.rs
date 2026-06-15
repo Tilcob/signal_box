@@ -1,7 +1,6 @@
 //! Level definition: what the designer provides and the player must serve.
-//! See GDD §7.5 (schedule), §7.7 (par values) and plan §3.4.
 //!
-//! Split into two layers (M2 plan §2.3 / optimierung-plan 05):
+//! Split into two layers:
 //!
 //! - [`core`] — the frozen SIMULATION core ([`Level`] & friends). This, and
 //!   only this, is what a sharing code carries (`stellwerk_codes`, postcard —

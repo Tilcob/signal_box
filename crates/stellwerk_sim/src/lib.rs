@@ -1,9 +1,9 @@
 //! # stellwerk_sim — deterministic simulation core for Stellwerk
 //!
 //! No engine, no rendering — pure data and rules. The Bevy frontend talks to
-//! this crate exclusively through its public API (see plan §4.1; GDD §12.1).
+//! this crate exclusively through its public API.
 //!
-//! ## Determinism contract (plan §4.5 — binding for every commit)
+//! ## Determinism contract (binding for every commit)
 //!
 //! 1. No `f32`/`f64` and no `HashMap`/`HashSet` in simulation state or in
 //!    any iteration that mutates state — use `BTreeMap`/`Vec` with a fixed

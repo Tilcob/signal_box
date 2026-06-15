@@ -1,4 +1,4 @@
-//! The 20 exit scenarios of M0 (plan §5) plus the golden replay hashes.
+//! The 20 exit scenarios plus the golden replay hashes.
 //!
 //! Golden values: when a scenario first turns green its final hash is
 //! "blessed" into `GOLD` below. Any behavior change shows up as a diff —
@@ -128,7 +128,7 @@ fn s19_full_scoring() {
     run_and_check("s19_full_scoring");
 }
 
-/// Scenario 20 (plan §5): determinism. Two fresh runs of s14 produce the
+/// Scenario 20: determinism. Two fresh runs of s14 produce the
 /// identical per-tick hash sequence — and a serde roundtrip of level and
 /// layout changes nothing.
 #[test]

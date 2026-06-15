@@ -1,5 +1,5 @@
 //! Scenario test driver: loads RON fixtures from `tests/scenarios/` and
-//! checks outcomes against expectations (plan §5).
+//! checks outcomes against expectations.
 
 use serde::Deserialize;
 use stellwerk_sim::Sim;

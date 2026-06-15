@@ -1,4 +1,4 @@
-//! Dev-only authoring helpers (feature `dev`, plan optimierung/07). They write
+//! Dev-only authoring helpers (feature `dev`). They write
 //! into the repo's `assets/` tree and only make sense when the game runs from
 //! the working tree — never in a shipped build, hence the whole module is
 //! feature-gated.

@@ -1,6 +1,6 @@
-//! Audio (GDD §11): `bevy_kira_audio` for fades, loops and many concurrent
-//! one-shots — the control the ASMR "Pult" sound design needs (GDD §12 chose
-//! kira over Bevy's built-in audio for exactly this). Two channels give music
+//! Audio: `bevy_kira_audio` for fades, loops and many concurrent
+//! one-shots — the control the ASMR "Pult" sound design needs (kira was chosen
+//! over Bevy's built-in audio for exactly this). Two channels give music
 //! and SFX independent volume. Bevy's own audio plugin is disabled in `main`
 //! so the two backends don't fight over the output device.
 

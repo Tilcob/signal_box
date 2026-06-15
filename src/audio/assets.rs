@@ -5,11 +5,11 @@
 use bevy::prelude::*;
 use bevy_kira_audio::AudioSource;
 
-/// Level-Musik-Pool: am Pult (Edit + Run) spielt eine zufällige Playlist daraus,
-/// je ein Track, danach eine Stille-Pause, dann der nächste (nie zweimal
-/// derselbe direkt hintereinander — siehe `music::drive_level_playlist`).
-/// `AssetServer` kann zur Laufzeit keinen Ordner auflisten (wasm-tauglich muss
-/// es explizit sein), darum die Dateinamen hart hier.
+/// Level music pool: at the desk (Edit + Run) a random playlist plays from
+/// this — one track at a time, then a silent pause, then the next (never the
+/// same one twice in a row — see `music::drive_level_playlist`). The
+/// `AssetServer` cannot list a directory at runtime (a wasm-capable build must
+/// be explicit), hence the hardcoded filenames here.
 const LEVEL_TRACKS: &[&str] = &[
     "audio/music/4379051-about-trains-passing-by-179886.ogg",
     "audio/music/4379051-siberia-express-192132.ogg",
@@ -21,7 +21,7 @@ const LEVEL_TRACKS: &[&str] = &[
 #[derive(Resource)]
 pub struct AudioAssets {
     pub menu_music: Handle<AudioSource>,
-    /// Pool für die Pult-Playlist (Reihenfolge = Index, siehe `LevelPlaylist`).
+    /// Pool for the desk playlist (order = index, see `LevelPlaylist`).
     pub level_tracks: Vec<Handle<AudioSource>>,
     pub button_click: Handle<AudioSource>,
     pub switch_sound: Handle<AudioSource>,

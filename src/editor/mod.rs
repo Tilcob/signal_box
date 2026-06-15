@@ -1,5 +1,5 @@
 //! Edit mode: tools, drag track drawing, invertible edit ops with undo/redo,
-//! live validation + reachability warnings (plan M1 §2/§3; M2: sandbox
+//! live validation + reachability warnings (incl. sandbox
 //! source/sink tools).
 //!
 //! Validation is never modal: faulty elements glow on the board, the start
@@ -8,7 +8,7 @@
 //!
 //! Sandbox edits (source/sink placement, the schedule editor) mutate the
 //! LEVEL rather than the layout, but share the SAME undo stack as layout ops
-//! via [`ops::EditOp`]'s level variants (restfeature 02) — one Ctrl+Z timeline.
+//! via [`ops::EditOp`]'s level variants — one Ctrl+Z timeline.
 
 mod ops;
 mod overlays;
@@ -41,7 +41,7 @@ impl Plugin for EditorPlugin {
                 sync_merged_layout,
                 // Suppressed while a numeric field is focused, so typing digits
                 // can't switch tools / undo, and a focus-blur click can't also
-                // place track (restfeature 03).
+                // place track.
                 tools::hotkeys.run_if(not_paused).run_if(no_field_focused),
                 tools::pointer.run_if(not_paused).run_if(no_field_focused),
                 overlays::draw_overlays.run_if(not_paused),
