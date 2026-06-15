@@ -4,6 +4,7 @@
 use bevy::prelude::*;
 use stellwerk_codes::Payload;
 
+use crate::clipboard::CopyOutcome;
 use super::schedule_panel::{SchedAction, SchedulePanelRoot, rebuild_schedule_panel};
 use super::valerr::valerr_text;
 use super::switch_panel::{SwitchPanelRoot, rebuild_switch_panel};
@@ -358,10 +359,10 @@ fn export_level_click(
         let code = stellwerk_codes::encode(&Payload::Level {
             level: active.level.clone(),
         });
-        if let Err(e) = std::fs::write("stellwerk_code.txt", code) {
-            warn!("export failed: {e}");
-        } else {
-            info!("level code written to stellwerk_code.txt");
+        match crate::clipboard::copy(&code) {
+            CopyOutcome::Clipboard => info!("level code copied to clipboard"),
+            CopyOutcome::File(path) => info!("level code written to {}", path.display()),
+            CopyOutcome::Failed(e) => warn!("level export failed: {e}"),
         }
         save_sandbox(&active.level);
     }

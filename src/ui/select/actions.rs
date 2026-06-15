@@ -4,6 +4,7 @@
 use bevy::prelude::*;
 use stellwerk_codes::{DecodeError, Payload};
 
+use crate::clipboard::PasteError;
 use crate::i18n::{set_lang, t};
 use crate::levels::{Catalog, Progress, SANDBOX_ID, load_sandbox, save_sandbox};
 use crate::state::{Editor, GameState};
@@ -54,8 +55,11 @@ pub(super) fn select_buttons(
         return;
     }
     if import.iter().any(|i| *i == Interaction::Pressed) {
-        match std::fs::read_to_string("stellwerk_import.txt") {
-            Err(e) => status.0 = format!("stellwerk_import.txt: {e}"),
+        match crate::clipboard::paste() {
+            Err(PasteError::Empty) => status.0 = t("select.import_clipboard_empty"),
+            Err(PasteError::Unavailable(e)) => {
+                status.0 = format!("{}: {e}", t("import.error.clipboard"))
+            }
             Ok(text) => match stellwerk_codes::decode(&text) {
                 Err(e) => status.0 = decode_error_text(&e),
                 Ok(Payload::Solution { level_id, layout }) => {

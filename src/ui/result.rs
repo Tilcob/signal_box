@@ -11,6 +11,7 @@ use super::widgets::{
     BUTTON_BG, BUTTON_BG_PRIMARY, StatusText, TEXT_BRIGHT, TEXT_DIM, button, despawn_all,
     text_bundle,
 };
+use crate::clipboard::CopyOutcome;
 use crate::font::UiFont;
 use crate::i18n::t;
 use crate::levels::{Catalog, Progress};
@@ -246,9 +247,10 @@ fn result_clicks(
                         level_id: active.id.clone(),
                         layout: editor.layout.clone(),
                     });
-                    let message = match std::fs::write("stellwerk_code.txt", code) {
-                        Ok(()) => t("result.exported"),
-                        Err(e) => format!("{}: {e}", t("result.export_failed")),
+                    let message = match crate::clipboard::copy(&code) {
+                        CopyOutcome::Clipboard => t("result.exported"),
+                        CopyOutcome::File(_) => t("result.exported_file"),
+                        CopyOutcome::Failed(e) => format!("{}: {e}", t("result.export_failed")),
                     };
                     if let Ok(mut text) = status_texts.single_mut() {
                         text.0 = message;

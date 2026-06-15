@@ -6,6 +6,7 @@
 
 mod board;
 mod camera;
+mod clipboard;
 mod editor;
 mod font;
 mod i18n;

@@ -149,15 +149,24 @@ vollständig. Offen ist allein die **Content-Menge (15 → 30+)** — siehe Plan
 
 ## 8. Umsetzungsnotizen (Abweichungen)
 
-1. **Codes über Dateien statt Zwischenablage:** Export schreibt
-   `stellwerk_code.txt`, Import liest `stellwerk_import.txt` — Clipboard
-   hätte eine neue Dependency gebraucht (`arboard`); Entscheidung bei
-   M3-Polish (GDD §12.4-Eintrag dann nötig).
+> Die offenen Abweichungen 1–3 plus die unbelegte Schrift-DoD (§3) sind je in
+> einem eigenen Plan unter [`restfeatures/`](restfeatures/) ausgearbeitet.
+
+1. ~~**Codes über Dateien statt Zwischenablage**~~ **ERLEDIGT (2026-06-15):**
+   Export/Import laufen über die Systemzwischenablage (`arboard`, GDD §12.2);
+   `stellwerk_code.txt`/`stellwerk_import.txt` bleiben verlustfreier Fallback.
+   → [restfeatures/01](restfeatures/01-sharing-zwischenablage.md) (erledigt).
 2. **Sandbox-Level-Änderungen (Quellen/Ziele/Fahrplan) sind nicht im
-   Undo-Stack** — nur Layout-Bauaktionen. Dokumentierte M2-Minimal-Grenze.
+   Undo-Stack** — nur Layout-Bauaktionen. Dokumentierte M2-Minimal-Grenze. →
+   [restfeatures/02](restfeatures/02-sandbox-undo.md) (offen).
 3. **Fahrplan-Editor ist bewusst grob** (Zyklus-Knöpfe statt Eingabefelder);
-   reicht für Community-Puzzles, Politur nach Playtest-Feedback.
-4. **Level-Inhalte über i18n-Keys (inzwischen erledigt):** Level-Namen,
+   reicht für Community-Puzzles, Politur nach Playtest-Feedback. →
+   [restfeatures/03](restfeatures/03-fahrplan-eingabefelder.md) (offen,
+   setzt 02 voraus).
+4. **Schrift (§3) ist unbelegt:** ausgeliefert wird `DejaVuSansMono` (nicht
+   DIN-artig), eine echte Schriftprüfung fehlt. →
+   [restfeatures/04](restfeatures/04-din-schrift.md) (offen).
+5. **Level-Inhalte über i18n-Keys (inzwischen erledigt):** Level-Namen,
    Stationslabels und Briefings laufen seit `optimierung/03`+`04` über
    `level.*`/`station.*`-Keys mit dem authored (deutschen) Wert als Fallback.
    Ursprünglich verschoben, nun nachgezogen.
