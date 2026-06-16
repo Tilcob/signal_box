@@ -257,9 +257,7 @@ impl fmt::Display for ValidationError {
             SwitchRuleUnknownSink { cell, sink } => write!(
                 f,
                 "switch rule in cell ({}, {}) references unknown sink {}",
-                cell.x,
-                cell.y,
-                sink.0
+                cell.x, cell.y, sink.0
             ),
             SwitchCellNotExclusive { cell } => write!(
                 f,
@@ -296,31 +294,21 @@ impl fmt::Display for ValidationError {
             ),
             DuplicateSourceId { id } => write!(f, "duplicate source id {}", id.0),
             DuplicateSinkId { id } => write!(f, "duplicate sink id {}", id.0),
-            SourceOffTrack { id } => write!(
-                f,
-                "source {} has no track anchoring its connector",
-                id.0
-            ),
-            SinkOffTrack { id } => write!(
-                f,
-                "sink {} has no track anchoring its connector",
-                id.0
-            ),
+            SourceOffTrack { id } => {
+                write!(f, "source {} has no track anchoring its connector", id.0)
+            }
+            SinkOffTrack { id } => write!(f, "sink {} has no track anchoring its connector", id.0),
             DuplicateTrainId { train } => {
                 write!(f, "duplicate train id {}", train.0)
             }
             UnknownSource { train, source } => write!(
                 f,
                 "train {} departs from unknown source {}",
-                train.0,
-                source.0
+                train.0, source.0
             ),
-            UnknownSink { train, sink } => write!(
-                f,
-                "train {} targets unknown sink {}",
-                train.0,
-                sink.0
-            ),
+            UnknownSink { train, sink } => {
+                write!(f, "train {} targets unknown sink {}", train.0, sink.0)
+            }
             NonPositiveLength { train } => {
                 write!(f, "train {} has non-positive length", train.0)
             }
