@@ -42,8 +42,12 @@ impl Plugin for NumericFieldPlugin {
             Update,
             (numeric_field_focus, numeric_field_keys, numeric_field_render)
                 .chain()
-                .run_if(in_state(GameState::Edit))
-                .run_if(not_paused),
+                // Also active on the sandbox setup screen (its size inputs);
+                // there `not_paused` is irrelevant, so only Edit is gated by it.
+                .run_if(
+                    in_state(GameState::SandboxSetup)
+                        .or(in_state(GameState::Edit).and(not_paused)),
+                ),
         );
     }
 }
@@ -112,7 +116,7 @@ fn close_field(
 /// Left-click moves focus: commits the old field, opens the clicked one
 /// (pre-filling its buffer with the current value). A click on no field at all
 /// blurs (and commits) the current one.
-fn numeric_field_focus(
+pub(super) fn numeric_field_focus(
     mut focus: ResMut<FocusedField>,
     buttons: Res<ButtonInput<MouseButton>>,
     mut fields: Query<(Entity, &Interaction, &mut NumericField)>,

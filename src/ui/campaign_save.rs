@@ -4,15 +4,15 @@
 //! placeholder i18n keys — so the painful part (hand-writing buildable cells,
 //! sources, sinks and the schedule) is done by a button.
 //!
-//! Deliberately no free-text entry (the engine has no text field and a
-//! hand-rolled one is fragile): chapter/order are cycle buttons, the id is
-//! generated (`k<chapter>_<order>_neu`, de-duplicated) and the briefing starts
-//! empty — to be filled via the `i18n_fill` CLI and then translated.
-//! Rename/refine in the file afterwards.
+//! Chapter/order are typed into numeric fields (clamped to their valid ranges);
+//! the id is generated (`k<chapter>_<order>_neu`, de-duplicated) and the
+//! briefing starts empty — to be filled via the `i18n_fill` CLI and then
+//! translated. Rename/refine in the file afterwards.
 
 use bevy::prelude::*;
 use stellwerk_sim::level::{LEVEL_SCHEMA_VERSION, LevelMeta};
 
+use super::numeric_field::{NumericField, numeric_field, numeric_field_focus};
 use super::widgets::{
     BUTTON_BG, BUTTON_BG_PRIMARY, PANEL_BG, TEXT_BRIGHT, TEXT_DIM, button, set_text, text_bundle,
 };
@@ -21,33 +21,26 @@ use crate::i18n::set_lang;
 use crate::levels::{Catalog, Progress, load_catalog};
 use crate::state::{ActiveLevel, GameState};
 
-/// Draft metadata for the next save (chapter/order picked via buttons) plus the
-/// last status line.
-#[derive(Resource)]
+/// Chapter range matches the campaign; order steps of 10 leave room to insert.
+const CHAPTER_MIN: i64 = 1;
+const CHAPTER_MAX: i64 = 8;
+const ORDER_MIN: i64 = 10;
+const ORDER_MAX: i64 = 200;
+
+/// The save inputs that don't come from the numeric fields: the hard flag (a
+/// toggle) and the last status line.
+#[derive(Resource, Default)]
 struct CampaignDraft {
-    chapter: u8,
-    order: u16,
     hard: bool,
     status: String,
-}
-
-impl Default for CampaignDraft {
-    fn default() -> Self {
-        CampaignDraft {
-            chapter: 1,
-            order: 10,
-            hard: false,
-            status: String::new(),
-        }
-    }
 }
 
 #[derive(Component)]
 struct UiCampaignSave;
 #[derive(Component)]
-struct ChapterButton;
+struct ChapterField;
 #[derive(Component)]
-struct OrderButton;
+struct OrderField;
 #[derive(Component)]
 struct HardButton;
 #[derive(Component)]
@@ -64,7 +57,10 @@ impl Plugin for CampaignSavePlugin {
             .add_systems(OnExit(GameState::Edit), super::widgets::despawn_all::<UiCampaignSave>)
             .add_systems(
                 Update,
-                (cycle_buttons, save_click, update_info).run_if(in_state(GameState::Edit)),
+                // `save_click` after `numeric_field_focus`: clicking Save blurs
+                // the focused field, committing its typed buffer into `.value`.
+                (toggle_hard, save_click.after(numeric_field_focus), update_info)
+                    .run_if(in_state(GameState::Edit)),
             );
     }
 }
@@ -107,31 +103,25 @@ fn spawn_panel(
             panel
                 .spawn(Node {
                     flex_direction: FlexDirection::Row,
+                    align_items: AlignItems::Center,
+                    column_gap: Val::Px(6.0),
                     ..default()
                 })
                 .with_children(|row| {
-                    button(row, &font, "Kapitel +", BUTTON_BG, ChapterButton);
-                    button(row, &font, "Order +10", BUTTON_BG, OrderButton);
+                    row.spawn(text_bundle(&font, "Kapitel".into(), 13.0, TEXT_DIM));
+                    numeric_field(row, &font, CHAPTER_MIN, CHAPTER_MIN, CHAPTER_MAX, ChapterField);
+                    row.spawn(text_bundle(&font, "Order".into(), 13.0, TEXT_DIM));
+                    numeric_field(row, &font, ORDER_MIN, ORDER_MIN, ORDER_MAX, OrderField);
                     button(row, &font, "hart umschalten", BUTTON_BG, HardButton);
                 });
             button(panel, &font, "Speichern", BUTTON_BG_PRIMARY, SaveButton);
         });
 }
 
-fn cycle_buttons(
-    chapter: Query<&Interaction, (Changed<Interaction>, With<ChapterButton>)>,
-    order: Query<&Interaction, (Changed<Interaction>, With<OrderButton>)>,
+fn toggle_hard(
     hard: Query<&Interaction, (Changed<Interaction>, With<HardButton>)>,
     mut draft: ResMut<CampaignDraft>,
 ) {
-    if chapter.iter().any(|i| *i == Interaction::Pressed) {
-        // 1..=8 wrap — matches the campaign's chapter range.
-        draft.chapter = draft.chapter % 8 + 1;
-    }
-    if order.iter().any(|i| *i == Interaction::Pressed) {
-        // 10, 20, … 200, wrap. Steps of 10 leave room to insert later.
-        draft.order = if draft.order >= 200 { 10 } else { draft.order + 10 };
-    }
     if hard.iter().any(|i| *i == Interaction::Pressed) {
         draft.hard = !draft.hard;
     }
@@ -140,6 +130,8 @@ fn cycle_buttons(
 #[allow(clippy::too_many_arguments)]
 fn save_click(
     interactions: Query<&Interaction, (Changed<Interaction>, With<SaveButton>)>,
+    chapter: Query<&NumericField, With<ChapterField>>,
+    order: Query<&NumericField, With<OrderField>>,
     active: Option<Res<ActiveLevel>>,
     progress: Res<Progress>,
     mut catalog: ResMut<Catalog>,
@@ -151,11 +143,17 @@ fn save_click(
     let Some(active) = active.filter(|a| a.sandbox) else {
         return;
     };
-    let id = unique_id(draft.chapter, draft.order);
+    let (Ok(chapter), Ok(order)) = (chapter.single(), order.single()) else {
+        return;
+    };
+    // Fields are clamped to the ranges above, so the casts never truncate.
+    let chapter = chapter.value as u8;
+    let order = order.value as u16;
+    let id = unique_id(chapter, order);
     let meta = LevelMeta {
         schema_version: LEVEL_SCHEMA_VERSION,
-        chapter: draft.chapter,
-        order: draft.order,
+        chapter,
+        order,
         optional_hard: draft.hard,
         briefing: String::new(),
     };
@@ -190,15 +188,23 @@ fn save_click(
     }
 }
 
-fn update_info(draft: Res<CampaignDraft>, mut texts: Query<&mut Text, With<InfoText>>) {
+fn update_info(
+    draft: Res<CampaignDraft>,
+    chapter: Query<&NumericField, With<ChapterField>>,
+    order: Query<&NumericField, With<OrderField>>,
+    mut texts: Query<&mut Text, With<InfoText>>,
+) {
+    let (Ok(chapter), Ok(order)) = (chapter.single(), order.single()) else {
+        return;
+    };
     if let Ok(mut text) = texts.single_mut() {
-        let id = preview_id(draft.chapter, draft.order);
+        let id = preview_id(chapter.value as u8, order.value as u16);
         let hard = if draft.hard { "an" } else { "aus" };
         set_text(
             &mut text,
             format!(
                 "Kapitel: {} · Order: {} · hart: {hard} · id≈{id}\n{}",
-                draft.chapter, draft.order, draft.status
+                chapter.value, order.value, draft.status
             ),
         );
     }

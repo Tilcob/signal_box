@@ -1,8 +1,8 @@
 # Autoren-CLIs: `par_suggest` & `i18n_fill`
 
 Zwei dev-only Kommandozeilen-Werkzeuge, die die manuellen Nähte beim
-Level-Bauen schließen (Plan
-[optimierung/07](../plans/optimierung/07-kampagnen-level-werkzeuge.md) #3/#4).
+Level-Bauen schließen (Content-Maschine-Plan
+[plans/M2/M2-content-maschine.md](../plans/M2/M2-content-maschine.md)).
 Sie sind in den [Autorenworkflow](level-bauen.md#3-der-autorenworkflow-schritt-für-schritt)
 eingebettet — hier steht die ausführliche Referenz mit Beispielen.
 

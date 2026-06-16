@@ -2,12 +2,10 @@
 
 Praxisleitfaden für Kampagnen-Level in Stellwerk. Beschreibt das aktuelle
 Dateiformat (mit Metadaten-Schicht, M2 §2.3), den Autorenworkflow und die
-Tests, die grün sein müssen, bevor ein Level „fertig" ist. Am Ende ein
-[Ausblick](#ausblick-kampagnen-level-künftig-leichter-bauen), wie sich das
-Bauen künftig beschleunigen lässt.
+Tests, die grün sein müssen, bevor ein Level „fertig" ist.
 
-> Hintergrund-Entscheidungen zum Format stehen in
-> [plans/optimierung/05-level-metadaten-format.md](../plans/optimierung/05-level-metadaten-format.md).
+> Hintergrund-Entscheidungen zum Format stehen im Content-Maschine-Plan
+> [plans/M2/M2-content-maschine.md](../plans/M2/M2-content-maschine.md) (§2.3).
 
 ---
 
@@ -53,7 +51,7 @@ wandert in Sharing-Codes.
         chapter: 1,                 // Kapitel (1-basiert)
         order: 10,                  // Reihenfolge IM Kapitel (Schritte von 10)
         optional_hard: false,       // eines der letzten „optional-schweren" Level?
-        briefing: "Ziehen Sie das Gleis durch und bringen Sie den Zug nach OST.",
+        briefing: "Ziehe das Gleis durch und bringe den Zug nach OST. Eine Fahrt, ein Ziel — Dein Einstieg.",
     ),
     sim: (
         name: "1.1 Erste Fahrt",    // authored Anzeigename (i18n-Fallback)
@@ -123,9 +121,13 @@ wandert in Sharing-Codes.
   `(a: E, b: S)` = 90°-Bogen. Eine Zelle kann mehrere Stücke tragen (Kreuzung:
   `(W,E)` **und** `(N,S)`).
 - Eine **Weiche** sitzt allein auf ihrer Zelle (keine losen Gleise dort):
-  `(cell, stem, branches: [b0, b1], default_branch, rules)`. `stem` ist die
-  Einfahrt, `branches` die zwei Ausgänge, `default_branch` die Grundstellung
-  (0/1), `rules` die Zielregeln (`DestIs(SinkId)` / `ClassIs(TrainClass)`).
+  `(cell, stem, branches: (b0, b1), default_branch, rules)`. `stem` ist die
+  Einfahrt, `branches` die zwei Ausgänge (RON-Tupel mit genau zwei Richtungen,
+  **nicht** `[…]`), `default_branch` die Grundstellung (Index `0`/`1`). `rules`
+  ist eine Liste von `(when, branch)`-Regeln — `when` ist `DestIs(SinkId)` oder
+  `ClassIs(TrainClass)`, `branch` der zu nehmende Ausgang (`0`/`1`); die erste
+  passende Regel gewinnt, sonst greift `default_branch`. Beispiel:
+  `(cell: (x: 2, y: 0), stem: W, branches: (E, NE), default_branch: 0, rules: [(when: DestIs(1), branch: 1)])`.
 - Ein **Signal** `(cell, at, kind)` hängt am Anschluss `at` eines Gleises;
   `kind` ist `Block` oder `Chain` (Kettensignal).
 
@@ -137,12 +139,13 @@ wandert in Sharing-Codes.
 > — die Werkzeuge schreiben in `assets/`. Im Ship-Build
 > (`--no-default-features`) gibt es sie nicht.
 
-Seit Plan [optimierung/07](../plans/optimierung/07-kampagnen-level-werkzeuge.md)
+Seit dem Content-Maschine-Plan [plans/M2/M2-content-maschine.md](../plans/M2/M2-content-maschine.md)
 ist der frühere „Code exportieren → von Hand in eine `.ron` gießen"-Umweg durch
 Werkzeuge ersetzt — zwei Editor-Knöpfe und zwei CLIs. Ausführliche CLI-Referenz
 mit Beispielen: [autoren-tools.md](autoren-tools.md).
 
-1. **In der Sandbox entwerfen.** Streckenwahl → **NEUE SANDBOX** → Größe wählen.
+1. **In der Sandbox entwerfen.** Streckenwahl → **NEUE SANDBOX** → Breite/Höhe
+   eingeben (Feldgrenzen 3–22 stehen über den Eingabefeldern) → **Erstellen**.
    Quellen/Senken mit `6`/`7` setzen, Fahrplan unten links (**+ ZUG**, dann
    Zyklus-Knöpfe je Zeile), Gleisidee ziehen.
    ⚠️ **Was wo landet:** Das gezeichnete Gleis ist der **Spieler-Build**
@@ -151,7 +154,8 @@ mit Beispielen: [autoren-tools.md](autoren-tools.md).
    *leeres* `fixed`). Vorplatzierte Designer-Gleise (`fixed`) trägst du
    nachträglich in der `.ron` ein.
 2. **„DEV: Als Kampagnen-Level speichern"** (Panel unten rechts im Sandbox-
-   Editor): `Kapitel +` / `Order +10` / `hart umschalten` wählen — die id wird
+   Editor): `Kapitel` / `Order` in die Zahlenfelder eingeben, `hart umschalten`
+   togglen — die id wird
    generiert (`k<kap>_<order>_neu`, de-dupliziert) und als `id≈…` vorab gezeigt.
    **Speichern** schreibt `assets/levels/<id>.ron` (gefüllter `meta`-Block +
    Sandbox-`sim`), legt Platzhalter-i18n-Keys in **beide** Tabellen an und lädt
@@ -249,66 +253,3 @@ Nicht verwechseln:
 
 Merksatz: **Metadaten dürfen frei wachsen** (kein Code hängt dran), **der
 `sim`-Kern ist eingefroren** (alle Codes hängen dran).
-
----
-
-## Ausblick: Kampagnen-Level künftig leichter bauen
-
-Der heutige Workflow ist „in Sandbox bauen → Code exportieren → von Hand in
-eine `.ron` gießen → Metadaten + i18n + Lösung nachpflegen". Das funktioniert,
-hat aber mehrere manuelle Nähte. Vorschläge, grob nach Aufwand/Nutzen:
-
-### Kurzfristig — **umgesetzt** ([Plan 07](../plans/optimierung/07-kampagnen-level-werkzeuge.md))
-
-Diese vier Nähte sind inzwischen Werkzeuge und im Workflow [§3](#3-der-autorenworkflow-schritt-für-schritt)
-beschrieben:
-
-1. ✅ **„Als Kampagnen-Level speichern"** — dev-Panel im Sandbox-Editor,
-   schreibt `assets/levels/<id>.ron` + Platzhalter-i18n-Keys.
-   `chapter`/`order`/`optional_hard` über Buttons; id generiert; Name/Briefing
-   bewusst über die i18n-Tabellen statt als GUI-Feld.
-2. ✅ **Lösung automatisch ablegen** — Knopf „DEV: Lösung sichern" im
-   Ergebnis-Screen → `solutions/<id>.ron`.
-3. ✅ **Par-Vorschlag** — `cargo run --bin par_suggest [-- --write|<id>]`,
-   „bless"-Flow mit zielgenauem `par:`-Block-Ersatz.
-4. ✅ **i18n-Lückenfüller** — `cargo run --bin i18n_fill`, ergänzt fehlende
-   Keys (`[TODO]`-markiert) in beiden Tabellen.
-
-### Mittelfristig (Pipeline & UX)
-
-5. **Briefing-/Auftrags-Screen.** Heute steht das Briefing klein im Edit-HUD.
-   Ein eigener Auftrags-Screen beim Level-Start (mit „Verstanden"-Knopf) macht
-   den Betriebsauftrag zur echten Puzzle-Ansage — und ist der natürliche Ort,
-   später Lernziele/Tipps unterzubringen.
-6. **Kapitel-Freischaltung.** `meta.chapter` liegt jetzt als Datum vor. Damit
-   lässt sich „N gelöste Level öffnen das nächste Kapitel" (GDD §8.1) bauen:
-   Streckenwahl nach Kapiteln gruppieren, gesperrte Kapitel ausgrauen.
-7. **Level-Lint erweitern.** Über die heutigen Checks hinaus: Quelle/Senke je
-   plausibel erreichbar, keine doppelten `order` im selben Kapitel, `briefing`
-   in Länge plausibel (1–2 Sätze), `optional_hard` nur auf den letzten Leveln
-   eines Kapitels.
-8. **Content-Pipeline als CLI.** Ein `xtask level new kN`/`level check`
-   bündelt Gerüst-Anlegen, i18n-Stub, Lösungs-Slot und Lint in einem Befehl —
-   das „ein Level < 1 Tag"-Ziel wird so messbar statt gefühlt.
-
-### Langfristig (Skalierung auf 30+ Level)
-
-9. **Reihenfolge-Refactor-Sicherheit.** Wenn Einschieben zwischen zwei Level
-   den 10er-Abstand sprengt, ein Tool zum Neu-Nummerieren der `order` (nie der
-   `id`!) innerhalb eines Kapitels.
-10. **Schema-Migration vorbereiten.** Sobald `schema_version` erstmals bumpt
-    (z. B. Kapitel 5 „Gebirge" bringt Geländedaten), eine
-    `migrate_level(version, value)`-Funktion analog zu `parse_progress` — alte
-    Dateien lesen, in das neue Format heben, Test mit eingefrorenem
-    Alt-Fixture.
-11. **Telemetrie-gestützte Balance.** Pars und `optional_hard`-Einstufung
-    bewusst erst mit echten Spielzeiten feinjustieren (GDD: Feinbalance in M4).
-    Bis dahin sind die CI-bewiesenen Pars die harte Untergrenze.
-12. **Solver für Erreichbarkeits-Smoketest.** Ein einfacher Auto-Solver (BFS
-    über erlaubte Bauaktionen auf kleinen `buildable`-Flächen) könnte vor jedem
-    Commit beweisen, dass ein Level *überhaupt* lösbar ist — noch bevor eine
-    Designer-Lösung existiert.
-
-> Reihenfolge-Empfehlung: zuerst **1, 2, 3** (sie entfernen die größten
-> manuellen Nähte im täglichen Bauen), dann **6** (Kapitel-Freischaltung nutzt
-> die neuen Metadaten sofort sichtbar aus), der Rest nach Bedarf.
