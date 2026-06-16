@@ -259,7 +259,7 @@ impl fmt::Display for ValidationError {
                 "switch rule in cell ({}, {}) references unknown sink {}",
                 cell.x,
                 cell.y,
-                sink.get_id()
+                sink.0
             ),
             SwitchCellNotExclusive { cell } => write!(
                 f,
@@ -294,46 +294,46 @@ impl fmt::Display for ValidationError {
                 "player track in cell ({}, {}) is outside the buildable area",
                 cell.x, cell.y
             ),
-            DuplicateSourceId { id } => write!(f, "duplicate source id {}", id.get_id()),
-            DuplicateSinkId { id } => write!(f, "duplicate sink id {}", id.get_id()),
+            DuplicateSourceId { id } => write!(f, "duplicate source id {}", id.0),
+            DuplicateSinkId { id } => write!(f, "duplicate sink id {}", id.0),
             SourceOffTrack { id } => write!(
                 f,
                 "source {} has no track anchoring its connector",
-                id.get_id()
+                id.0
             ),
             SinkOffTrack { id } => write!(
                 f,
                 "sink {} has no track anchoring its connector",
-                id.get_id()
+                id.0
             ),
             DuplicateTrainId { train } => {
-                write!(f, "duplicate train id {}", train.get_id())
+                write!(f, "duplicate train id {}", train.0)
             }
             UnknownSource { train, source } => write!(
                 f,
                 "train {} departs from unknown source {}",
-                train.get_id(),
-                source.get_id()
+                train.0,
+                source.0
             ),
             UnknownSink { train, sink } => write!(
                 f,
                 "train {} targets unknown sink {}",
-                train.get_id(),
-                sink.get_id()
+                train.0,
+                sink.0
             ),
             NonPositiveLength { train } => {
-                write!(f, "train {} has non-positive length", train.get_id())
+                write!(f, "train {} has non-positive length", train.0)
             }
             NonPositiveSpeed { train } => {
-                write!(f, "train {} has non-positive speed", train.get_id())
+                write!(f, "train {} has non-positive speed", train.0)
             }
             SpeedTooHigh { train } => write!(
                 f,
                 "train {} is faster than the shortest edge ({MAX_SPEED_EXCLUSIVE} LE/tick) — tunneling risk",
-                train.get_id()
+                train.0
             ),
             DueBeforeDepart { train } => {
-                write!(f, "train {} is due before it departs", train.get_id())
+                write!(f, "train {} is due before it departs", train.0)
             }
         }
     }
@@ -502,12 +502,12 @@ pub fn validate(level: &Level, player: &Layout) -> Vec<ValidationError> {
                 sink: entry.sink,
             });
         }
-        if entry.length.get_length() <= 0 {
+        if entry.length.0 <= 0 {
             errors.push(ValidationError::NonPositiveLength { train: entry.train });
         }
-        if entry.speed.get_speed() <= 0 {
+        if entry.speed.0 <= 0 {
             errors.push(ValidationError::NonPositiveSpeed { train: entry.train });
-        } else if entry.speed.get_speed() >= MAX_SPEED_EXCLUSIVE {
+        } else if entry.speed.0 >= MAX_SPEED_EXCLUSIVE {
             errors.push(ValidationError::SpeedTooHigh { train: entry.train });
         }
         if entry.due < entry.depart {

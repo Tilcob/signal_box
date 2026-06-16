@@ -49,12 +49,6 @@ pub const STALL_TICKS: u64 = 600;
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct Len(pub i64);
 
-impl Len {
-    pub fn get_length(self) -> i64 {
-        self.0
-    }
-}
-
 impl Add for Len {
     type Output = Self;
 
@@ -74,12 +68,6 @@ impl Sub for Len {
 /// Absolute simulation time. Nominal rate: 10 ticks/s (frontend concern only).
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct Tick(pub u64);
-
-impl Tick {
-    pub fn get_ticks(self) -> u64 {
-        self.0
-    }
-}
 
 impl Add<TickDelta> for Tick {
     type Output = Tick;
@@ -103,21 +91,9 @@ impl Sub<Tick> for Tick {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct TickDelta(pub u64);
 
-impl TickDelta {
-    pub fn get_ticks(self) -> u64 {
-        self.0
-    }
-}
-
 /// Speed in LE per tick.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct Speed(pub i64);
-
-impl Speed {
-    pub fn get_speed(self) -> i64 {
-        self.0
-    }
-}
 
 impl Mul<TickDelta> for Speed {
     type Output = Len;
@@ -135,12 +111,6 @@ macro_rules! id_type {
             Serialize, Deserialize,
         )]
         pub struct $name(pub u32);
-
-        impl $name {
-            pub fn get_id(self) -> u32 {
-                self.0
-            }
-        }
     };
 }
 
