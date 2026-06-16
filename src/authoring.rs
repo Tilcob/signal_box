@@ -27,6 +27,9 @@ fn levels_dir() -> PathBuf {
 fn solutions_dir() -> PathBuf {
     levels_dir().join("solutions")
 }
+fn i18n_path(lang: &str) -> PathBuf {
+    PathBuf::from(format!("assets/i18n/{lang}.ron"))
+}
 
 fn ron_pretty<T: serde::Serialize>(value: &T) -> Result<String, String> {
     ron::ser::to_string_pretty(value, ron::ser::PrettyConfig::default()).map_err(|e| e.to_string())
