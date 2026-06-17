@@ -91,6 +91,7 @@ mod tests {
                 id: SourceId(0),
                 cell: cell(0, 0),
                 dir: Dir8::W,
+                label: String::new(),
             }],
             sinks: vec![SinkDef {
                 id: SinkId(0),

@@ -197,7 +197,12 @@ pub(super) fn pointer(
             do_op(
                 &mut editor,
                 &mut active.level,
-                EditOp::PlaceSource(stellwerk_sim::level::SourceDef { id, cell, dir }),
+                EditOp::PlaceSource(stellwerk_sim::level::SourceDef {
+                    id,
+                    cell,
+                    dir,
+                    label: String::new(),
+                }),
             );
             commands.trigger(crate::audio::SfxKind::BuildingSound);
         }

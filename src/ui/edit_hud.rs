@@ -2,11 +2,14 @@
 //! start button (Space/Enter) and the panel root nodes.
 
 use bevy::prelude::*;
+use bevy::window::PrimaryWindow;
 use stellwerk_codes::Payload;
+use stellwerk_sim::grid::Cell;
 
 use crate::clipboard::CopyOutcome;
 use super::schedule_panel::{SchedAction, SchedulePanelRoot, rebuild_schedule_panel};
-use super::valerr::valerr_text;
+use super::station_panel::{StationPanelRoot, rebuild_station_panel};
+use super::valerr::{build_issue_text, valerr_text};
 use super::switch_panel::{SwitchPanelRoot, rebuild_switch_panel};
 use super::widgets::{
     BUTTON_BG_BLOCKED, BUTTON_BG_PRIMARY, ButtonBase, PANEL_BG, TEXT_BRIGHT, TEXT_DIM, button,
@@ -26,14 +29,29 @@ pub(super) struct UiEdit;
 
 #[derive(Component)]
 struct StartButton;
+/// Container for the per-error diagnostic rows (rebuilt when diagnostics
+/// change). Errors that carry a board location render as clickable rows that
+/// recentre the camera on the offending cell/connector.
 #[derive(Component)]
-struct DiagText;
+struct DiagPanelRoot;
+/// A clickable diagnostic row: clicking recentres the camera on this world
+/// position.
+#[derive(Component, Clone, Copy)]
+struct JumpTo(Vec2);
+
+/// Validation red, shared by every diagnostic row.
+const DIAG_RED: Color = Color::srgb(1.0, 0.45, 0.35);
+
 /// Transient action-feedback line (e.g. "set a source first"); driven by
 /// [`EditNotice`], separate from the validation [`DiagText`].
 #[derive(Component)]
 struct NoticeText;
 #[derive(Component)]
 struct ToolText;
+/// Live cell coordinate under the cursor — a building aid for hand-editing the
+/// `.ron` (fixed track, source/sink cells) without eyeballing the grid.
+#[derive(Component)]
+struct CoordsText;
 #[derive(Component)]
 struct ExportLevelButton;
 
@@ -57,6 +75,8 @@ impl Plugin for EditHudPlugin {
                 spawn_edit_hud,
                 rebuild_switch_panel,
                 rebuild_schedule_panel,
+                rebuild_station_panel,
+                rebuild_diag_panel,
                 fill_edit_texts,
             )
                 .chain(),
@@ -66,6 +86,9 @@ impl Plugin for EditHudPlugin {
             Update,
             (
                 update_edit_texts,
+                update_coords,
+                rebuild_diag_panel.run_if(resource_changed::<Diagnostics>),
+                diag_jump_clicks,
                 tick_edit_notice,
                 // Gated so Space/Enter cannot start the run behind the pause
                 // menu (the overlay already absorbs the start button click), nor
@@ -117,9 +140,14 @@ fn spawn_edit_hud(
             }
             c.spawn((text_bundle(&font, String::new(), 14.0, TEXT_DIM), ToolText));
             c.spawn(text_bundle(&font, t("edit.hints"), 13.0, TEXT_DIM));
+            c.spawn((text_bundle(&font, String::new(), 13.0, TEXT_DIM), CoordsText));
+            // Diagnostics: one row per issue, filled by `rebuild_diag_panel`.
             c.spawn((
-                text_bundle(&font, String::new(), 14.0, Color::srgb(1.0, 0.45, 0.35)),
-                DiagText,
+                Node {
+                    flex_direction: FlexDirection::Column,
+                    ..default()
+                },
+                DiagPanelRoot,
             ));
             // Amber, below the red validation line: transient "why that action
             // was refused" feedback.
@@ -208,6 +236,23 @@ fn spawn_edit_hud(
         SchedulePanelRoot,
         UiEdit,
     ));
+    // Station rename panel (bottom right, sandbox only — filled by
+    // `station_panel`). Carries `Interaction` like the others so its clicks
+    // don't fall through to the board.
+    commands.spawn((
+        Node {
+            position_type: PositionType::Absolute,
+            right: Val::Px(10.0),
+            bottom: Val::Px(10.0),
+            flex_direction: FlexDirection::Column,
+            padding: UiRect::all(Val::Px(8.0)),
+            ..default()
+        },
+        BackgroundColor(PANEL_BG),
+        Interaction::default(),
+        StationPanelRoot,
+        UiEdit,
+    ));
 }
 
 /// Tool/sandbox status line.
@@ -225,23 +270,102 @@ fn tool_line(tool: Tool, sandbox: bool) -> String {
     )
 }
 
-/// Diagnostics line (first errors, then reachability warnings).
-fn diag_line(diagnostics: &Diagnostics) -> String {
-    let mut lines = Vec::new();
-    for error in diagnostics.errors.iter().take(3) {
-        lines.push(format!("× {}", valerr_text(error)));
+/// World position to recentre on for a located error, or `None` for the
+/// schedule/id errors that have no single board cell. Exhaustive on purpose — a
+/// new [`stellwerk_sim::ValidationError`] variant must be classified here.
+fn error_world(error: &stellwerk_sim::ValidationError) -> Option<Vec2> {
+    use stellwerk_sim::ValidationError::*;
+    let cell = match error {
+        IllegalPiecePair { cell, .. }
+        | DuplicatePiece { cell, .. }
+        | SwitchConnectorClash { cell }
+        | SwitchBranchAngle { cell, .. }
+        | SwitchDefaultOutOfRange { cell }
+        | SwitchRuleBranchOutOfRange { cell }
+        | SwitchRuleUnknownSink { cell, .. }
+        | SwitchCellNotExclusive { cell }
+        | DuplicateSwitch { cell }
+        | SignalOffTrack { cell, .. }
+        | DuplicateSignal { cell, .. }
+        | ConnectorReused { cell, .. }
+        | OutsideBuildable { cell } => *cell,
+        JunctionWithoutSwitch { point } => return Some(crate::board::point_world(*point)),
+        DuplicateSourceId { .. }
+        | DuplicateSinkId { .. }
+        | SourceOffTrack { .. }
+        | SinkOffTrack { .. }
+        | DuplicateTrainId { .. }
+        | UnknownSource { .. }
+        | UnknownSink { .. }
+        | NonPositiveLength { .. }
+        | NonPositiveSpeed { .. }
+        | SpeedTooHigh { .. }
+        | DueBeforeDepart { .. } => return None,
+    };
+    Some(crate::board::cell_world(cell))
+}
+
+/// Rebuilds the diagnostics rows: sandbox build-blocks first (they gate START
+/// and are the most actionable), then the first errors — clickable to recentre
+/// the camera when they have a board location — then reachability warnings.
+fn rebuild_diag_panel(
+    mut commands: Commands,
+    ui_font: Res<UiFont>,
+    roots: Query<Entity, With<DiagPanelRoot>>,
+    diagnostics: Res<Diagnostics>,
+) {
+    let Ok(root) = roots.single() else { return };
+    commands.entity(root).despawn_children();
+    let font = ui_font.0.clone();
+    commands.entity(root).with_children(|panel| {
+        for issue in &diagnostics.build_issues {
+            let line = format!("× {}", build_issue_text(issue));
+            panel.spawn(text_bundle(&font, line, 14.0, DIAG_RED));
+        }
+        for error in diagnostics.errors.iter().take(3) {
+            let line = format!("× {}", valerr_text(error));
+            match error_world(error) {
+                Some(target) => {
+                    panel
+                        .spawn((Button, Node::default(), JumpTo(target)))
+                        .with_children(|b| {
+                            b.spawn(text_bundle(&font, line, 14.0, DIAG_RED));
+                        });
+                }
+                None => {
+                    panel.spawn(text_bundle(&font, line, 14.0, DIAG_RED));
+                }
+            }
+        }
+        if diagnostics.errors.len() > 3 {
+            let more = format!(
+                "… +{} {}",
+                diagnostics.errors.len() - 3,
+                t("edit.more_errors")
+            );
+            panel.spawn(text_bundle(&font, more, 14.0, DIAG_RED));
+        }
+        for unreachable in diagnostics.unreachable.iter().take(2) {
+            let line = format!("{}{}", t("edit.unreachable"), unreachable.train.0);
+            panel.spawn(text_bundle(&font, line, 14.0, DIAG_RED));
+        }
+    });
+}
+
+/// Click on a located diagnostic row → recentre the camera on that cell.
+fn diag_jump_clicks(
+    interactions: Query<(&Interaction, &JumpTo), Changed<Interaction>>,
+    mut cameras: Query<&mut Transform, With<crate::camera::MainCamera>>,
+) {
+    for (interaction, jump) in &interactions {
+        if *interaction != Interaction::Pressed {
+            continue;
+        }
+        if let Ok(mut transform) = cameras.single_mut() {
+            transform.translation.x = jump.0.x;
+            transform.translation.y = jump.0.y;
+        }
     }
-    if diagnostics.errors.len() > 3 {
-        lines.push(format!(
-            "… +{} {}",
-            diagnostics.errors.len() - 3,
-            t("edit.more_errors")
-        ));
-    }
-    for unreachable in diagnostics.unreachable.iter().take(2) {
-        lines.push(format!("{}{}", t("edit.unreachable"), unreachable.train.0));
-    }
-    lines.join("\n")
 }
 
 /// One-shot fill on entering Edit: the HUD text entities are respawned on every
@@ -249,37 +373,31 @@ fn diag_line(diagnostics: &Diagnostics) -> String {
 /// guarded per-frame updater alone would leave them empty.
 fn fill_edit_texts(
     editor: Res<Editor>,
-    diagnostics: Res<Diagnostics>,
     active: Option<Res<ActiveLevel>>,
     mut notice: ResMut<EditNotice>,
     mut focus: ResMut<FocusedField>,
-    mut tool_texts: Query<&mut Text, (With<ToolText>, Without<DiagText>)>,
-    mut diag_texts: Query<&mut Text, (With<DiagText>, Without<ToolText>)>,
+    mut tool_texts: Query<&mut Text, With<ToolText>>,
 ) {
     // Drop any stale notice / focus from a previous Edit session (the text
-    // entities and fields are respawned on entry).
+    // entities and fields are respawned on entry). Diagnostics rows are filled
+    // by `rebuild_diag_panel` (also in the OnEnter chain).
     notice.0 = None;
     focus.0 = None;
     let sandbox = active.as_ref().is_some_and(|a| a.sandbox);
     if let Ok(mut text) = tool_texts.single_mut() {
         set_text(&mut text, tool_line(editor.tool, sandbox));
     }
-    if let Ok(mut text) = diag_texts.single_mut() {
-        set_text(&mut text, diag_line(&diagnostics));
-    }
 }
 
-/// Per-frame refresh, but each block only rebuilds its string when its inputs
-/// actually changed — idle frames allocate nothing. The tool is switched via
+/// Per-frame refresh of the tool line, rebuilt only when the tool/sandbox flag
+/// changes — idle frames allocate nothing. The tool is switched via
 /// `bypass_change_detection` (so it doesn't trigger the board rebuild), hence a
-/// `Local` compare instead of `editor.is_changed()`; diagnostics use normal
-/// change detection.
+/// `Local` compare instead of `editor.is_changed()`. Diagnostics are handled by
+/// `rebuild_diag_panel` (gated on `Diagnostics` change).
 fn update_edit_texts(
     editor: Res<Editor>,
-    diagnostics: Res<Diagnostics>,
     active: Option<Res<ActiveLevel>>,
-    mut tool_texts: Query<&mut Text, (With<ToolText>, Without<DiagText>)>,
-    mut diag_texts: Query<&mut Text, (With<DiagText>, Without<ToolText>)>,
+    mut tool_texts: Query<&mut Text, With<ToolText>>,
     mut last_tool: Local<Option<(Tool, bool)>>,
 ) {
     let sandbox = active.as_ref().is_some_and(|a| a.sandbox);
@@ -289,10 +407,26 @@ fn update_edit_texts(
             set_text(&mut text, tool_line(editor.tool, sandbox));
         }
     }
-    if diagnostics.is_changed()
-        && let Ok(mut text) = diag_texts.single_mut()
-    {
-        set_text(&mut text, diag_line(&diagnostics));
+}
+
+/// Shows the cell under the cursor, refreshed only when it changes (no
+/// per-frame allocation while the mouse is still). Blank when off the board.
+fn update_coords(
+    windows: Query<&Window, With<PrimaryWindow>>,
+    cameras: Query<(&Camera, &GlobalTransform), With<crate::camera::MainCamera>>,
+    mut texts: Query<&mut Text, With<CoordsText>>,
+    mut last: Local<Option<Cell>>,
+) {
+    let cell = crate::camera::cursor_world(&windows, &cameras).map(crate::board::world_cell);
+    if *last == cell {
+        return;
+    }
+    *last = cell;
+    if let Ok(mut text) = texts.single_mut() {
+        set_text(
+            &mut text,
+            cell.map_or(String::new(), |c| format!("({}, {})", c.x, c.y)),
+        );
     }
 }
 

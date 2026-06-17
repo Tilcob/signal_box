@@ -115,7 +115,7 @@ fn create(
     };
     // The fields are clamped to `[SANDBOX_MIN, SANDBOX_MAX]`, so `value` is a
     // small positive integer; `empty_sandbox` clamps again as a backstop.
-    let level = empty_sandbox(w.value as u32, h.value as u32);
+    let level = empty_sandbox(w.value() as u32, h.value() as u32);
     save_sandbox(&level);
     // Reset the OLD player build — otherwise the previous track layout sticks to
     // the new, smaller area and falls outside it at once.

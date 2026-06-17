@@ -59,6 +59,12 @@ struct OpenChapter(Option<u8>);
 #[cfg(feature = "dev")]
 #[derive(Component)]
 struct DevDeleteLevel(String);
+/// Open a campaign level in the sandbox editor (its sources/sinks/schedule
+/// become editable) for in-place tweaking. Carries the catalog index, like
+/// [`LevelButton`].
+#[cfg(feature = "dev")]
+#[derive(Component)]
+struct DevOpenSandbox(usize);
 /// Wipe all progress (builds, slots, solved, scores) — keeps the language.
 #[cfg(feature = "dev")]
 #[derive(Component)]
@@ -109,7 +115,8 @@ impl Plugin for SelectUiPlugin {
         #[cfg(feature = "dev")]
         app.init_resource::<DevDeleteArmed>().add_systems(
             Update,
-            dev::dev_select_actions.run_if(in_state(GameState::LevelSelect)),
+            (dev::dev_select_actions, views::dev_open_sandbox)
+                .run_if(in_state(GameState::LevelSelect)),
         );
     }
 }

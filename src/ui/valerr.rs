@@ -6,6 +6,25 @@
 use stellwerk_sim::ValidationError;
 
 use crate::i18n::t;
+use crate::state::BuildIssue;
+
+/// Keys [`build_issue_text`] can emit — kept in sync with the match below for
+/// the i18n coverage checker (see `crate::i18n` tests).
+#[cfg(test)]
+pub(crate) const BUILD_ISSUE_KEYS: &[&str] = &[
+    "build.no_source_no_sink",
+    "build.no_source",
+    "build.no_sink",
+];
+
+/// Localized line for a sandbox [`BuildIssue`] (no concrete cell to append).
+pub(crate) fn build_issue_text(issue: &BuildIssue) -> String {
+    match issue {
+        BuildIssue::NothingPlaced => t("build.no_source_no_sink"),
+        BuildIssue::MissingSource => t("build.no_source"),
+        BuildIssue::MissingSink => t("build.no_sink"),
+    }
+}
 
 /// Every key [`valerr_text`] can emit — kept beside the match so the i18n
 /// coverage checker (see `crate::i18n` tests) can assert all of them resolve in

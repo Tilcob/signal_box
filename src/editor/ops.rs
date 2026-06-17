@@ -9,6 +9,7 @@
 use stellwerk_sim::grid::Cell;
 use stellwerk_sim::layout::{Layout, SignalDef, SwitchDef, TrackPiece};
 use stellwerk_sim::level::{Level, ScheduleEntry, SinkDef, SourceDef};
+use stellwerk_sim::units::{SinkId, SourceId};
 
 use crate::state::Editor;
 
@@ -35,6 +36,18 @@ pub enum EditOp {
     RemoveSource(SourceDef),
     PlaceSink(SinkDef),
     RemoveSink(SinkDef),
+    // Station rename: only the label changes, so the op carries id + old/new
+    // name and inverts by swapping them.
+    RenameSource {
+        id: SourceId,
+        before: String,
+        after: String,
+    },
+    RenameSink {
+        id: SinkId,
+        before: String,
+        after: String,
+    },
     // Schedule rows are position-sensitive, so insert/remove carry the row;
     // append is `ScheduleInsert { row: schedule.len(), .. }` at the call site.
     ScheduleInsert {
@@ -86,6 +99,16 @@ fn apply(target: &mut EditTarget, op: &EditOp) {
         EditOp::RemoveSource(s) => remove_first(&mut target.level.sources, s),
         EditOp::PlaceSink(s) => target.level.sinks.push(s.clone()),
         EditOp::RemoveSink(s) => remove_first(&mut target.level.sinks, s),
+        EditOp::RenameSource { id, after, .. } => {
+            if let Some(s) = target.level.sources.iter_mut().find(|s| s.id == *id) {
+                s.label = after.clone();
+            }
+        }
+        EditOp::RenameSink { id, after, .. } => {
+            if let Some(s) = target.level.sinks.iter_mut().find(|s| s.id == *id) {
+                s.label = after.clone();
+            }
+        }
         EditOp::ScheduleInsert { row, entry } => {
             let row = (*row).min(target.level.schedule.len());
             target.level.schedule.insert(row, entry.clone());
@@ -125,6 +148,16 @@ fn invert(op: &EditOp) -> EditOp {
         EditOp::RemoveSource(s) => EditOp::PlaceSource(s.clone()),
         EditOp::PlaceSink(s) => EditOp::RemoveSink(s.clone()),
         EditOp::RemoveSink(s) => EditOp::PlaceSink(s.clone()),
+        EditOp::RenameSource { id, before, after } => EditOp::RenameSource {
+            id: *id,
+            before: after.clone(),
+            after: before.clone(),
+        },
+        EditOp::RenameSink { id, before, after } => EditOp::RenameSink {
+            id: *id,
+            before: after.clone(),
+            after: before.clone(),
+        },
         EditOp::ScheduleInsert { row, entry } => EditOp::ScheduleRemove {
             row: *row,
             entry: entry.clone(),
@@ -226,6 +259,7 @@ mod tests {
             id: stellwerk_sim::units::SourceId(id),
             cell: Cell { x: id as i32, y: 0 },
             dir: stellwerk_sim::grid::Dir8::E,
+            label: String::new(),
         }
     }
 
@@ -307,6 +341,28 @@ mod tests {
                 EditOp::PlaceSource(source(1)),
                 EditOp::PlaceSink(sink(1)),
                 EditOp::RemoveSource(source(0)),
+            ],
+        );
+    }
+
+    #[test]
+    fn station_rename_roundtrip() {
+        let mut level = fresh_level();
+        level.sources.push(source(0));
+        level.sinks.push(sink(0));
+        assert_roundtrip(
+            &mut level,
+            vec![
+                EditOp::RenameSource {
+                    id: stellwerk_sim::units::SourceId(0),
+                    before: String::new(),
+                    after: "NORD".into(),
+                },
+                EditOp::RenameSink {
+                    id: SinkId(0),
+                    before: "Z0".into(),
+                    after: "OST".into(),
+                },
             ],
         );
     }

@@ -17,6 +17,13 @@ pub struct SourceDef {
     pub id: SourceId,
     pub cell: Cell,
     pub dir: Dir8,
+    /// Display name (station label on the board / schedule). Empty falls back
+    /// to `Q{id}` at render. `serde(default)` keeps level files written before
+    /// this field existed parseable; sharing codes carry it positionally and
+    /// are gated by `stellwerk_codes::VERSION` (a v1 code has no source label
+    /// and is up-migrated to an empty one).
+    #[serde(default)]
+    pub label: String,
 }
 
 /// Trains leave the world here: arrival is the head reaching the `dir`

@@ -9,7 +9,7 @@ use super::numeric_field::{NumericFieldCommit, numeric_field};
 use super::widgets::{TEXT_BRIGHT, TEXT_DIM, small_button, text_bundle};
 use crate::editor::{EditOp, do_op};
 use crate::font::UiFont;
-use crate::i18n::{station_label, t};
+use crate::i18n::{sink_label, source_label, t};
 use crate::state::{ActiveLevel, EditNotice, Editor, GameState};
 
 /// How long a refused-action notice stays on the Edit HUD.
@@ -47,6 +47,7 @@ pub(super) struct SchedulePanelRoot;
 #[derive(Component, Clone, Copy)]
 pub(super) enum SchedAction {
     Add,
+    Duplicate(usize),
     Remove(usize),
     CycleSource(usize),
     CycleSink(usize),
@@ -81,13 +82,19 @@ pub(super) fn rebuild_schedule_panel(
     let font = ui_font.0.clone();
     let level = active.level.clone();
     let sandbox = active.sandbox;
-    let sink_label = |level: &stellwerk_sim::Level, id: SinkId| {
+    let sink_name = |level: &stellwerk_sim::Level, id: SinkId| {
         level
             .sinks
             .iter()
             .find(|s| s.id == id)
-            .map(|s| station_label(&s.label))
-            .unwrap_or_else(|| format!("Z{}", id.0))
+            .map_or_else(|| format!("Z{}", id.0), |s| sink_label(s.id.0, &s.label))
+    };
+    let src_label = |level: &stellwerk_sim::Level, id: SourceId| {
+        level
+            .sources
+            .iter()
+            .find(|s| s.id == id)
+            .map_or_else(|| format!("Q{}", id.0), |s| source_label(s.id.0, &s.label))
     };
     commands.entity(root).with_children(|panel| {
         panel.spawn(text_bundle(&font, t("schedule.title"), 15.0, TEXT_BRIGHT));
@@ -97,13 +104,13 @@ pub(super) fn rebuild_schedule_panel(
                     text_bundle(
                         &font,
                         format!(
-                            "{}{} · {}{} · Q{} → {} · {}{} · {}{} · {}{} · {}{}",
+                            "{}{} · {}{} · {} → {} · {}{} · {}{} · {}{} · {}{}",
                             t("schedule.train"),
                             entry.train.0,
                             t("schedule.class"),
                             entry.class.0,
-                            entry.source.0,
-                            sink_label(&level, entry.sink),
+                            src_label(&level, entry.source),
+                            sink_name(&level, entry.sink),
                             t("schedule.depart"),
                             entry.depart.0,
                             t("schedule.due"),
@@ -141,13 +148,13 @@ pub(super) fn rebuild_schedule_panel(
                     small_button(
                         r,
                         &font,
-                        &format!("Q{}", entry.source.0),
+                        &src_label(&level, entry.source),
                         SchedAction::CycleSource(row),
                     );
                     small_button(
                         r,
                         &font,
-                        &format!("→{}", sink_label(&level, entry.sink)),
+                        &format!("→{}", sink_name(&level, entry.sink)),
                         SchedAction::CycleSink(row),
                     );
                     small_button(
@@ -171,6 +178,7 @@ pub(super) fn rebuild_schedule_panel(
                     field(r, "soll", entry.due.0 as i64, 0, TICK_MAX, SchedFieldKind::Due);
                     field(r, "v", entry.speed.0, SPEED_MIN, SPEED_MAX, SchedFieldKind::Speed);
                     field(r, "L", entry.length.0, LEN_MIN, LEN_MAX, SchedFieldKind::Length);
+                    small_button(r, &font, "dup", SchedAction::Duplicate(row));
                     small_button(r, &font, "×", SchedAction::Remove(row));
                 });
         }
@@ -252,6 +260,25 @@ fn schedule_clicks(
                 Some(EditOp::ScheduleInsert {
                     row: active.level.schedule.len(),
                     entry,
+                })
+            }
+            SchedAction::Duplicate(row) => {
+                // Clone the row just below itself with a fresh train id, so a
+                // whole timetable is built by tweaking copies, not retyping.
+                let next_train = active
+                    .level
+                    .schedule
+                    .iter()
+                    .map(|e| e.train.0)
+                    .max()
+                    .map_or(0, |m| m + 1);
+                active.level.schedule.get(row).map(|e| {
+                    let mut entry = e.clone();
+                    entry.train = TrainId(next_train);
+                    EditOp::ScheduleInsert {
+                        row: row + 1,
+                        entry,
+                    }
                 })
             }
             SchedAction::Remove(row) => {

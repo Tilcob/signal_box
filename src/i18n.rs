@@ -97,6 +97,28 @@ pub fn station_label(authored: &str) -> String {
     t_or(&format!("station.{authored}"), authored)
 }
 
+/// Display label for a source: its custom name, or `Q{id}` when unnamed.
+/// Sources gained an optional label after launch; an empty one (old level
+/// files, freshly placed sources) renders as the stable `Q{id}` fallback.
+pub fn source_label(id: u32, label: &str) -> String {
+    if label.is_empty() {
+        format!("Q{id}")
+    } else {
+        station_label(label)
+    }
+}
+
+/// Display label for a sink: its custom name, or `Z{id}` when unnamed (a
+/// hand-edited level file with a blank label — editor-placed sinks default to
+/// `Z{id}`). Mirrors [`source_label`].
+pub fn sink_label(id: u32, label: &str) -> String {
+    if label.is_empty() {
+        format!("Z{id}")
+    } else {
+        station_label(label)
+    }
+}
+
 /// Localized level briefing (fallback = authored `LevelMeta.briefing`). `id`
 /// is the level file stem; the empty sandbox briefing stays empty.
 pub fn briefing(id: &str, authored: &str) -> String {
@@ -132,7 +154,7 @@ mod tests {
         use crate::ui::encyclopedia::TOOL_HELP_KEYS;
         use crate::ui::pause::PAUSE_KEYS;
         use crate::ui::select::{DECODE_ERROR_KEYS, SELECT_CHAPTER_KEYS};
-        use crate::ui::valerr::VALERR_KEYS;
+        use crate::ui::valerr::{BUILD_ISSUE_KEYS, VALERR_KEYS};
 
         fn table(lang: &str) -> BTreeMap<String, String> {
             let path = format!("{}/assets/i18n/{lang}.ron", env!("CARGO_MANIFEST_DIR"));
@@ -158,6 +180,7 @@ mod tests {
         .map(String::from)
         .collect();
         keys.extend(VALERR_KEYS.iter().map(|k| k.to_string()));
+        keys.extend(BUILD_ISSUE_KEYS.iter().map(|k| k.to_string()));
         keys.extend(DECODE_ERROR_KEYS.iter().map(|k| k.to_string()));
         keys.extend(SELECT_CHAPTER_KEYS.iter().map(|k| k.to_string()));
         keys.extend(TOOL_HELP_KEYS.iter().map(|k| k.to_string()));

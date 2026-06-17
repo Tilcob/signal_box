@@ -16,7 +16,7 @@ pub(super) type BlockColors = BTreeMap<(Cell, Dir8), BlockId>;
 
 use super::geometry::{cell_world, connector_world};
 use super::palette::*;
-use crate::i18n::{dir_label, station_label};
+use crate::i18n::{dir_label, sink_label, source_label};
 
 /// Static board sprites (rebuilt on layout change / mode entry).
 #[derive(Component)]
@@ -275,7 +275,7 @@ pub(super) fn draw_stations(commands: &mut Commands, font: &Handle<Font>, level:
             commands,
             font,
             connector + outward * 58.0,
-            format!("Q{}", source.id.0),
+            source_label(source.id.0, &source.label),
             13.0,
             col_label(),
             tag,
@@ -297,7 +297,7 @@ pub(super) fn draw_stations(commands: &mut Commands, font: &Handle<Font>, level:
             commands,
             font,
             connector + outward * 26.0 + Vec2::new(0.0, 26.0),
-            station_label(&sink.label),
+            sink_label(sink.id.0, &sink.label),
             14.0,
             col_label(),
             tag,

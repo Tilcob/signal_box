@@ -824,11 +824,13 @@ mod tests {
                     id: SourceId(0),
                     cell: cell(0, 1),
                     dir: Dir8::W,
+                    label: String::new(),
                 },
                 SourceDef {
                     id: SourceId(1),
                     cell: cell(0, -1),
                     dir: Dir8::W,
+                    label: String::new(),
                 },
             ],
             sinks: vec![SinkDef {

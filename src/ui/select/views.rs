@@ -17,7 +17,7 @@ use crate::ui::enter_level;
 use crate::ui::encyclopedia::HelpButton;
 
 #[cfg(feature = "dev")]
-use super::{DevDeleteAll, DevDeleteLevel, DevResetProgress};
+use super::{DevDeleteAll, DevDeleteLevel, DevOpenSandbox, DevResetProgress};
 use super::{
     BackButton, ChapterButton, ImportButton, LangButton, LevelButton, NewSandboxButton, OpenChapter,
     SandboxButton, UiSelect, UiStatus, rebuild_select,
@@ -156,6 +156,7 @@ fn spawn_level_button(
         })
         .with_children(|r| {
             button_row(r, BUTTON_BG, LevelButton(index), fill);
+            small_button(r, font, "SBX", DevOpenSandbox(index));
             small_button(r, font, "DEL", DevDeleteLevel(entry.id.clone()));
         });
     #[cfg(not(feature = "dev"))]
@@ -221,6 +222,38 @@ pub(super) fn click_level(
             entry.level.clone(),
             entry.meta.briefing.clone(),
             false,
+            &progress,
+            &mut commands,
+            &mut editor,
+            &mut next,
+        );
+    }
+}
+
+/// Dev: open a campaign level in the sandbox editor — same level, but its
+/// definition (sources/sinks/schedule) becomes editable so it can be tweaked in
+/// place instead of rebuilt from scratch. Exporting/saving from there writes the
+/// level sim under its own id.
+#[cfg(feature = "dev")]
+pub(super) fn dev_open_sandbox(
+    interactions: Query<(&Interaction, &DevOpenSandbox), Changed<Interaction>>,
+    catalog: Res<Catalog>,
+    progress: Res<Progress>,
+    mut commands: Commands,
+    mut editor: ResMut<Editor>,
+    mut next: ResMut<NextState<GameState>>,
+) {
+    for (interaction, btn) in &interactions {
+        if *interaction != Interaction::Pressed {
+            continue;
+        }
+        let entry = &catalog.0[btn.0];
+        enter_level(
+            btn.0,
+            entry.id.clone(),
+            entry.level.clone(),
+            entry.meta.briefing.clone(),
+            true,
             &progress,
             &mut commands,
             &mut editor,

@@ -147,8 +147,8 @@ fn save_click(
         return;
     };
     // Fields are clamped to the ranges above, so the casts never truncate.
-    let chapter = chapter.value as u8;
-    let order = order.value as u16;
+    let chapter = chapter.value() as u8;
+    let order = order.value() as u16;
     let id = unique_id(chapter, order);
     let meta = LevelMeta {
         schema_version: LEVEL_SCHEMA_VERSION,
@@ -198,13 +198,13 @@ fn update_info(
         return;
     };
     if let Ok(mut text) = texts.single_mut() {
-        let id = preview_id(chapter.value as u8, order.value as u16);
+        let id = preview_id(chapter.value() as u8, order.value() as u16);
         let hard = if draft.hard { "an" } else { "aus" };
         set_text(
             &mut text,
             format!(
                 "Kapitel: {} · Order: {} · hart: {hard} · id≈{id}\n{}",
-                chapter.value, order.value, draft.status
+                chapter.value(), order.value(), draft.status
             ),
         );
     }

@@ -18,7 +18,11 @@ use stellwerk_sim::Level;
 /// Human-recognizable prefix (shows up in forum posts).
 pub const PREFIX: &str = "SW1-";
 /// Format version; bump on every breaking payload change.
-pub const VERSION: u8 = 1;
+///
+/// v1 → v2: [`stellwerk_sim::level::SourceDef`] gained a `label`. Older codes
+/// are still decoded by the [`v1`] migration (sources up-migrate to an empty
+/// label, rendered as `Q{id}`), so the golden v1 code stays valid.
+pub const VERSION: u8 = 2;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Payload {
@@ -72,10 +76,78 @@ pub fn decode(text: &str) -> Result<Payload, DecodeError> {
         .decode(body)
         .map_err(|_| DecodeError::Base64)?;
     let (&version, payload_bytes) = framed.split_first().ok_or(DecodeError::Corrupt)?;
-    if version != VERSION {
-        return Err(DecodeError::Version(version));
+    match version {
+        VERSION => postcard::from_bytes(payload_bytes).map_err(|_| DecodeError::Corrupt),
+        1 => postcard::from_bytes::<v1::PayloadV1>(payload_bytes)
+            .map(v1::migrate)
+            .map_err(|_| DecodeError::Corrupt),
+        v => Err(DecodeError::Version(v)),
     }
-    postcard::from_bytes(payload_bytes).map_err(|_| DecodeError::Corrupt)
+}
+
+/// Migration of `VERSION - 1` codes. Only [`stellwerk_sim::level::SourceDef`]
+/// changed between v1 and v2 (it gained `label`), so the mirror reuses every
+/// other current type and differs solely in a label-less source. A v1 source
+/// up-migrates to an empty label (rendered as `Q{id}`).
+mod v1 {
+    use super::{Layout, Payload};
+    use serde::Deserialize;
+    use stellwerk_sim::Level;
+    use stellwerk_sim::grid::{Cell, Dir8};
+    use stellwerk_sim::level::{Par, ScheduleEntry, SinkDef, SourceDef};
+    use stellwerk_sim::units::SourceId;
+
+    #[derive(Deserialize)]
+    pub struct SourceDefV1 {
+        pub id: SourceId,
+        pub cell: Cell,
+        pub dir: Dir8,
+    }
+
+    #[derive(Deserialize)]
+    pub struct LevelV1 {
+        pub name: String,
+        pub buildable: Vec<Cell>,
+        pub fixed: Layout,
+        pub sources: Vec<SourceDefV1>,
+        pub sinks: Vec<SinkDef>,
+        pub schedule: Vec<ScheduleEntry>,
+        pub par: Par,
+    }
+
+    /// Same variant order as [`Payload`] — postcard encodes the discriminant
+    /// positionally, so the order is load-bearing for old codes.
+    #[derive(Deserialize)]
+    pub enum PayloadV1 {
+        Solution { level_id: String, layout: Layout },
+        Level { level: LevelV1 },
+    }
+
+    pub fn migrate(payload: PayloadV1) -> Payload {
+        match payload {
+            PayloadV1::Solution { level_id, layout } => Payload::Solution { level_id, layout },
+            PayloadV1::Level { level } => Payload::Level {
+                level: Level {
+                    name: level.name,
+                    buildable: level.buildable,
+                    fixed: level.fixed,
+                    sources: level
+                        .sources
+                        .into_iter()
+                        .map(|s| SourceDef {
+                            id: s.id,
+                            cell: s.cell,
+                            dir: s.dir,
+                            label: String::new(),
+                        })
+                        .collect(),
+                    sinks: level.sinks,
+                    schedule: level.schedule,
+                    par: level.par,
+                },
+            },
+        }
+    }
 }
 
 #[cfg(test)]
@@ -122,6 +194,7 @@ mod tests {
                 id: SourceId(0),
                 cell: Cell { x: 0, y: 0 },
                 dir: Dir8::W,
+                label: "NORD".into(),
             }],
             sinks: vec![SinkDef {
                 id: SinkId(0),
@@ -203,6 +276,28 @@ mod tests {
         );
         let code = format!("{PREFIX}{}", STANDARD_NO_PAD.encode(framed));
         assert_eq!(decode(&code), Err(DecodeError::Version(99)));
+    }
+
+    /// Frozen v1 Level code — sources had no `label` in v1. This is a real v1
+    /// wire byte string (NOT re-encoded through the current mirror), so a future
+    /// reordering of the `v1` mirror types is caught here instead of silently
+    /// corrupting old codes. Built from: name "Alt", source (id 0, cell (0,0),
+    /// W), sink (id 0, cell (1,0), E, "OST"), empty schedule, par(0,1,0). Must
+    /// decode forever; if it breaks you changed how v1 is read — fix the mirror,
+    /// don't re-bless.
+    #[test]
+    fn v1_level_code_migrates_to_empty_source_labels() {
+        let golden = "SW1-AQEDQWx0AQAAAAAAAQAAAAYBAAIAAgNPU1QAAAEA";
+        let Ok(Payload::Level { level }) = decode(golden) else {
+            panic!("v1 level code did not decode to a Level");
+        };
+        assert_eq!(level.name, "Alt");
+        assert_eq!(level.sources.len(), 1);
+        assert_eq!(level.sources[0].id, SourceId(0));
+        assert_eq!(level.sources[0].cell, Cell { x: 0, y: 0 });
+        assert_eq!(level.sources[0].dir, Dir8::W);
+        assert_eq!(level.sources[0].label, ""); // up-migrated from v1
+        assert_eq!(level.sinks[0].label, "OST");
     }
 
     /// Frozen golden code: this exact string must decode forever — the

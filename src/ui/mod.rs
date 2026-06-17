@@ -15,6 +15,7 @@ mod run_hud;
 mod sandbox_setup;
 mod schedule_panel;
 pub(crate) mod select;
+mod station_panel;
 mod switch_panel;
 pub(crate) mod valerr;
 mod widgets;
@@ -36,6 +37,7 @@ impl Plugin for UiPlugin {
             switch_panel::SwitchPanelPlugin,
             numeric_field::NumericFieldPlugin,
             schedule_panel::SchedulePanelPlugin,
+            station_panel::StationPanelPlugin,
             run_hud::RunHudPlugin,
             result::ResultPlugin,
             encyclopedia::EncyclopediaPlugin,
