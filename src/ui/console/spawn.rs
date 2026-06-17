@@ -14,6 +14,16 @@ const TRACK_W: f32 = 8.0;
 const TRACK_BG: Color = Color::srgba(1.0, 1.0, 1.0, 0.05);
 const THUMB_BG: Color = Color::srgba(1.0, 1.0, 1.0, 0.28);
 
+/// Fixed row height (comfortably fits the 13px line, no descender clip) and the
+/// vertical padding, so the panel can be sized to fit EXACTLY `ROWS` rows — else
+/// the last (newest) line is clipped by a too-short panel.
+const ROW_H: f32 = 18.0;
+const PAD: f32 = 6.0;
+const ROW_GAP: f32 = 1.0;
+/// Panel height = ROWS rows + the gaps between them + top/bottom padding, plus a
+/// few px headroom so sub-pixel rounding can't clip the last row.
+const PANEL_H: f32 = super::ROWS as f32 * (ROW_H + ROW_GAP) - ROW_GAP + 2.0 * PAD + 4.0;
+
 pub(super) fn ensure_console(
     mut commands: Commands,
     ui_font: Res<UiFont>,
@@ -32,10 +42,10 @@ pub(super) fn ensure_console(
                 // edge 30 % from the right), clear of the dev save panel.
                 right: Val::Percent(30.0),
                 width: Val::Percent(30.0),
-                height: Val::Px(104.0),
+                height: Val::Px(PANEL_H),
                 flex_direction: FlexDirection::Row,
                 column_gap: Val::Px(4.0),
-                padding: UiRect::all(Val::Px(6.0)),
+                padding: UiRect::all(Val::Px(PAD)),
                 ..default()
             },
             BackgroundColor(PANEL_BG),
@@ -52,7 +62,7 @@ pub(super) fn ensure_console(
             root.spawn(Node {
                 flex_grow: 1.0,
                 flex_direction: FlexDirection::Column,
-                row_gap: Val::Px(1.0),
+                row_gap: Val::Px(ROW_GAP),
                 // Long lines clip instead of wrapping — wrapping would change a
                 // row's height and shift the fixed layout.
                 overflow: Overflow::clip(),
@@ -71,6 +81,7 @@ pub(super) fn ensure_console(
                         BackgroundColor(Color::NONE),
                         Node {
                             width: Val::Percent(100.0),
+                            height: Val::Px(ROW_H),
                             ..default()
                         },
                     ));
