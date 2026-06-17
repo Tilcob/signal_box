@@ -42,7 +42,7 @@
     "console.export_failed": "Level export failed",
     "edit.tools": "1 track · 2 switch · 3 block signal · 4 chain signal · B demolish · Q select · R/T rotate",
     "edit.tools_sandbox": " · 6 source · 7 sink",
-    "edit.hints": "Drag to draw track · Right-click direction menu · Ctrl+Z/Y undo/redo · Space/Enter start · Esc pause",
+    "edit.hints": "Drag to draw track · Right-click direction menu · Ctrl+Z/Y undo/redo · Space start · Esc pause",
     "edit.unreachable": "Warning: train cannot reach its sink: ",
     "edit.slots": "Solution slots:",
     "edit.save_slot": "Save ",

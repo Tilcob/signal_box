@@ -262,6 +262,10 @@ fn numeric_field_keys(
                     }
                 }
             }
+            // Space types into a text field and deliberately does NOT commit or
+            // blur — load-bearing: the edit HUD uses Space to start the run,
+            // gated on `no_field_focused`, so a focused field must keep focus on
+            // Space or the run would start mid-edit (see `edit_hud::start_button`).
             Key::Space
                 if matches!(kind, FieldKind::Text { .. }) && buffer.chars().count() < cap =>
             {

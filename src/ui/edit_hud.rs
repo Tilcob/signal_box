@@ -220,40 +220,53 @@ fn spawn_edit_hud(
         SwitchPanelRoot,
         UiEdit,
     ));
-    // Always present: campaign levels show the timetable read-only — who
-    // must go where is part of the puzzle statement, not something to
-    // discover from a failed run. The sandbox panel is editable.
-    commands.spawn((
-        Node {
-            position_type: PositionType::Absolute,
-            left: Val::Px(10.0),
-            bottom: Val::Px(10.0),
-            flex_direction: FlexDirection::Column,
-            padding: UiRect::all(Val::Px(8.0)),
-            ..default()
-        },
-        BackgroundColor(PANEL_BG),
-        Interaction::default(),
-        SchedulePanelRoot,
-        UiEdit,
-    ));
-    // Station rename panel (bottom right, sandbox only — filled by
-    // `station_panel`). Carries `Interaction` like the others so its clicks
-    // don't fall through to the board.
-    commands.spawn((
-        Node {
-            position_type: PositionType::Absolute,
-            right: Val::Px(10.0),
-            bottom: Val::Px(10.0),
-            flex_direction: FlexDirection::Column,
-            padding: UiRect::all(Val::Px(8.0)),
-            ..default()
-        },
-        BackgroundColor(PANEL_BG),
-        Interaction::default(),
-        StationPanelRoot,
-        UiEdit,
-    ));
+    // Bottom-left group: the timetable and (sandbox) the station-rename panel sit
+    // side by side in one flex Row so they can never overlap — and so the
+    // station panel no longer collides with the dev save panel bottom-right.
+    // Only the wrapper carries `UiEdit` (despawn is recursive); each child keeps
+    // its own `Interaction` so board clicks are absorbed (`over_ui` reads every
+    // `Interaction` flat, regardless of hierarchy).
+    commands
+        .spawn((
+            Node {
+                position_type: PositionType::Absolute,
+                left: Val::Px(10.0),
+                bottom: Val::Px(10.0),
+                flex_direction: FlexDirection::Row,
+                align_items: AlignItems::FlexEnd,
+                column_gap: Val::Px(10.0),
+                ..default()
+            },
+            UiEdit,
+        ))
+        .with_children(|group| {
+            // Always present: campaign levels show the timetable read-only — who
+            // must go where is part of the puzzle statement, not something to
+            // discover from a failed run. The sandbox panel is editable.
+            group.spawn((
+                Node {
+                    flex_direction: FlexDirection::Column,
+                    padding: UiRect::all(Val::Px(8.0)),
+                    ..default()
+                },
+                BackgroundColor(PANEL_BG),
+                Interaction::default(),
+                SchedulePanelRoot,
+            ));
+            // Sandbox-only content; collapses to `Display::None` in campaign so it
+            // leaves no phantom padded box beside the timetable (see
+            // `rebuild_station_panel`).
+            group.spawn((
+                Node {
+                    flex_direction: FlexDirection::Column,
+                    padding: UiRect::all(Val::Px(8.0)),
+                    ..default()
+                },
+                BackgroundColor(PANEL_BG),
+                Interaction::default(),
+                StationPanelRoot,
+            ));
+        });
 }
 
 /// Tool/sandbox status line.
@@ -514,8 +527,11 @@ fn start_button(
     // (the keyboard keys are already edge-triggered).
     let mouse_edge = mouse_pressed && !*mouse_was_pressed;
     *mouse_was_pressed = mouse_pressed;
-    let clicked =
-        keys.just_pressed(KeyCode::Enter) || keys.just_pressed(KeyCode::Space) || mouse_edge;
+    // Space + the button only — NOT Enter. Enter commits a focused field and
+    // clears its focus in the same frame, so an Enter that ran before this
+    // system would also start the run (no_field_focused would already be true).
+    // Space is safe: it never clears field focus, so a focused field gates it.
+    let clicked = keys.just_pressed(KeyCode::Space) || mouse_edge;
     if !clicked {
         return;
     }

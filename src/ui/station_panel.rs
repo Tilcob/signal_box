@@ -13,7 +13,7 @@ use bevy::prelude::*;
 use stellwerk_sim::units::{SinkId, SourceId};
 
 use super::numeric_field::{TextFieldCommit, text_field};
-use super::widgets::{PANEL_BG, TEXT_BRIGHT, TEXT_DIM, text_bundle};
+use super::widgets::{TEXT_BRIGHT, TEXT_DIM, text_bundle};
 use crate::editor::{EditOp, do_op};
 use crate::font::UiFont;
 use crate::i18n::t;
@@ -58,21 +58,22 @@ impl Plugin for StationPanelPlugin {
 pub(super) fn rebuild_station_panel(
     mut commands: Commands,
     ui_font: Res<UiFont>,
-    mut roots: Query<(Entity, &mut BackgroundColor), With<StationPanelRoot>>,
+    mut roots: Query<(Entity, &mut Node), With<StationPanelRoot>>,
     active: Option<Res<ActiveLevel>>,
 ) {
-    let Ok((root, mut bg)) = roots.single_mut() else {
+    let Ok((root, mut node)) = roots.single_mut() else {
         return;
     };
     let Some(active) = active else { return };
     commands.entity(root).despawn_children();
-    // No panel chrome outside the sandbox — campaign levels have no rename rows,
-    // so an always-on background would leave an empty box in the corner.
+    // Collapse out of flow outside the sandbox — campaign levels have no rename
+    // rows, and the panel now sits in a flex Row next to the timetable, so an
+    // empty-but-padded node would shove the timetable sideways.
     if !active.sandbox {
-        bg.0 = Color::NONE;
+        node.display = Display::None;
         return;
     }
-    bg.0 = PANEL_BG;
+    node.display = Display::Flex;
     let font = ui_font.0.clone();
     commands.entity(root).with_children(|panel| {
         panel.spawn(text_bundle(&font, t("stations.title"), 15.0, TEXT_BRIGHT));

@@ -18,7 +18,7 @@ use crate::font::UiFont;
 use crate::state::GameState;
 
 /// Visible line count = size of the text-node pool.
-const ROWS: usize = 10;
+const ROWS: usize = 6;
 /// Lines advanced per wheel notch.
 const SCROLL_LINES: i64 = 3;
 
@@ -75,10 +75,16 @@ fn ensure_console(mut commands: Commands, ui_font: Res<UiFont>, existing: Query<
             Node {
                 position_type: PositionType::Absolute,
                 bottom: Val::Px(10.0),
-                // Centre horizontally: 40 % wide, 30 % gap each side.
-                left: Val::Percent(30.0),
-                width: Val::Percent(40.0),
-                height: Val::Px(184.0),
+                // Compact panel shifted toward the bottom-right: 30 % wide, right
+                // edge 30 % from the right, leaving the rightmost ~30 % free for
+                // the dev save panel (sandbox only) so they never overlap. In
+                // Run / campaign there is no dev panel and it just sits right of
+                // centre. ponytail: percentage gap, not pixel-matched to the dev
+                // panel's variable width — widen the gap if a long save status
+                // ever reaches it.
+                right: Val::Percent(30.0),
+                width: Val::Percent(30.0),
+                height: Val::Px(104.0),
                 flex_direction: FlexDirection::Column,
                 row_gap: Val::Px(1.0),
                 padding: UiRect::all(Val::Px(6.0)),
