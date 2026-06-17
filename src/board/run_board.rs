@@ -12,12 +12,12 @@
 //! dominant cost on large layouts.
 
 use bevy::prelude::*;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use stellwerk_sim::Sim;
 use stellwerk_sim::graph::{Next, TrackGraph};
 use stellwerk_sim::grid::{Cell, Dir8, Point};
 use stellwerk_sim::layout::SignalKind;
-use stellwerk_sim::units::{BlockId, EdgeId};
+use stellwerk_sim::units::{BlockId, EdgeId, TrainId};
 
 use super::draw::{Tag, band, draw_stations, lamp, label, signal_arrow, signal_pos};
 use super::geometry::{CELL, cell_world, point_world};
@@ -40,10 +40,19 @@ pub(super) struct SignalLamp {
     next_block: Option<BlockId>,
 }
 
-/// Per-frame train sprites — the only group still despawned + respawned each
-/// frame (trains are few and actually move).
+/// Per-frame train body sprites (bands + head lamp) — plain quads, despawned
+/// and respawned each frame (trains are few, and the segment count changes as
+/// a train grows/moves, so pooling them would need bookkeeping for little
+/// gain). The text labels are NOT in this group — see [`TrainLabel`].
 #[derive(Component)]
 pub(super) struct TrainGfx;
+
+/// Retained per-train number label. `Text2d` is expensive to spawn (full glyph
+/// layout + atlas work every time), so unlike the body sprites these are kept
+/// across frames: spawned once when a train appears, only their `Transform` is
+/// moved per frame, despawned when the train leaves.
+#[derive(Component)]
+pub(super) struct TrainLabel(TrainId);
 
 // --- Static board: spawned once per run ----------------------------------------
 
@@ -162,18 +171,22 @@ pub(super) fn update_run_board(
 pub(super) fn redraw_trains(
     mut commands: Commands,
     ui_font: Res<UiFont>,
-    existing: Query<Entity, With<TrainGfx>>,
+    bodies: Query<Entity, With<TrainGfx>>,
+    mut labels: Query<(Entity, &TrainLabel, &mut Transform)>,
     ctl: Option<Res<RunCtl>>,
 ) {
     let Some(ctl) = ctl else {
         return;
     };
-    for e in &existing {
-        commands.entity(e).despawn();
-    }
-    let font = ui_font.0.clone();
     let sim = &ctl.sim;
     let graph = sim.graph();
+
+    // Body bands + head lamp: plain sprites, respawned each frame.
+    // ponytail: O(trains × segments) respawn each frame; pool by TrainId if a
+    // level ever runs enough trains for this to show in the profile.
+    for e in &bodies {
+        commands.entity(e).despawn();
+    }
     let mut buf = Vec::new();
     for train in sim.trains() {
         train.occupied_into(graph, &mut buf);
@@ -196,16 +209,36 @@ pub(super) fn redraw_trains(
         let head = ctl.interpolated_head(train.id);
         let lamp_e = lamp(&mut commands, head, 13.0, col_head(), false, 11.0, Tag::Live);
         commands.entity(lamp_e).insert(TrainGfx);
-        let label_e = label(
-            &mut commands,
-            &font,
-            head + Vec2::new(0.0, 20.0),
-            format!("{}", train.id.0),
-            13.0,
-            col_label(),
-            Tag::Live,
-        );
-        commands.entity(label_e).insert(TrainGfx);
+    }
+
+    // Number labels: retained Text2d, only moved (never respawned per frame).
+    // Reconcile the live train set against the existing label entities. Relies
+    // on TrainId being stable for a train's lifetime (it is: the sim mints ids
+    // from the schedule and never recycles them).
+    let mut existing: HashMap<TrainId, Entity> =
+        labels.iter().map(|(e, l, _)| (l.0, e)).collect();
+    for train in sim.trains() {
+        let pos = ctl.interpolated_head(train.id) + Vec2::new(0.0, 20.0);
+        if let Some(e) = existing.remove(&train.id) {
+            if let Ok((_, _, mut tf)) = labels.get_mut(e) {
+                tf.translation = pos.extend(6.0);
+            }
+        } else {
+            let label_e = label(
+                &mut commands,
+                &ui_font.0,
+                pos,
+                format!("{}", train.id.0),
+                13.0,
+                col_label(),
+                Tag::Live,
+            );
+            commands.entity(label_e).insert(TrainLabel(train.id));
+        }
+    }
+    // Trains that left the world: drop their labels.
+    for e in existing.into_values() {
+        commands.entity(e).despawn();
     }
 }
 

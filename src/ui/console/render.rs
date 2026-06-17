@@ -16,7 +16,14 @@ pub(super) fn console_render(
     mut last: Local<Option<(usize, usize)>>,
 ) {
     if view.stick {
-        view.offset = log.lines().len().saturating_sub(ROWS);
+        // Write only on a real change: a blind `view.offset = …` trips
+        // ResMut change detection every frame, which forces `update_scrollbar`
+        // (gated on `resource_changed::<ConsoleView>`) to relayout the UI each
+        // frame in every state.
+        let offset = log.lines().len().saturating_sub(ROWS);
+        if view.offset != offset {
+            view.offset = offset;
+        }
     }
     let key = (log.lines().len(), view.offset);
     if *last == Some(key) && !log.is_changed() {

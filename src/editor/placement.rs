@@ -5,20 +5,26 @@
 //! never a puzzle state worth inspecting. Cross-cell problems (junction
 //! without switch, reachability) stay non-modal — they glow as diagnostics.
 
+use std::sync::LazyLock;
 use stellwerk_sim::grid::{Cell, Dir8};
 use stellwerk_sim::layout::{Layout, TrackPiece};
 use stellwerk_sim::level::Level;
 
 /// 8 switch presets: cardinal stem, branches = straight-through + 45° turn.
-pub(super) fn switch_variants() -> Vec<(Dir8, [Dir8; 2])> {
-    let rot = |d: Dir8, k: usize| Dir8::ALL[(d.index() as usize + k) % 8];
-    let mut out = Vec::new();
-    for stem in [Dir8::W, Dir8::E, Dir8::N, Dir8::S] {
-        let straight = stem.opposite();
-        out.push((stem, [straight, rot(straight, 1)]));
-        out.push((stem, [straight, rot(straight, 7)]));
-    }
-    out
+/// Fixed table — built once, not per frame (this is read in the overlay draw,
+/// which runs every frame while the switch tool is active).
+pub(super) fn switch_variants() -> &'static [(Dir8, [Dir8; 2])] {
+    static VARIANTS: LazyLock<Vec<(Dir8, [Dir8; 2])>> = LazyLock::new(|| {
+        let rot = |d: Dir8, k: usize| Dir8::ALL[(d.index() as usize + k) % 8];
+        let mut out = Vec::new();
+        for stem in [Dir8::W, Dir8::E, Dir8::N, Dir8::S] {
+            let straight = stem.opposite();
+            out.push((stem, [straight, rot(straight, 1)]));
+            out.push((stem, [straight, rot(straight, 7)]));
+        }
+        out
+    });
+    &VARIANTS
 }
 
 /// Buildable cell, no switch there, and both connectors still free —
@@ -42,11 +48,17 @@ pub(super) fn can_place_switch(level: &Level, merged: &Layout, cell: Cell) -> bo
 /// of `cell` that actually carry track. `None` for a cell with no track —
 /// the mouse only picks the cell, the direction is keyboard-driven.
 pub(super) fn signal_stub(merged: &Layout, cell: Cell, variant: i32) -> Option<Dir8> {
-    let stubs: Vec<Dir8> = Dir8::ALL
+    // Pick the nth matching stub without collecting into a Vec — this runs
+    // every frame while the signal tool is active, and Dir8::ALL is only 8.
+    let count = Dir8::ALL.iter().filter(|&&d| merged.has_stub(cell, d)).count();
+    if count == 0 {
+        return None;
+    }
+    let nth = variant.rem_euclid(count as i32) as usize;
+    Dir8::ALL
         .into_iter()
         .filter(|&d| merged.has_stub(cell, d))
-        .collect();
-    (!stubs.is_empty()).then(|| stubs[variant.rem_euclid(stubs.len() as i32) as usize])
+        .nth(nth)
 }
 
 /// Signals need track under their connector and may not stack.

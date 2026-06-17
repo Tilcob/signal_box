@@ -65,7 +65,12 @@ pub(super) fn scrollbar_drag(
     mut drag: ResMut<ScrollbarDrag>,
 ) {
     if !buttons.pressed(MouseButton::Left) {
-        drag.0 = false;
+        // Guard the write: a blind `drag.0 = false` trips change detection
+        // every frame the button is up (same anti-pattern as the old console
+        // relayout cascade).
+        if drag.0 {
+            drag.0 = false;
+        }
     } else if buttons.just_pressed(MouseButton::Left)
         && thumb.single().is_ok_and(|i| *i == Interaction::Pressed)
     {

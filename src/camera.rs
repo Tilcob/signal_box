@@ -1,4 +1,6 @@
-//! HDR camera with bloom (the Pult glow lives here), pan and zoom.
+//! 2D camera, pan and zoom. The Pult glow (HDR + bloom) is opt-in via
+//! `STELLWERK_BLOOM` — off by default because the full-screen post-process
+//! is the dominant frame cost at high resolutions (see `spawn_camera`).
 //!
 //! Note: plain Bevy input for now; the `bevy_enhanced_input` action maps
 //! come with the rebinding UI.
@@ -28,15 +30,21 @@ impl Plugin for CameraPlugin {
 }
 
 fn spawn_camera(mut commands: Commands) {
-    commands.spawn((
+    let mut camera = commands.spawn((
         Camera2d,
-        bevy::render::view::Hdr,
-        Bloom::default(),
         Projection::Orthographic(OrthographicProjection::default_2d()),
         Transform::from_xyz(0.0, 0.0, 999.0),
         MainCamera,
         Name::new("MainCamera"),
     ));
+    // The Pult glow is HDR + a full-screen bloom post-process. Its cost scales
+    // with the window resolution (≈2× frame time already at 900p, far worse at
+    // fullscreen 1440p/4K, where it is the dominant frame cost). Off by default
+    // so the game is playable everywhere; opt in with STELLWERK_BLOOM=1 on a
+    // GPU that can afford it.
+    if std::env::var_os("STELLWERK_BLOOM").is_some() {
+        camera.insert((bevy::render::view::Hdr, Bloom::default()));
+    }
 }
 
 fn pan(
