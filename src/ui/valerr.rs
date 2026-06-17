@@ -3,7 +3,7 @@
 //! cell/id appended in Rust (the i18n shim has no placeholders). Same split as
 //! `select::actions::decode_error_text` for `DecodeError`.
 
-use stellwerk_sim::ValidationError;
+use stellwerk_sim::{Unreachable, ValidationError};
 
 use crate::i18n::t;
 use crate::state::BuildIssue;
@@ -24,6 +24,12 @@ pub(crate) fn build_issue_text(issue: &BuildIssue) -> String {
         BuildIssue::MissingSource => t("build.no_source"),
         BuildIssue::MissingSink => t("build.no_sink"),
     }
+}
+
+/// Localized reachability-warning line (a train cannot reach its sink). Shared
+/// by the HUD diagnostics panel and the console mirror so they cannot drift.
+pub(crate) fn unreachable_text(unreachable: &Unreachable) -> String {
+    format!("{}{}", t("edit.unreachable"), unreachable.train.0)
 }
 
 /// Every key [`valerr_text`] can emit — kept beside the match so the i18n

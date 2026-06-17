@@ -8,6 +8,8 @@ use bevy::post_process::bloom::Bloom;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
+use crate::state::FocusedField;
+
 #[derive(Component)]
 pub struct MainCamera;
 
@@ -40,6 +42,7 @@ fn spawn_camera(mut commands: Commands) {
 fn pan(
     buttons: Res<ButtonInput<MouseButton>>,
     keys: Res<ButtonInput<KeyCode>>,
+    focus: Res<FocusedField>,
     mut motion: MessageReader<MouseMotion>,
     time: Res<Time>,
     zoom: Res<Zoom>,
@@ -54,19 +57,22 @@ fn pan(
             delta += event.delta;
         }
     }
-    // …or WASD/arrows.
+    // …or WASD/arrows — but NOT while a text/number field is focused, or typing
+    // a station name (or just being in a field) would scroll the board.
     let mut dir = Vec2::ZERO;
-    if keys.pressed(KeyCode::KeyW) || keys.pressed(KeyCode::ArrowUp) {
-        dir.y += 1.0;
-    }
-    if keys.pressed(KeyCode::KeyS) || keys.pressed(KeyCode::ArrowDown) {
-        dir.y -= 1.0;
-    }
-    if keys.pressed(KeyCode::KeyA) || keys.pressed(KeyCode::ArrowLeft) {
-        dir.x -= 1.0;
-    }
-    if keys.pressed(KeyCode::KeyD) || keys.pressed(KeyCode::ArrowRight) {
-        dir.x += 1.0;
+    if focus.0.is_none() {
+        if keys.pressed(KeyCode::KeyW) || keys.pressed(KeyCode::ArrowUp) {
+            dir.y += 1.0;
+        }
+        if keys.pressed(KeyCode::KeyS) || keys.pressed(KeyCode::ArrowDown) {
+            dir.y -= 1.0;
+        }
+        if keys.pressed(KeyCode::KeyA) || keys.pressed(KeyCode::ArrowLeft) {
+            dir.x -= 1.0;
+        }
+        if keys.pressed(KeyCode::KeyD) || keys.pressed(KeyCode::ArrowRight) {
+            dir.x += 1.0;
+        }
     }
 
     // No input → do NOT touch the Transform. Writing it (even by +0.0) trips
@@ -88,6 +94,7 @@ fn pan(
 fn zoom(
     mut wheel: MessageReader<MouseWheel>,
     hovered: Res<crate::console::ConsoleHovered>,
+    focus: Res<FocusedField>,
     mut zoom: ResMut<Zoom>,
     mut cameras: Query<&mut Projection, With<MainCamera>>,
 ) {
@@ -102,7 +109,9 @@ fn zoom(
     for event in wheel.read() {
         steps += event.y;
     }
-    if steps == 0.0 {
+    // Drained above; skip zooming while a field is focused (same input-leak
+    // class as the WASD pan).
+    if steps == 0.0 || focus.0.is_some() {
         return;
     }
     zoom.0 = (zoom.0 * 1.15f32.powf(steps)).clamp(0.25, 4.0);

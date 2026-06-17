@@ -40,6 +40,7 @@
     "build.no_sink": "No sink placed",
     "console.export_ok": "Level code exported",
     "console.export_failed": "Level export failed",
+    "console.resolved": "resolved:",
     "edit.tools": "1 track · 2 switch · 3 block signal · 4 chain signal · B demolish · Q select · R/T rotate",
     "edit.tools_sandbox": " · 6 source · 7 sink",
     "edit.hints": "Drag to draw track · Right-click direction menu · Ctrl+Z/Y undo/redo · Space start · Esc pause",

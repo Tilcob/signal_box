@@ -7,13 +7,11 @@ use stellwerk_sim::units::{Len, SinkId, SourceId, Speed, Tick, TrainClass, Train
 
 use super::numeric_field::{NumericFieldCommit, numeric_field};
 use super::widgets::{TEXT_BRIGHT, TEXT_DIM, small_button, text_bundle};
+use crate::console::ConsoleLog;
 use crate::editor::{EditOp, do_op};
 use crate::font::UiFont;
 use crate::i18n::{sink_label, source_label, t};
-use crate::state::{ActiveLevel, EditNotice, Editor, GameState};
-
-/// How long a refused-action notice stays on the Edit HUD.
-const NOTICE_SECS: f32 = 4.0;
+use crate::state::{ActiveLevel, Editor, GameState};
 
 // Editor-edge clamps for the numeric fields. Not balance — just "no nonsense":
 // ticks are non-negative, lengths positive, and speed must stay below the
@@ -198,7 +196,7 @@ fn schedule_clicks(
     mut interactions: Query<(&Interaction, &SchedAction), Changed<Interaction>>,
     active: Option<ResMut<ActiveLevel>>,
     mut editor: ResMut<Editor>,
-    mut notice: ResMut<EditNotice>,
+    mut log: ResMut<ConsoleLog>,
 ) {
     let Some(mut active) = active else { return };
     if !active.sandbox {
@@ -234,7 +232,8 @@ fn schedule_clicks(
                         (true, false) => "schedule.need_source",
                         (false, false) => unreachable!("matched only when one is None"),
                     };
-                    notice.0 = Some((t(key), Timer::from_seconds(NOTICE_SECS, TimerMode::Once)));
+                    // Tell the player WHAT is missing — in the console now.
+                    log.warn(t(key));
                     continue;
                 };
                 let train = TrainId(

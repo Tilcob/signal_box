@@ -123,13 +123,6 @@ impl Tool {
     ];
 }
 
-/// Transient feedback shown in the Edit HUD — e.g. why a sandbox action was
-/// refused (adding a train with no source/sink). Set by an action handler,
-/// ticked down and rendered by the HUD (`crate::ui::edit_hud`); auto-clears
-/// when the timer elapses.
-#[derive(Resource, Default)]
-pub struct EditNotice(pub Option<(String, Timer)>);
-
 /// The numeric input field (schedule editor) that currently holds keyboard
 /// focus, if any. While set, the edit hotkeys/board pointer/start key are
 /// suppressed so typing digits doesn't leak into the game.
@@ -177,7 +170,6 @@ impl Plugin for StatePlugin {
         app.init_state::<GameState>()
             .init_resource::<Editor>()
             .init_resource::<Paused>()
-            .init_resource::<EditNotice>()
             .init_resource::<FocusedField>()
             .init_resource::<Diagnostics>();
     }

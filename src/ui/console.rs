@@ -29,6 +29,11 @@ const LOG_INFO: Color = TEXT_BRIGHT;
 #[derive(Component)]
 struct ConsoleRoot;
 
+/// Per-row camera jump target, mirrored from the displayed line every render so
+/// it tracks scrolling. `None` = clicking the row does nothing.
+#[derive(Component, Default, PartialEq)]
+struct RowJump(Option<Vec2>);
+
 /// Scroll state: `offset` is the buffer index shown in the top row; `stick`
 /// keeps the view pinned to the newest line until the player scrolls up.
 #[derive(Resource)]
@@ -61,7 +66,31 @@ impl Plugin for ConsoleUiPlugin {
                     console_visibility,
                     (console_hover, console_scroll, console_render).chain(),
                 ),
+            )
+            // Only in-level: a hidden console row in another state can still
+            // latch `Pressed`, which would move the camera off-screen.
+            .add_systems(
+                Update,
+                console_jump_clicks
+                    .run_if(in_state(GameState::Edit).or(in_state(GameState::Run))),
             );
+    }
+}
+
+/// Click on a located console line → recentre the camera there.
+fn console_jump_clicks(
+    rows: Query<(&Interaction, &RowJump), Changed<Interaction>>,
+    mut cameras: Query<&mut Transform, With<crate::camera::MainCamera>>,
+) {
+    for (interaction, jump) in &rows {
+        if *interaction != Interaction::Pressed {
+            continue;
+        }
+        let Some(pos) = jump.0 else { continue };
+        if let Ok(mut transform) = cameras.single_mut() {
+            transform.translation.x = pos.x;
+            transform.translation.y = pos.y;
+        }
     }
 }
 
@@ -102,7 +131,18 @@ fn ensure_console(mut commands: Commands, ui_font: Res<UiFont>, existing: Query<
         ))
         .with_children(|panel| {
             for _ in 0..ROWS {
-                panel.spawn(text_bundle(&font, String::new(), 13.0, LOG_INFO));
+                // Full-width Button so the whole row strip (not just the glyph
+                // run) is the click target for the jump; no ButtonBase, so the
+                // global `button_feedback` leaves these rows untinted.
+                panel.spawn((
+                    text_bundle(&font, String::new(), 13.0, LOG_INFO),
+                    Button,
+                    RowJump(None),
+                    Node {
+                        width: Val::Percent(100.0),
+                        ..default()
+                    },
+                ));
             }
         });
 }
@@ -163,7 +203,7 @@ fn console_render(
     log: Res<ConsoleLog>,
     mut view: ResMut<ConsoleView>,
     root: Query<&Children, With<ConsoleRoot>>,
-    mut rows: Query<(&mut Text, &mut TextColor)>,
+    mut rows: Query<(&mut Text, &mut TextColor, &mut RowJump)>,
     mut last: Local<Option<(usize, usize)>>,
 ) {
     let Ok(children) = root.single() else { return };
@@ -178,7 +218,7 @@ fn console_render(
 
     let lines = log.lines();
     for (i, child) in children.iter().take(ROWS).enumerate() {
-        let Ok((mut text, mut color)) = rows.get_mut(child) else {
+        let Ok((mut text, mut color, mut jump)) = rows.get_mut(child) else {
             continue;
         };
         match lines.get(view.offset + i) {
@@ -190,9 +230,20 @@ fn console_render(
                 if color.0 != c {
                     color.0 = c;
                 }
+                // Set every pass (independent of the text guard) so a click after
+                // scrolling jumps to the line actually shown, not a stale one.
+                if jump.0 != line.jump {
+                    jump.0 = line.jump;
+                }
             }
-            None if !text.0.is_empty() => text.0.clear(),
-            None => {}
+            None => {
+                if !text.0.is_empty() {
+                    text.0.clear();
+                }
+                if jump.0.is_some() {
+                    jump.0 = None;
+                }
+            }
         }
     }
 }

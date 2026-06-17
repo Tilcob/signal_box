@@ -19,6 +19,9 @@ pub enum Severity {
 pub struct ConsoleLine {
     pub severity: Severity,
     pub text: String,
+    /// World position to recentre the camera on when the line is clicked, for
+    /// located diagnostics (a board cell/connector). `None` = not clickable.
+    pub jump: Option<Vec2>,
 }
 
 /// Retained-line cap; the oldest drop first.
@@ -32,12 +35,19 @@ pub struct ConsoleLog {
 
 impl ConsoleLog {
     pub fn push(&mut self, severity: Severity, text: impl Into<String>) {
+        self.push_at(severity, text, None);
+    }
+
+    /// Like [`push`](Self::push) but carries a camera jump target — for located
+    /// diagnostics whose console line should recentre the board when clicked.
+    pub fn push_at(&mut self, severity: Severity, text: impl Into<String>, jump: Option<Vec2>) {
         if self.lines.len() == CAP {
             self.lines.pop_front();
         }
         self.lines.push_back(ConsoleLine {
             severity,
             text: text.into(),
+            jump,
         });
     }
 
