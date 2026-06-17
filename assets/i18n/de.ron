@@ -38,6 +38,8 @@
     "build.no_source_no_sink": "Keine Quelle und kein Ziel im Feld",
     "build.no_source": "Keine Quelle im Feld",
     "build.no_sink": "Kein Ziel im Feld",
+    "console.export_ok": "Level-Code exportiert",
+    "console.export_failed": "Level-Export fehlgeschlagen",
     "edit.tools": "1 Gleis · 2 Weiche · 3 Blocksignal · 4 Kettensignal · B Abriss · Q Auswahl · R/T drehen",
     "edit.tools_sandbox": " · 6 Quelle · 7 Ziel",
     "edit.hints": "Ziehen zeichnet Gleis · Rechtsklick Richtungsmenü des Gleises · Strg+Z/Y Undo/Redo · Leertaste/Enter Start · Esc Pause",

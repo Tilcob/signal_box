@@ -7,17 +7,18 @@ use stellwerk_codes::Payload;
 use stellwerk_sim::grid::Cell;
 
 use crate::clipboard::CopyOutcome;
+use crate::console::ConsoleLog;
 use super::schedule_panel::{SchedAction, SchedulePanelRoot, rebuild_schedule_panel};
 use super::station_panel::{StationPanelRoot, rebuild_station_panel};
 use super::valerr::{build_issue_text, valerr_text};
 use super::switch_panel::{SwitchPanelRoot, rebuild_switch_panel};
 use super::widgets::{
-    BUTTON_BG_BLOCKED, BUTTON_BG_PRIMARY, ButtonBase, PANEL_BG, TEXT_BRIGHT, TEXT_DIM, button,
-    despawn_all, set_text, small_button, text_bundle,
+    BUTTON_BG, BUTTON_BG_BLOCKED, BUTTON_BG_PRIMARY, ButtonBase, PANEL_BG, TEXT_BRIGHT, TEXT_DIM,
+    button, despawn_all, set_text, small_button, text_bundle,
 };
 use crate::font::UiFont;
 use crate::i18n::{level_name, t};
-use crate::levels::{Progress, SOLUTION_SLOTS, save_sandbox};
+use crate::levels::{Progress, SANDBOX_ID, SOLUTION_SLOTS, save_sandbox};
 use crate::state::{
     ActiveLevel, Diagnostics, EditNotice, Editor, FocusedField, GameState, Tool, no_field_focused,
     not_paused,
@@ -43,7 +44,7 @@ struct JumpTo(Vec2);
 const DIAG_RED: Color = Color::srgb(1.0, 0.45, 0.35);
 
 /// Transient action-feedback line (e.g. "set a source first"); driven by
-/// [`EditNotice`], separate from the validation [`DiagText`].
+/// [`EditNotice`], separate from the validation [`DiagPanelRoot`].
 #[derive(Component)]
 struct NoticeText;
 #[derive(Component)]
@@ -271,9 +272,14 @@ fn tool_line(tool: Tool, sandbox: bool) -> String {
 }
 
 /// World position to recentre on for a located error, or `None` for the
-/// schedule/id errors that have no single board cell. Exhaustive on purpose — a
-/// new [`stellwerk_sim::ValidationError`] variant must be classified here.
-fn error_world(error: &stellwerk_sim::ValidationError) -> Option<Vec2> {
+/// schedule/id errors that have no single board cell. The source/sink-off-track
+/// errors carry only an id, so they need the `level` to resolve their cell.
+/// Exhaustive on purpose — a new [`stellwerk_sim::ValidationError`] variant must
+/// be classified here.
+fn error_world(
+    error: &stellwerk_sim::ValidationError,
+    level: Option<&stellwerk_sim::Level>,
+) -> Option<Vec2> {
     use stellwerk_sim::ValidationError::*;
     let cell = match error {
         IllegalPiecePair { cell, .. }
@@ -290,10 +296,10 @@ fn error_world(error: &stellwerk_sim::ValidationError) -> Option<Vec2> {
         | ConnectorReused { cell, .. }
         | OutsideBuildable { cell } => *cell,
         JunctionWithoutSwitch { point } => return Some(crate::board::point_world(*point)),
+        SourceOffTrack { id } => level?.sources.iter().find(|s| s.id == *id)?.cell,
+        SinkOffTrack { id } => level?.sinks.iter().find(|s| s.id == *id)?.cell,
         DuplicateSourceId { .. }
         | DuplicateSinkId { .. }
-        | SourceOffTrack { .. }
-        | SinkOffTrack { .. }
         | DuplicateTrainId { .. }
         | UnknownSource { .. }
         | UnknownSink { .. }
@@ -313,10 +319,12 @@ fn rebuild_diag_panel(
     ui_font: Res<UiFont>,
     roots: Query<Entity, With<DiagPanelRoot>>,
     diagnostics: Res<Diagnostics>,
+    active: Option<Res<ActiveLevel>>,
 ) {
     let Ok(root) = roots.single() else { return };
     commands.entity(root).despawn_children();
     let font = ui_font.0.clone();
+    let level = active.as_ref().map(|a| &a.level);
     commands.entity(root).with_children(|panel| {
         for issue in &diagnostics.build_issues {
             let line = format!("× {}", build_issue_text(issue));
@@ -324,10 +332,23 @@ fn rebuild_diag_panel(
         }
         for error in diagnostics.errors.iter().take(3) {
             let line = format!("× {}", valerr_text(error));
-            match error_world(error) {
+            match error_world(error, level) {
+                // Render as a small chip (background + hover/press feedback via
+                // ButtonBase) so it reads as clickable, unlike the plain rows.
                 Some(target) => {
                     panel
-                        .spawn((Button, Node::default(), JumpTo(target)))
+                        .spawn((
+                            Button,
+                            Node {
+                                padding: UiRect::axes(Val::Px(6.0), Val::Px(2.0)),
+                                margin: UiRect::vertical(Val::Px(1.0)),
+                                align_self: AlignSelf::FlexStart,
+                                ..default()
+                            },
+                            BackgroundColor(BUTTON_BG),
+                            ButtonBase(BUTTON_BG),
+                            JumpTo(target),
+                        ))
                         .with_children(|b| {
                             b.spawn(text_bundle(&font, line, 14.0, DIAG_RED));
                         });
@@ -457,9 +478,11 @@ fn start_button(
     keys: Res<ButtonInput<KeyCode>>,
     diagnostics: Res<Diagnostics>,
     mut next: ResMut<NextState<GameState>>,
+    mut log: ResMut<ConsoleLog>,
+    mut mouse_was_pressed: Local<bool>,
 ) {
     let allowed = diagnostics.start_allowed();
-    let mut clicked = keys.just_pressed(KeyCode::Enter) || keys.just_pressed(KeyCode::Space);
+    let mut mouse_pressed = false;
     for (interaction, mut base, children) in &mut interactions {
         let target = if allowed {
             BUTTON_BG_PRIMARY
@@ -484,11 +507,32 @@ fn start_button(
             );
         }
         if *interaction == Interaction::Pressed {
-            clicked = true;
+            mouse_pressed = true;
         }
     }
-    if clicked && allowed {
+    // Edge-detect the mouse press so a held button logs once, not per frame
+    // (the keyboard keys are already edge-triggered).
+    let mouse_edge = mouse_pressed && !*mouse_was_pressed;
+    *mouse_was_pressed = mouse_pressed;
+    let clicked =
+        keys.just_pressed(KeyCode::Enter) || keys.just_pressed(KeyCode::Space) || mouse_edge;
+    if !clicked {
+        return;
+    }
+    if allowed {
         next.set(GameState::Run);
+    } else if let Some(msg) = first_blocking_message(&diagnostics) {
+        log.error(msg);
+    }
+}
+
+/// The first build block / validation error, localized — the line the console
+/// shows when the player hits START on a level that cannot run yet.
+fn first_blocking_message(diagnostics: &Diagnostics) -> Option<String> {
+    if let Some(issue) = diagnostics.build_issues.first() {
+        Some(build_issue_text(issue))
+    } else {
+        diagnostics.errors.first().map(valerr_text)
     }
 }
 
@@ -529,18 +573,35 @@ fn slot_clicks(
 fn export_level_click(
     interactions: Query<&Interaction, (Changed<Interaction>, With<ExportLevelButton>)>,
     active: Option<Res<ActiveLevel>>,
+    mut log: ResMut<ConsoleLog>,
 ) {
     let Some(active) = active else { return };
     if interactions.iter().any(|i| *i == Interaction::Pressed) {
         let code = stellwerk_codes::encode(&Payload::Level {
             level: active.level.clone(),
         });
+        // English `info!`/`warn!` stay for the dev log; the console line is the
+        // localized, player-facing echo.
         match crate::clipboard::copy(&code) {
-            CopyOutcome::Clipboard => info!("level code copied to clipboard"),
-            CopyOutcome::File(path) => info!("level code written to {}", path.display()),
-            CopyOutcome::Failed(e) => warn!("level export failed: {e}"),
+            CopyOutcome::Clipboard => {
+                info!("level code copied to clipboard");
+                log.info(t("console.export_ok"));
+            }
+            CopyOutcome::File(path) => {
+                info!("level code written to {}", path.display());
+                log.info(t("console.export_ok"));
+            }
+            CopyOutcome::Failed(e) => {
+                warn!("level export failed: {e}");
+                log.warn(t("console.export_failed"));
+            }
         }
-        save_sandbox(&active.level);
+        // Only persist to the sandbox file when this IS the real sandbox. A dev
+        // tweaking a campaign level via "open in sandbox" carries the campaign
+        // id, and must not clobber the player's actual sandbox save.
+        if active.id == SANDBOX_ID {
+            save_sandbox(&active.level);
+        }
     }
 }
 

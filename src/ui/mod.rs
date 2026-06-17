@@ -5,6 +5,7 @@
 
 #[cfg(feature = "dev")]
 mod campaign_save;
+mod console;
 pub(crate) mod edit_hud;
 pub(crate) mod encyclopedia;
 mod main_menu;
@@ -34,6 +35,7 @@ impl Plugin for UiPlugin {
             select::SelectUiPlugin,
             sandbox_setup::SandboxSetupUiPlugin,
             edit_hud::EditHudPlugin,
+            console::ConsoleUiPlugin,
             switch_panel::SwitchPanelPlugin,
             numeric_field::NumericFieldPlugin,
             schedule_panel::SchedulePanelPlugin,

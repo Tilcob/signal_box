@@ -175,6 +175,8 @@ mod tests {
             "select.import_ok",
             "select.import_unknown",
             "select.import_sandbox",
+            "console.export_ok",
+            "console.export_failed",
         ]
         .into_iter()
         .map(String::from)

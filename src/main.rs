@@ -7,6 +7,7 @@
 mod board;
 mod camera;
 mod clipboard;
+mod console;
 mod editor;
 mod font;
 mod i18n;
@@ -64,6 +65,7 @@ fn main() {
         .add_plugins((
             font::FontPlugin,
             state::StatePlugin,
+            console::ConsolePlugin,
             levels::LevelsPlugin,
             loading::LoadingPlugin,
             camera::CameraPlugin,

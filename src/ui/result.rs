@@ -12,6 +12,7 @@ use super::widgets::{
     dot, text_bundle,
 };
 use crate::clipboard::CopyOutcome;
+use crate::console::{ConsoleLog, Severity};
 use crate::font::UiFont;
 use crate::i18n::t;
 use crate::levels::{Catalog, Progress};
@@ -55,6 +56,7 @@ fn spawn_result(
     outcome: Option<Res<LastOutcome>>,
     active: Option<Res<ActiveLevel>>,
     catalog: Res<Catalog>,
+    mut log: ResMut<ConsoleLog>,
 ) {
     let (Some(outcome), Some(active)) = (outcome, active) else {
         return;
@@ -62,6 +64,11 @@ fn spawn_result(
     let font = ui_font.0.clone();
     let (headline, detail, color) = describe(&outcome.0);
     let success = matches!(outcome.0, Outcome::Success { .. });
+    // Echo the outcome into the in-level console (success white, failure red).
+    log.push(
+        if success { Severity::Info } else { Severity::Error },
+        format!("{headline} — {detail}"),
+    );
 
     commands
         .spawn((

@@ -87,9 +87,17 @@ fn pan(
 
 fn zoom(
     mut wheel: MessageReader<MouseWheel>,
+    hovered: Res<crate::console::ConsoleHovered>,
     mut zoom: ResMut<Zoom>,
     mut cameras: Query<&mut Projection, With<MainCamera>>,
 ) {
+    // The console scrolls on the same wheel events; while the pointer is over it
+    // the board must not zoom. Consume the events so they don't backlog into a
+    // late zoom once the pointer leaves the console.
+    if hovered.0 {
+        wheel.read().count();
+        return;
+    }
     let mut steps = 0.0;
     for event in wheel.read() {
         steps += event.y;
