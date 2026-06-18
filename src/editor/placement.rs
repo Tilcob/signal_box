@@ -58,10 +58,10 @@ pub(super) fn can_place_switch(level: &Level, merged: &Layout, cell: Cell) -> bo
 }
 
 /// The connectors of `cell` that already carry track from a NEIGHBOURING cell
-/// (a piece/switch stub elsewhere meeting one of `cell`'s connector points).
-/// `cell` itself is excluded — a switch cell is exclusive, so its connectors
-/// come entirely from what joins it.
-fn connected_dirs(merged: &Layout, cell: Cell) -> Vec<Dir8> {
+/// (a piece/switch stub — or a level source/sink — meeting one of `cell`'s
+/// connector points). `cell` itself is excluded: a switch cell is exclusive,
+/// so its connectors come entirely from what joins it.
+fn connected_dirs(level: &Level, merged: &Layout, cell: Cell) -> Vec<Dir8> {
     let mut points: BTreeSet<Point> = BTreeSet::new();
     for piece in &merged.pieces {
         if piece.cell == cell {
@@ -78,6 +78,18 @@ fn connected_dirs(merged: &Layout, cell: Cell) -> Vec<Dir8> {
         points.insert(sw.cell.connector_point(sw.branches[0]));
         points.insert(sw.cell.connector_point(sw.branches[1]));
     }
+    // An arm may end directly at a source/sink (no piece between it and the
+    // switch), so those connector points count as connected track too.
+    for s in &level.sources {
+        if s.cell != cell {
+            points.insert(s.cell.connector_point(s.dir));
+        }
+    }
+    for s in &level.sinks {
+        if s.cell != cell {
+            points.insert(s.cell.connector_point(s.dir));
+        }
+    }
     Dir8::ALL
         .into_iter()
         .filter(|&d| points.contains(&cell.connector_point(d)))
@@ -91,8 +103,12 @@ fn connected_dirs(merged: &Layout, cell: Cell) -> Vec<Dir8> {
 /// stems, e.g. a symmetric T) or not a clean three-way — the caller then falls
 /// back to the R/T preset. The straight branch (opposite the stem) is placed
 /// first so it becomes the default, matching the preset switches.
-pub(super) fn auto_switch_orientation(merged: &Layout, cell: Cell) -> Option<(Dir8, [Dir8; 2])> {
-    let dirs = connected_dirs(merged, cell);
+pub(super) fn auto_switch_orientation(
+    level: &Level,
+    merged: &Layout,
+    cell: Cell,
+) -> Option<(Dir8, [Dir8; 2])> {
+    let dirs = connected_dirs(level, merged, cell);
     let [a, b, c] = dirs.as_slice() else {
         return None;
     };
@@ -218,6 +234,23 @@ mod tests {
         }
     }
 
+    /// Level with no stations — switch arms come purely from track pieces.
+    fn bare_level() -> Level {
+        Level {
+            name: String::new(),
+            buildable: vec![],
+            fixed: Layout::default(),
+            sources: vec![],
+            sinks: vec![],
+            schedule: vec![],
+            par: Par {
+                throughput: Tick(0),
+                material: 0,
+                lateness: 0,
+            },
+        }
+    }
+
     #[test]
     fn auto_orient_unique_stem() {
         // The screenshot junction at (1,-1): a diagonal in from NW (a piece in
@@ -228,10 +261,32 @@ mod tests {
             piece(cell(0, -1), Dir8::W, Dir8::E),
             piece(cell(2, -1), Dir8::W, Dir8::E),
         ]);
-        let (stem, branches) = auto_switch_orientation(&l, cell(1, -1)).expect("one legal stem");
+        let (stem, branches) =
+            auto_switch_orientation(&bare_level(), &l, cell(1, -1)).expect("one legal stem");
         assert_eq!(stem, Dir8::E);
         assert!(branches.contains(&Dir8::W) && branches.contains(&Dir8::NW));
         assert_eq!(branches[0], Dir8::W, "straight branch is the default");
+    }
+
+    #[test]
+    fn auto_orient_counts_a_sink_as_an_arm() {
+        // Same junction, but the East arm ends directly at a sink at (2,-1).W
+        // (no track piece between it and the switch). The sink connector must
+        // still count, so stem=E is found.
+        let l = layout(vec![
+            piece(cell(0, 0), Dir8::W, Dir8::SE),
+            piece(cell(0, -1), Dir8::W, Dir8::E),
+        ]);
+        let mut lvl = bare_level();
+        lvl.sinks.push(SinkDef {
+            id: SinkId(0),
+            cell: cell(2, -1),
+            dir: Dir8::W,
+            label: "OST".into(),
+        });
+        let (stem, _) =
+            auto_switch_orientation(&lvl, &l, cell(1, -1)).expect("sink arm counts");
+        assert_eq!(stem, Dir8::E);
     }
 
     #[test]
@@ -243,12 +298,12 @@ mod tests {
             piece(cell(2, 0), Dir8::W, Dir8::E),
             piece(cell(1, 1), Dir8::S, Dir8::N),
         ]);
-        assert_eq!(auto_switch_orientation(&l, cell(1, 0)), None);
+        assert_eq!(auto_switch_orientation(&bare_level(), &l, cell(1, 0)), None);
     }
 
     #[test]
     fn auto_orient_needs_exactly_three_connectors() {
         let l = layout(vec![piece(cell(0, 0), Dir8::W, Dir8::E)]);
-        assert_eq!(auto_switch_orientation(&l, cell(1, 0)), None);
+        assert_eq!(auto_switch_orientation(&bare_level(), &l, cell(1, 0)), None);
     }
 }

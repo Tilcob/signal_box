@@ -11,8 +11,8 @@ use stellwerk_sim::units::{SinkId, SourceId};
 
 use super::ops::{EditOp, Element, do_op, redo, undo};
 use super::placement::{
-    can_block_cell, can_place_piece, can_place_signal, can_place_station, can_place_switch,
-    signal_stub, station_dir, switch_variants,
+    auto_switch_orientation, can_block_cell, can_place_piece, can_place_signal, can_place_station,
+    can_place_switch, signal_stub, station_dir, switch_variants,
 };
 use crate::board;
 use crate::camera::{MainCamera, cursor_world};
@@ -181,9 +181,13 @@ pub(super) fn pointer(
             if !can_place_switch(&active.level, merged, cell) {
                 return;
             }
-            let variants = switch_variants();
-            let (stem, branches) =
-                variants[editor.variant.rem_euclid(variants.len() as i32) as usize];
+            // Auto-orient from the surrounding track when the junction admits
+            // exactly one legal stem (the player needn't aim it); otherwise the
+            // R/T-cycled preset.
+            let (stem, branches) = auto_switch_orientation(&active.level, merged, cell).unwrap_or_else(|| {
+                let variants = switch_variants();
+                variants[editor.variant.rem_euclid(variants.len() as i32) as usize]
+            });
             do_op(
                 &mut editor,
                 &mut active.level,
