@@ -24,7 +24,7 @@ fn load_table(lang: &str) -> BTreeMap<String, String> {
         }) {
         Ok(map) => map,
         Err(e) => {
-            eprintln!("i18n: {path} unreadable: {e}");
+            bevy::log::warn!("i18n: {path} unreadable: {e}");
             BTreeMap::new()
         }
     }

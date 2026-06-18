@@ -58,6 +58,12 @@ fn main() {
                     primary_window: Some(window),
                     ..default()
                 })
+                // Mirror our own `info!`/`warn!`/`error!` (incl. dev) into the
+                // in-level console; engine noise is filtered out by target.
+                .set(bevy::log::LogPlugin {
+                    custom_layer: console::console_layer,
+                    ..default()
+                })
                 // bevy_kira_audio drives the audio device; disable Bevy's own
                 // audio plugin so the two don't both grab the output.
                 .disable::<bevy::audio::AudioPlugin>(),

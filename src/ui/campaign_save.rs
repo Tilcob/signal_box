@@ -16,6 +16,7 @@ use super::numeric_field::{NumericField, numeric_field, numeric_field_focus};
 use super::widgets::{
     BUTTON_BG, BUTTON_BG_PRIMARY, PANEL_BG, TEXT_BRIGHT, TEXT_DIM, button, set_text, text_bundle,
 };
+use crate::console::ConsoleLog;
 use crate::font::UiFont;
 use crate::i18n::set_lang;
 use crate::levels::{Catalog, Progress, load_catalog};
@@ -27,12 +28,11 @@ const CHAPTER_MAX: i64 = 8;
 const ORDER_MIN: i64 = 10;
 const ORDER_MAX: i64 = 200;
 
-/// The save inputs that don't come from the numeric fields: the hard flag (a
-/// toggle) and the last status line.
+/// The save input that doesn't come from the numeric fields: the hard flag.
+/// (The save result is logged to the in-level console, not kept here.)
 #[derive(Resource, Default)]
 struct CampaignDraft {
     hard: bool,
-    status: String,
 }
 
 #[derive(Component)]
@@ -65,17 +65,11 @@ impl Plugin for CampaignSavePlugin {
     }
 }
 
-fn spawn_panel(
-    mut commands: Commands,
-    ui_font: Res<UiFont>,
-    active: Option<Res<ActiveLevel>>,
-    mut draft: ResMut<CampaignDraft>,
-) {
+fn spawn_panel(mut commands: Commands, ui_font: Res<UiFont>, active: Option<Res<ActiveLevel>>) {
     // Only in the sandbox — campaign levels are not re-authored from inside.
     if !active.is_some_and(|a| a.sandbox) {
         return;
     }
-    draft.status.clear();
     let font = ui_font.0.clone();
     commands
         .spawn((
@@ -135,7 +129,8 @@ fn save_click(
     active: Option<Res<ActiveLevel>>,
     progress: Res<Progress>,
     mut catalog: ResMut<Catalog>,
-    mut draft: ResMut<CampaignDraft>,
+    draft: Res<CampaignDraft>,
+    mut log: ResMut<ConsoleLog>,
 ) {
     if !interactions.iter().any(|i| *i == Interaction::Pressed) {
         return;
@@ -172,19 +167,21 @@ fn save_click(
             // anchored on the (player) track you drew, so it usually fails
             // validate-with-empty-layout — exactly what `tests/levels.rs`
             // checks. Don't claim a clean save when the file won't pass: report
-            // the first error so the author knows to add fixed anchor track.
+            // the first error to the console so the author knows to add fixed
+            // anchor track. (Console, not the panel: these lines are long and
+            // the panel is cramped.)
             let errors = stellwerk_sim::validate(&active.level, &stellwerk_sim::Layout::default());
-            draft.status = if errors.is_empty() {
-                format!("Gespeichert: {} · Katalog neu geladen", path.display())
+            if errors.is_empty() {
+                log.info(format!("Gespeichert: {} · Katalog neu geladen", path.display()));
             } else {
-                format!(
-                    "Gespeichert ({}), ABER noch ungültig — fixed-Anker ergänzen: {}",
+                log.warn(format!(
+                    "Gespeichert ({}), aber noch ungültig — fixed-Anker ergänzen: {}",
                     path.display(),
                     errors[0]
-                )
-            };
+                ));
+            }
         }
-        Err(e) => draft.status = format!("Fehler: {e}"),
+        Err(e) => log.error(format!("Fehler beim Speichern: {e}")),
     }
 }
 
@@ -203,8 +200,9 @@ fn update_info(
         set_text(
             &mut text,
             format!(
-                "Kapitel: {} · Order: {} · hart: {hard} · id≈{id}\n{}",
-                chapter.value(), order.value(), draft.status
+                "Kapitel: {} · Order: {} · hart: {hard} · id≈{id}",
+                chapter.value(),
+                order.value()
             ),
         );
     }

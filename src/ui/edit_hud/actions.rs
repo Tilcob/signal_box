@@ -112,21 +112,14 @@ fn export_level_click(
         let code = stellwerk_codes::encode(&Payload::Level {
             level: active.level.clone(),
         });
-        // English `info!`/`warn!` stay for the dev log; the console line is the
-        // localized, player-facing echo.
+        // Straight to the console (the global tracing bridge would otherwise
+        // double these); localized, with the file path kept on the fallback.
         match crate::clipboard::copy(&code) {
-            CopyOutcome::Clipboard => {
-                info!("level code copied to clipboard");
-                log.info(t("console.export_ok"));
-            }
+            CopyOutcome::Clipboard => log.info(t("console.export_ok")),
             CopyOutcome::File(path) => {
-                info!("level code written to {}", path.display());
-                log.info(t("console.export_ok"));
+                log.info(format!("{} → {}", t("console.export_ok"), path.display()))
             }
-            CopyOutcome::Failed(e) => {
-                warn!("level export failed: {e}");
-                log.warn(t("console.export_failed"));
-            }
+            CopyOutcome::Failed(e) => log.warn(format!("{}: {e}", t("console.export_failed"))),
         }
         // Only persist to the sandbox file when this IS the real sandbox. A dev
         // tweaking a campaign level via "open in sandbox" carries the campaign

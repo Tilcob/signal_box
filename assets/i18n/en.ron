@@ -194,4 +194,9 @@
     "station.STADT": "CITY",
     "station.GÜTER": "FREIGHT",
     "station.GÜTER-OST": "FREIGHT-EAST",
+    "level.k1_06_neu.name": "[TODO] Sandbox",
+    "station.OST 1": "[TODO] OST 1",
+    "station.OST 2": "[TODO] OST 2",
+    "level.k1_06_test.briefing": "[TODO] 4 Züge müssen um die Hindernisse herumgeführt werden. Die Strecke ist eng, also denke an gute Auweichmöglichkeiten, sodass sich kein Stau bildet.",
+    "level.k1_06_test.name": "[TODO] 1.6 Hindernisse und Weichen",
 }
