@@ -5,8 +5,9 @@
 //! never a puzzle state worth inspecting. Cross-cell problems (junction
 //! without switch, reachability) stay non-modal — they glow as diagnostics.
 
+use std::collections::BTreeSet;
 use std::sync::LazyLock;
-use stellwerk_sim::grid::{Cell, Dir8};
+use stellwerk_sim::grid::{Cell, Dir8, Point, pair_len};
 use stellwerk_sim::layout::{Layout, TrackPiece};
 use stellwerk_sim::level::Level;
 
@@ -54,6 +55,61 @@ pub(super) fn can_place_switch(level: &Level, merged: &Layout, cell: Cell) -> bo
     level.buildable.contains(&cell)
         && !merged.pieces.iter().any(|p| p.cell == cell)
         && !merged.switches.iter().any(|s| s.cell == cell)
+}
+
+/// The connectors of `cell` that already carry track from a NEIGHBOURING cell
+/// (a piece/switch stub elsewhere meeting one of `cell`'s connector points).
+/// `cell` itself is excluded — a switch cell is exclusive, so its connectors
+/// come entirely from what joins it.
+fn connected_dirs(merged: &Layout, cell: Cell) -> Vec<Dir8> {
+    let mut points: BTreeSet<Point> = BTreeSet::new();
+    for piece in &merged.pieces {
+        if piece.cell == cell {
+            continue;
+        }
+        points.insert(piece.cell.connector_point(piece.a));
+        points.insert(piece.cell.connector_point(piece.b));
+    }
+    for sw in &merged.switches {
+        if sw.cell == cell {
+            continue;
+        }
+        points.insert(sw.cell.connector_point(sw.stem));
+        points.insert(sw.cell.connector_point(sw.branches[0]));
+        points.insert(sw.cell.connector_point(sw.branches[1]));
+    }
+    Dir8::ALL
+        .into_iter()
+        .filter(|&d| points.contains(&cell.connector_point(d)))
+        .collect()
+}
+
+/// Auto-orientation for a switch placed at `cell`: when exactly three
+/// connectors already carry track AND exactly one of them is a legal stem
+/// (both others turn ≤90° off it), return that orientation so the player need
+/// not aim it by hand. `None` when the junction is ambiguous (several legal
+/// stems, e.g. a symmetric T) or not a clean three-way — the caller then falls
+/// back to the R/T preset. The straight branch (opposite the stem) is placed
+/// first so it becomes the default, matching the preset switches.
+pub(super) fn auto_switch_orientation(merged: &Layout, cell: Cell) -> Option<(Dir8, [Dir8; 2])> {
+    let dirs = connected_dirs(merged, cell);
+    let [a, b, c] = dirs.as_slice() else {
+        return None;
+    };
+    let (a, b, c) = (*a, *b, *c);
+    let legal: Vec<(Dir8, [Dir8; 2])> = [(a, [b, c]), (b, [a, c]), (c, [a, b])]
+        .into_iter()
+        .filter(|(stem, [x, y])| pair_len(*stem, *x).is_some() && pair_len(*stem, *y).is_some())
+        .collect();
+    let [(stem, [b0, b1])] = legal.as_slice() else {
+        return None; // zero or several legal stems → not unambiguous
+    };
+    // Default branch = the straight (opposite-stem) one, like the presets.
+    if *b1 == stem.opposite() {
+        Some((*stem, [*b1, *b0]))
+    } else {
+        Some((*stem, [*b0, *b1]))
+    }
 }
 
 /// The signal anchor chosen by the R/T-cycled `variant` among the connectors
@@ -148,5 +204,51 @@ mod tests {
         assert!(!can_place_station(&lvl, cell(1, 0), Dir8::E));
         // A free connector on the same buildable cell is fine.
         assert!(can_place_station(&lvl, cell(0, 0), Dir8::E));
+    }
+
+    fn piece(c: Cell, a: Dir8, b: Dir8) -> TrackPiece {
+        TrackPiece { cell: c, a, b }
+    }
+
+    fn layout(pieces: Vec<TrackPiece>) -> Layout {
+        Layout {
+            pieces,
+            switches: vec![],
+            signals: vec![],
+        }
+    }
+
+    #[test]
+    fn auto_orient_unique_stem() {
+        // The screenshot junction at (1,-1): a diagonal in from NW (a piece in
+        // (0,0) using SE), and the horizontal W↔E (pieces in (0,-1) and (2,-1)).
+        // Only stem=E is legal (NW↔W is a kink), so it is chosen automatically.
+        let l = layout(vec![
+            piece(cell(0, 0), Dir8::W, Dir8::SE),
+            piece(cell(0, -1), Dir8::W, Dir8::E),
+            piece(cell(2, -1), Dir8::W, Dir8::E),
+        ]);
+        let (stem, branches) = auto_switch_orientation(&l, cell(1, -1)).expect("one legal stem");
+        assert_eq!(stem, Dir8::E);
+        assert!(branches.contains(&Dir8::W) && branches.contains(&Dir8::NW));
+        assert_eq!(branches[0], Dir8::W, "straight branch is the default");
+    }
+
+    #[test]
+    fn auto_orient_ambiguous_t_junction_is_none() {
+        // W/E/N meeting at (1,0): any of the three is a legal stem → ambiguous,
+        // so auto-orient declines and the R/T preset is used instead.
+        let l = layout(vec![
+            piece(cell(0, 0), Dir8::W, Dir8::E),
+            piece(cell(2, 0), Dir8::W, Dir8::E),
+            piece(cell(1, 1), Dir8::S, Dir8::N),
+        ]);
+        assert_eq!(auto_switch_orientation(&l, cell(1, 0)), None);
+    }
+
+    #[test]
+    fn auto_orient_needs_exactly_three_connectors() {
+        let l = layout(vec![piece(cell(0, 0), Dir8::W, Dir8::E)]);
+        assert_eq!(auto_switch_orientation(&l, cell(1, 0)), None);
     }
 }

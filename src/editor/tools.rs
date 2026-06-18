@@ -371,6 +371,13 @@ fn apply_block_stroke(editor: &mut Editor, level: &mut Level, merged: &Layout, p
 fn erase_at(editor: &mut Editor, active: &mut ActiveLevel, cell: Cell, cursor: Vec2) {
     let at = board::nearest_connector(cell, cursor);
     if active.sandbox {
+        // A sandbox block holds nothing else (blocking requires the cell empty),
+        // so erasing it just restores buildability. Sandbox only: a campaign
+        // level's non-buildable cells are its authored shape, not blocks.
+        if board::is_blocked(&active.level.buildable, cell) {
+            do_op(editor, &mut active.level, EditOp::SetBuildable { cell, on: true });
+            return;
+        }
         if let Some(source) = active
             .level
             .sources
