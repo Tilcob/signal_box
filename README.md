@@ -88,8 +88,8 @@ Best values are tracked per level across multiple solution slots.
 - **Campaign:** 15 hand-built levels across four chapters (`assets/levels/*.ron`),
   each introducing a new *situation* rather than a new part. Reference
   solutions live under `assets/levels/solutions/`.
-- **Sandbox:** place your own sources, sinks and schedule and build a puzzle
-  from scratch.
+- **Sandbox:** place your own sources, sinks and schedule, block out cells to
+  shape the field, and build a puzzle from scratch.
 - **Sharing codes** (`stellwerk_codes`): solutions and custom levels travel as
   short `SW1-…` text codes — no server, no workshop. Export/import lives in the
   level select and result screens.

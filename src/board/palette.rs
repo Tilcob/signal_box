@@ -31,6 +31,12 @@ fn lit(r: f32, g: f32, b: f32) -> Color {
 pub fn col_grid() -> Color {
     Color::srgb(0.030, 0.035, 0.045)
 }
+/// Sandbox block (non-buildable cell): a solid slate tile, clearly heavier
+/// than the faint grid square and the near-black desk so it reads as a wall.
+/// Tune freely — purely visual, never lit/HDR.
+pub fn col_blocked() -> Color {
+    Color::srgb(0.11, 0.10, 0.13)
+}
 pub fn col_fixed() -> Color {
     Color::srgb(0.16, 0.19, 0.24)
 }

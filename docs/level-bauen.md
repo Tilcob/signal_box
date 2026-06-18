@@ -146,13 +146,18 @@ mit Beispielen: [autoren-tools.md](autoren-tools.md).
 
 1. **In der Sandbox entwerfen.** Streckenwahl → **NEUE SANDBOX** → Breite/Höhe
    eingeben (Feldgrenzen 3–22 stehen über den Eingabefeldern) → **Erstellen**.
-   Quellen/Senken mit `6`/`7` setzen, Fahrplan unten links (**+ ZUG**, dann
-   Zyklus-Knöpfe je Zeile), Gleisidee ziehen.
+   Quellen/Senken mit `6`/`7` setzen, leere Zellen mit `5` sperren (dunkle
+   **Blöcke** — dort kann nicht gebaut werden; Ziehen sperrt mehrere Zellen, ein
+   Klick auf einen Block hebt ihn wieder auf), Fahrplan unten links (**+ ZUG**,
+   dann Zyklus-Knöpfe je Zeile), Gleisidee ziehen.
    ⚠️ **Was wo landet:** Das gezeichnete Gleis ist der **Spieler-Build**
    (= spätere Lösung), nicht die Level-Infrastruktur. Als Level gespeichert wird
    nur die **Definition** (`buildable`, `sources`, `sinks`, `schedule` und ein
    *leeres* `fixed`). Vorplatzierte Designer-Gleise (`fixed`) trägst du
-   nachträglich in der `.ron` ein.
+   nachträglich in der `.ron` ein. Eine **Sperre** (`5`) ist kein eigenes Feld:
+   sie nimmt die Zelle aus `buildable` heraus — gespeichert wird das Feld
+   **minus** der gesperrten Zellen. Ein Block *innerhalb* des Felds wird als
+   dunkle Kachel gezeigt; sperrt man eine ganze Randreihe, schrumpft das Feld.
 2. **„DEV: Als Kampagnen-Level speichern"** (Panel unten rechts im Sandbox-
    Editor): `Kapitel` / `Order` in die Zahlenfelder eingeben, `hart umschalten`
    togglen — die id wird

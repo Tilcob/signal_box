@@ -7,8 +7,8 @@ use stellwerk_sim::ValidationError;
 use stellwerk_sim::layout::TrackPiece;
 
 use super::placement::{
-    can_place_piece, can_place_signal, can_place_station, can_place_switch, signal_stub,
-    station_dir, switch_variants,
+    can_block_cell, can_place_piece, can_place_signal, can_place_station, can_place_switch,
+    signal_stub, station_dir, switch_variants,
 };
 use crate::board::{self, CELL};
 use crate::camera::{MainCamera, cursor_world};
@@ -89,6 +89,23 @@ pub(super) fn draw_overlays(
                     let outward = (connector - center).normalize_or_zero();
                     gizmos.line_2d(connector, connector + outward * 26.0, ghost);
                 }
+            }
+            Tool::Block => {
+                // Highlight the target cell: ok if it can be blocked or is an
+                // existing hole (click toggles), blocked-red otherwise.
+                let ok = match &active {
+                    Some(active) => {
+                        can_block_cell(&active.level, merged, cell)
+                            || board::is_blocked(&active.level.buildable, cell)
+                    }
+                    None => false,
+                };
+                let ghost = if ok {
+                    Color::srgba(0.5, 0.5, 0.55, 0.6)
+                } else {
+                    blocked
+                };
+                gizmos.rect_2d(Isometry2d::from_translation(center), Vec2::splat(CELL - 8.0), ghost);
             }
             Tool::Source | Tool::Sink => {
                 // R/T pick the connector; the mouse only picks the cell.

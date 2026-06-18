@@ -37,6 +37,18 @@ pub(super) fn can_place_piece(level: &Level, merged: &Layout, piece: &TrackPiece
         })
 }
 
+/// A cell may be blocked (turned non-buildable) only if it is currently
+/// buildable and completely empty — blocking never silently deletes the
+/// player's track, switches, signals or a station sitting on it.
+pub(super) fn can_block_cell(level: &Level, merged: &Layout, cell: Cell) -> bool {
+    level.buildable.contains(&cell)
+        && !merged.pieces.iter().any(|p| p.cell == cell)
+        && !merged.switches.iter().any(|s| s.cell == cell)
+        && !merged.signals.iter().any(|s| s.cell == cell)
+        && !level.sources.iter().any(|s| s.cell == cell)
+        && !level.sinks.iter().any(|s| s.cell == cell)
+}
+
 /// Switch cells are exclusive: buildable and completely empty.
 pub(super) fn can_place_switch(level: &Level, merged: &Layout, cell: Cell) -> bool {
     level.buildable.contains(&cell)

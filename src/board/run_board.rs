@@ -19,7 +19,7 @@ use stellwerk_sim::grid::{Cell, Dir8, Point};
 use stellwerk_sim::layout::SignalKind;
 use stellwerk_sim::units::{BlockId, EdgeId, TrainId};
 
-use super::draw::{Tag, band, draw_stations, lamp, label, signal_arrow, signal_pos};
+use super::draw::{Tag, band, draw_blocks, draw_stations, lamp, label, signal_arrow, signal_pos};
 use super::geometry::{CELL, cell_world, point_world};
 use super::palette::*;
 use crate::font::UiFont;
@@ -86,6 +86,10 @@ pub(super) fn spawn_run_board_static(
             Transform::from_translation(cell_world(*cell).extend(0.0)),
         ));
         Tag::Live.apply(&mut entity);
+    }
+    // Sandbox blocks (non-buildable holes); campaign gaps are authored shape.
+    if active.sandbox {
+        draw_blocks(&mut commands, &active.level.buildable, Tag::Live);
     }
     draw_stations(&mut commands, &font, &active.level, Tag::Live);
 

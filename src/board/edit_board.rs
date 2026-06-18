@@ -8,7 +8,7 @@ use stellwerk_sim::layout::Layout;
 use stellwerk_sim::level::Level;
 use stellwerk_sim::units::EdgeId;
 
-use super::draw::{BlockColors, BoardGfx, Tag, draw_layout, draw_stations};
+use super::draw::{BlockColors, BoardGfx, Tag, draw_blocks, draw_layout, draw_stations};
 use super::geometry::{CELL, cell_world};
 use super::palette::{col_cell_index, col_fixed, col_grid, col_player};
 use crate::font::UiFont;
@@ -47,6 +47,11 @@ pub(super) fn rebuild_edit_board(
             Transform::from_translation(corner.extend(0.5)),
         ));
         Tag::Board.apply(&mut entity);
+    }
+    // Sandbox blocks (non-buildable holes), drawn as solid tiles. Sandbox only:
+    // a campaign level's non-buildable gaps are its authored shape, not blocks.
+    if active.sandbox {
+        draw_blocks(&mut commands, &active.level.buildable, Tag::Board);
     }
     draw_stations(&mut commands, &font, &active.level, Tag::Board);
     // Block partition, so the player sees where their signals cut the net

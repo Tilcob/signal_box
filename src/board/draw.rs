@@ -14,7 +14,7 @@ use stellwerk_sim::units::BlockId;
 /// validate, in which case bands fall back to their flat colour.
 pub(super) type BlockColors = BTreeMap<(Cell, Dir8), BlockId>;
 
-use super::geometry::{cell_world, connector_world};
+use super::geometry::{CELL, blocked_cells, cell_world, connector_world};
 use super::palette::*;
 use crate::i18n::{dir_label, sink_label, source_label};
 
@@ -255,6 +255,19 @@ pub(super) fn draw_layout(
             tag,
         );
         signal_arrow(commands, signal.cell, signal.at, col_signal_green(), tag);
+    }
+}
+
+/// Solid tiles for the sandbox's blocked (non-buildable) holes, derived from
+/// `buildable` via [`super::geometry::blocked_cells`]. Same z as the grid
+/// (0.0); a blocked cell has no grid tile, so the two never overlap.
+pub(super) fn draw_blocks(commands: &mut Commands, buildable: &[Cell], tag: Tag) {
+    for cell in blocked_cells(buildable) {
+        let mut entity = commands.spawn((
+            Sprite::from_color(col_blocked(), Vec2::splat(CELL - 4.0)),
+            Transform::from_translation(cell_world(cell).extend(0.0)),
+        ));
+        tag.apply(&mut entity);
     }
 }
 

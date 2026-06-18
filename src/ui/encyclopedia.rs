@@ -36,7 +36,7 @@ struct HelpCloseButton;
 
 /// Tools documented in the overlay, in teaching order (Select last — it only
 /// inspects). A plain list, not `Tool::ALL` (which is test-only).
-const DOCUMENTED: [Tool; 8] = [
+const DOCUMENTED: [Tool; 9] = [
     Tool::Track,
     Tool::Switch,
     Tool::SignalBlock,
@@ -44,6 +44,7 @@ const DOCUMENTED: [Tool; 8] = [
     Tool::Erase,
     Tool::Source,
     Tool::Sink,
+    Tool::Block,
     Tool::Select,
 ];
 
@@ -70,6 +71,7 @@ pub(crate) const TOOL_HELP_KEYS: &[&str] = &[
     "tool.erase.desc",
     "tool.source.desc",
     "tool.sink.desc",
+    "tool.block.desc",
 ];
 
 pub(super) struct EncyclopediaPlugin;

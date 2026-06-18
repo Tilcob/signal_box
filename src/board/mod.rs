@@ -15,7 +15,10 @@ mod geometry;
 mod palette;
 mod run_board;
 
-pub use geometry::{CELL, cell_world, connector_world, nearest_connector, point_world, world_cell};
+pub use geometry::{
+    CELL, blocked_cells, cell_world, connector_world, is_blocked, nearest_connector, point_world,
+    world_cell,
+};
 
 use bevy::prelude::*;
 

@@ -11,8 +11,8 @@ use stellwerk_sim::units::{SinkId, SourceId};
 
 use super::ops::{EditOp, Element, do_op, redo, undo};
 use super::placement::{
-    can_place_piece, can_place_signal, can_place_station, can_place_switch, signal_stub,
-    station_dir, switch_variants,
+    can_block_cell, can_place_piece, can_place_signal, can_place_station, can_place_switch,
+    signal_stub, station_dir, switch_variants,
 };
 use crate::board;
 use crate::camera::{MainCamera, cursor_world};
@@ -44,6 +44,9 @@ pub(super) fn hotkeys(
     }
     if keys.just_pressed(KeyCode::KeyB) {
         bypass.tool = Tool::Erase;
+    }
+    if sandbox && keys.just_pressed(KeyCode::Digit5) {
+        bypass.tool = Tool::Block;
     }
     if sandbox && keys.just_pressed(KeyCode::Digit6) {
         bypass.tool = Tool::Source;
@@ -141,6 +144,33 @@ pub(super) fn pointer(
         return;
     }
 
+    // Block tool (sandbox): drag-paint cells non-buildable, or restore holes.
+    // Like the track tool it collects a path; the first cell picks the mode.
+    if editor.tool == Tool::Block && active.sandbox {
+        if buttons.just_pressed(MouseButton::Left) && !over_ui {
+            editor.bypass_change_detection().drag = Some(vec![cell]);
+        }
+        if buttons.pressed(MouseButton::Left) {
+            let bypass = editor.bypass_change_detection();
+            if let Some(path) = &mut bypass.drag
+                && path.last() != Some(&cell)
+            {
+                path.push(cell);
+            }
+        }
+        if buttons.just_released(MouseButton::Left) {
+            let path = editor
+                .bypass_change_detection()
+                .drag
+                .take()
+                .unwrap_or_default();
+            if apply_block_stroke(&mut editor, &mut active.level, merged, &path) {
+                commands.trigger(crate::audio::SfxKind::BuildingSound);
+            }
+        }
+        return;
+    }
+
     if !buttons.just_pressed(MouseButton::Left) || over_ui {
         return;
     }
@@ -225,6 +255,9 @@ pub(super) fn pointer(
             commands.trigger(crate::audio::SfxKind::BuildingSound);
         }
         Tool::Source | Tool::Sink => {}
+        // Sandbox case returns early above; outside the sandbox the tool is
+        // unreachable (its hotkey is sandbox-gated).
+        Tool::Block => {}
         Tool::Erase => erase_at(&mut editor, &mut active, cell, cursor),
         Tool::Select => {
             let has_switch = editor.layout.switches.iter().any(|s| s.cell == cell);
@@ -294,6 +327,43 @@ fn finish_track_drag(editor: &mut Editor, level: &mut Level, merged: &Layout, pa
         return true;
     }
     false
+}
+
+/// Applies a Block-tool stroke. The first cell picks the mode for the whole
+/// stroke: starting on an empty buildable cell carves blocks, starting on an
+/// existing hole restores them. Cells ineligible for the chosen mode are
+/// skipped, and the stroke is one undo step. Returns whether anything changed.
+fn apply_block_stroke(editor: &mut Editor, level: &mut Level, merged: &Layout, path: &[Cell]) -> bool {
+    let Some(&first) = path.first() else {
+        return false;
+    };
+    let carve = can_block_cell(level, merged, first);
+    let holes = crate::board::blocked_cells(&level.buildable);
+    let mut ops = Vec::new();
+    let mut seen = std::collections::BTreeSet::new();
+    for &cell in path {
+        if !seen.insert(cell) {
+            continue;
+        }
+        if carve {
+            if can_block_cell(level, merged, cell) {
+                ops.push(EditOp::SetBuildable { cell, on: false });
+            }
+        } else if holes.contains(&cell) {
+            ops.push(EditOp::SetBuildable { cell, on: true });
+        }
+    }
+    match ops.len() {
+        0 => false,
+        1 => {
+            do_op(editor, level, ops.pop().expect("len 1"));
+            true
+        }
+        _ => {
+            do_op(editor, level, EditOp::Group(ops));
+            true
+        }
+    }
 }
 
 /// Removal priority: (sandbox: source/sink at the connector) → signal at the

@@ -36,6 +36,12 @@ pub enum EditOp {
     RemoveSource(SourceDef),
     PlaceSink(SinkDef),
     RemoveSink(SinkDef),
+    // Sandbox-only: flip a cell between buildable and a non-buildable block.
+    // Carries the absolute target state, so undo/redo is a plain bool flip.
+    SetBuildable {
+        cell: Cell,
+        on: bool,
+    },
     // Station rename: only the label changes, so the op carries id + old/new
     // name and inverts by swapping them.
     RenameSource {
@@ -99,6 +105,17 @@ fn apply(target: &mut EditTarget, op: &EditOp) {
         EditOp::RemoveSource(s) => remove_first(&mut target.level.sources, s),
         EditOp::PlaceSink(s) => target.level.sinks.push(s.clone()),
         EditOp::RemoveSink(s) => remove_first(&mut target.level.sinks, s),
+        EditOp::SetBuildable { cell, on } => {
+            // buildable is a set; keep it duplicate-free so the bbox-derived
+            // block rendering and the sim see one entry per cell.
+            if *on {
+                if !target.level.buildable.contains(cell) {
+                    target.level.buildable.push(*cell);
+                }
+            } else {
+                remove_first(&mut target.level.buildable, cell);
+            }
+        }
         EditOp::RenameSource { id, after, .. } => {
             if let Some(s) = target.level.sources.iter_mut().find(|s| s.id == *id) {
                 s.label = after.clone();
@@ -148,6 +165,10 @@ fn invert(op: &EditOp) -> EditOp {
         EditOp::RemoveSource(s) => EditOp::PlaceSource(s.clone()),
         EditOp::PlaceSink(s) => EditOp::RemoveSink(s.clone()),
         EditOp::RemoveSink(s) => EditOp::PlaceSink(s.clone()),
+        EditOp::SetBuildable { cell, on } => EditOp::SetBuildable {
+            cell: *cell,
+            on: !*on,
+        },
         EditOp::RenameSource { id, before, after } => EditOp::RenameSource {
             id: *id,
             before: after.clone(),
@@ -302,6 +323,12 @@ mod tests {
         assert_eq!(level.schedule, before.schedule, "schedule drift");
         assert_eq!(level.sources, before.sources, "sources drift");
         assert_eq!(level.sinks, before.sinks, "sinks drift");
+        // buildable is a set: undo restores membership, not Vec order (nothing
+        // depends on its order — not the sim, not the replay hash).
+        let (mut a, mut b) = (level.buildable.clone(), before.buildable.clone());
+        a.sort();
+        b.sort();
+        assert_eq!(a, b, "buildable drift");
     }
 
     #[test]
@@ -387,5 +414,53 @@ mod tests {
                 EditOp::RemoveSink(sink(1)),
             ])],
         );
+    }
+
+    /// Blocking a cell removes it from `buildable`; undo restores it. Toggling
+    /// an absent cell back on must not duplicate it.
+    #[test]
+    fn set_buildable_roundtrip() {
+        let mut level = fresh_level();
+        level.buildable = vec![Cell { x: 0, y: 0 }, Cell { x: 1, y: 0 }];
+        assert_roundtrip(
+            &mut level,
+            vec![
+                EditOp::SetBuildable {
+                    cell: Cell { x: 0, y: 0 },
+                    on: false,
+                },
+                EditOp::SetBuildable {
+                    cell: Cell { x: 1, y: 0 },
+                    on: false,
+                },
+            ],
+        );
+    }
+
+    #[test]
+    fn set_buildable_is_idempotent_and_dedups() {
+        let mut level = fresh_level();
+        level.buildable = vec![Cell { x: 0, y: 0 }];
+        let cell = Cell { x: 0, y: 0 };
+        // Already on: turning on again must not duplicate.
+        apply(
+            &mut EditTarget {
+                layout: &mut Layout::default(),
+                level: &mut level,
+            },
+            &EditOp::SetBuildable { cell, on: true },
+        );
+        assert_eq!(level.buildable, vec![cell], "no duplicate on re-add");
+        // Off twice: stays removed, no panic.
+        for _ in 0..2 {
+            apply(
+                &mut EditTarget {
+                    layout: &mut Layout::default(),
+                    level: &mut level,
+                },
+                &EditOp::SetBuildable { cell, on: false },
+            );
+        }
+        assert!(level.buildable.is_empty(), "blocked cell removed");
     }
 }
