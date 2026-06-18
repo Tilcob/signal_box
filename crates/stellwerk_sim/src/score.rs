@@ -64,11 +64,13 @@ mod tests {
                     cell: Cell { x: 0, y: 0 },
                     at: Dir8::E,
                     kind: SignalKind::Block,
+                    priority: 0,
                 },
                 SignalDef {
                     cell: Cell { x: 1, y: 0 },
                     at: Dir8::E,
                     kind: SignalKind::Chain,
+                    priority: 0,
                 },
             ],
         };

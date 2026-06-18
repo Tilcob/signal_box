@@ -218,7 +218,12 @@ pub(super) fn pointer(
             do_op(
                 &mut editor,
                 &mut active.level,
-                EditOp::Place(Element::Signal(SignalDef { cell, at, kind })),
+                EditOp::Place(Element::Signal(SignalDef {
+                    cell,
+                    at,
+                    kind,
+                    priority: 0,
+                })),
             );
             commands.trigger(crate::audio::SfxKind::BuildingSound);
         }
@@ -264,8 +269,24 @@ pub(super) fn pointer(
         Tool::Block => {}
         Tool::Erase => erase_at(&mut editor, &mut active, cell, cursor),
         Tool::Select => {
-            let has_switch = editor.layout.switches.iter().any(|s| s.cell == cell);
-            editor.selected_switch = has_switch.then_some(cell);
+            // Switch takes precedence (a switch cell holds no signal); otherwise
+            // pick the signal at the connector nearest the cursor, then any on
+            // the cell. Selecting one clears the other — the panels are mutually
+            // exclusive.
+            if editor.layout.switches.iter().any(|s| s.cell == cell) {
+                editor.selected_switch = Some(cell);
+                editor.selected_signal = None;
+            } else {
+                let at = board::nearest_connector(cell, cursor);
+                editor.selected_signal = editor
+                    .layout
+                    .signals
+                    .iter()
+                    .find(|s| s.cell == cell && s.at == at)
+                    .or_else(|| editor.layout.signals.iter().find(|s| s.cell == cell))
+                    .map(|s| (s.cell, s.at));
+                editor.selected_switch = None;
+            }
         }
     }
 }
@@ -428,6 +449,11 @@ fn erase_at(editor: &mut Editor, active: &mut ActiveLevel, cell: Cell, cursor: V
         .or_else(|| editor.layout.signals.iter().find(|s| s.cell == cell))
         .copied()
     {
+        // Drop the selection if it pointed at this signal, else the panel would
+        // linger on a removed signal (mirrors the switch reset below).
+        if editor.selected_signal == Some((signal.cell, signal.at)) {
+            editor.selected_signal = None;
+        }
         do_op(editor, &mut active.level, EditOp::Remove(Element::Signal(signal)));
         return;
     }

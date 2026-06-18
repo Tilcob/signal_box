@@ -75,6 +75,8 @@ pub struct SignalData {
     pub kind: SignalKind,
     /// The directed edge this signal gates (its `to` is the stop point).
     pub edge: EdgeId,
+    /// Block-contention priority (higher wins); copied from the layout.
+    pub priority: i8,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -266,6 +268,7 @@ pub fn build(level: &Level, player: &Layout) -> Result<TrackGraph, Vec<Validatio
         signal_data.push(SignalData {
             kind: signal.kind,
             edge: EdgeId(gated),
+            priority: signal.priority,
         });
         cut_nodes.insert(point);
     }
@@ -417,6 +420,7 @@ mod tests {
             cell: cell(1, 0),
             at: Dir8::E,
             kind: SignalKind::Block,
+            priority: 0,
         });
         let graph = build(&level, &layout).expect("valid");
         assert_eq!(graph.blocks.count, 2);

@@ -19,10 +19,12 @@ use stellwerk_sim::Level;
 pub const PREFIX: &str = "SW1-";
 /// Format version; bump on every breaking payload change.
 ///
-/// v1 → v2: [`stellwerk_sim::level::SourceDef`] gained a `label`. Older codes
-/// are still decoded by the [`v1`] migration (sources up-migrate to an empty
-/// label, rendered as `Q{id}`), so the golden v1 code stays valid.
-pub const VERSION: u8 = 2;
+/// v1 → v2: [`stellwerk_sim::level::SourceDef`] gained a `label`.
+/// v2 → v3: [`stellwerk_sim::layout::SignalDef`] gained a `priority`.
+/// Older codes are still decoded by the [`v1`]/[`v2`] migrations (sources
+/// up-migrate to an empty label, signals to priority 0), so the golden codes
+/// stay valid.
+pub const VERSION: u8 = 3;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Payload {
@@ -78,6 +80,9 @@ pub fn decode(text: &str) -> Result<Payload, DecodeError> {
     let (&version, payload_bytes) = framed.split_first().ok_or(DecodeError::Corrupt)?;
     match version {
         VERSION => postcard::from_bytes(payload_bytes).map_err(|_| DecodeError::Corrupt),
+        2 => postcard::from_bytes::<v2::PayloadV2>(payload_bytes)
+            .map(v2::migrate)
+            .map_err(|_| DecodeError::Corrupt),
         1 => postcard::from_bytes::<v1::PayloadV1>(payload_bytes)
             .map(v1::migrate)
             .map_err(|_| DecodeError::Corrupt),
@@ -85,12 +90,98 @@ pub fn decode(text: &str) -> Result<Payload, DecodeError> {
     }
 }
 
-/// Migration of `VERSION - 1` codes. Only [`stellwerk_sim::level::SourceDef`]
-/// changed between v1 and v2 (it gained `label`), so the mirror reuses every
-/// other current type and differs solely in a label-less source. A v1 source
-/// up-migrates to an empty label (rendered as `Q{id}`).
+/// Migration of v2 codes. v2 → v3 added [`stellwerk_sim::layout::SignalDef`]'s
+/// `priority`, so this mirror freezes the priority-less signal/layout shape and
+/// up-migrates each signal to priority 0. `Layout` was identical in v1 and v2,
+/// so [`v1`] reuses [`LayoutV2`]/[`up_layout`] from here. TrackPiece/SwitchDef
+/// are unchanged since v1 and are reused as-is.
+mod v2 {
+    use super::Payload;
+    use serde::Deserialize;
+    use stellwerk_sim::Level;
+    use stellwerk_sim::grid::{Cell, Dir8};
+    use stellwerk_sim::layout::{Layout, SignalDef, SignalKind, SwitchDef, TrackPiece};
+    use stellwerk_sim::level::{Par, ScheduleEntry, SinkDef, SourceDef};
+
+    #[derive(Deserialize)]
+    pub struct SignalDefV2 {
+        pub cell: Cell,
+        pub at: Dir8,
+        pub kind: SignalKind,
+    }
+
+    #[derive(Deserialize)]
+    pub struct LayoutV2 {
+        pub pieces: Vec<TrackPiece>,
+        pub switches: Vec<SwitchDef>,
+        pub signals: Vec<SignalDefV2>,
+    }
+
+    #[derive(Deserialize)]
+    pub struct LevelV2 {
+        pub name: String,
+        pub buildable: Vec<Cell>,
+        pub fixed: LayoutV2,
+        pub sources: Vec<SourceDef>,
+        pub sinks: Vec<SinkDef>,
+        pub schedule: Vec<ScheduleEntry>,
+        pub par: Par,
+    }
+
+    /// Same variant order as [`Payload`] — postcard encodes the discriminant
+    /// positionally, so the order is load-bearing for old codes.
+    #[derive(Deserialize)]
+    pub enum PayloadV2 {
+        Solution { level_id: String, layout: LayoutV2 },
+        Level { level: LevelV2 },
+    }
+
+    /// Lifts a priority-less layout to the current one (signals default to
+    /// priority 0). Shared by the v1 and v2 migrations.
+    pub fn up_layout(layout: LayoutV2) -> Layout {
+        Layout {
+            pieces: layout.pieces,
+            switches: layout.switches,
+            signals: layout
+                .signals
+                .into_iter()
+                .map(|s| SignalDef {
+                    cell: s.cell,
+                    at: s.at,
+                    kind: s.kind,
+                    priority: 0,
+                })
+                .collect(),
+        }
+    }
+
+    pub fn migrate(payload: PayloadV2) -> Payload {
+        match payload {
+            PayloadV2::Solution { level_id, layout } => Payload::Solution {
+                level_id,
+                layout: up_layout(layout),
+            },
+            PayloadV2::Level { level } => Payload::Level {
+                level: Level {
+                    name: level.name,
+                    buildable: level.buildable,
+                    fixed: up_layout(level.fixed),
+                    sources: level.sources,
+                    sinks: level.sinks,
+                    schedule: level.schedule,
+                    par: level.par,
+                },
+            },
+        }
+    }
+}
+
+/// Migration of v1 codes. v1 differs from v2 only in a label-less
+/// [`stellwerk_sim::level::SourceDef`]; the layout shape is v2's (priority-less),
+/// so it reuses [`v2::LayoutV2`]/[`v2::up_layout`]. A v1 source up-migrates to an
+/// empty label (rendered as `Q{id}`), each signal to priority 0.
 mod v1 {
-    use super::{Layout, Payload};
+    use super::{Payload, v2};
     use serde::Deserialize;
     use stellwerk_sim::Level;
     use stellwerk_sim::grid::{Cell, Dir8};
@@ -108,7 +199,7 @@ mod v1 {
     pub struct LevelV1 {
         pub name: String,
         pub buildable: Vec<Cell>,
-        pub fixed: Layout,
+        pub fixed: v2::LayoutV2,
         pub sources: Vec<SourceDefV1>,
         pub sinks: Vec<SinkDef>,
         pub schedule: Vec<ScheduleEntry>,
@@ -119,18 +210,26 @@ mod v1 {
     /// positionally, so the order is load-bearing for old codes.
     #[derive(Deserialize)]
     pub enum PayloadV1 {
-        Solution { level_id: String, layout: Layout },
-        Level { level: LevelV1 },
+        Solution {
+            level_id: String,
+            layout: v2::LayoutV2,
+        },
+        Level {
+            level: LevelV1,
+        },
     }
 
     pub fn migrate(payload: PayloadV1) -> Payload {
         match payload {
-            PayloadV1::Solution { level_id, layout } => Payload::Solution { level_id, layout },
+            PayloadV1::Solution { level_id, layout } => Payload::Solution {
+                level_id,
+                layout: v2::up_layout(layout),
+            },
             PayloadV1::Level { level } => Payload::Level {
                 level: Level {
                     name: level.name,
                     buildable: level.buildable,
-                    fixed: level.fixed,
+                    fixed: v2::up_layout(level.fixed),
                     sources: level
                         .sources
                         .into_iter()
@@ -181,6 +280,7 @@ mod tests {
                 cell: Cell { x: 1, y: 0 },
                 at: Dir8::E,
                 kind: SignalKind::Chain,
+                priority: 0,
             }],
         }
     }
@@ -233,6 +333,19 @@ mod tests {
     fn level_roundtrip() {
         let payload = Payload::Level {
             level: sample_level(),
+        };
+        assert_eq!(decode(&encode(&payload)), Ok(payload));
+    }
+
+    /// A non-zero signal priority is part of the v3 wire format and must
+    /// survive a full roundtrip (not silently lost to a default).
+    #[test]
+    fn signal_priority_roundtrips() {
+        let mut layout = sample_layout();
+        layout.signals[0].priority = 7;
+        let payload = Payload::Solution {
+            level_id: "prio".into(),
+            layout,
         };
         assert_eq!(decode(&encode(&payload)), Ok(payload));
     }

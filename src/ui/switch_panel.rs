@@ -2,6 +2,7 @@
 //! routing rules, named by compass exit.
 
 use bevy::prelude::*;
+use stellwerk_sim::grid::Cell;
 use stellwerk_sim::layout::{RuleWhen, SwitchDef, SwitchRule};
 use stellwerk_sim::units::{SinkId, TrainClass};
 
@@ -20,8 +21,14 @@ enum PanelAction {
     ToggleDefault,
     CycleDest(SinkId),
     CycleClass(TrainClass),
+    /// Signal-panel: nudge the selected signal's priority by ±1 (clamped).
+    PrioDelta(i8),
     Close,
 }
+
+/// Priority is clamped to this symmetric range — wide enough to rank any
+/// realistic set of merge approaches, narrow enough to stay legible.
+const PRIO_RANGE: std::ops::RangeInclusive<i8> = -9..=9;
 
 pub(super) struct SwitchPanelPlugin;
 
@@ -57,6 +64,22 @@ pub(super) fn rebuild_switch_panel(
     let Ok(root) = roots.single() else { return };
     let Some(active) = active else { return };
     commands.entity(root).despawn_children();
+
+    // Signal selected → priority panel. Mutually exclusive with a switch
+    // selection (the Select tool clears the other), so this reuses the same
+    // panel root and widgets without colliding with the switch render below.
+    if editor.selected_switch.is_none()
+        && let Some((cell, at)) = editor.selected_signal
+    {
+        match editor.layout.signals.iter().find(|s| s.cell == cell && s.at == at) {
+            Some(sig) => render_signal_panel(&mut commands, &ui_font.0, root, cell, sig.priority),
+            None => {
+                // Signal vanished (undo/erase): blank the panel.
+                commands.entity(root).insert(BackgroundColor(Color::NONE));
+            }
+        }
+        return;
+    }
 
     let Some(cell) = editor.selected_switch else {
         commands.entity(root).insert(BackgroundColor(Color::NONE));
@@ -137,6 +160,44 @@ pub(super) fn rebuild_switch_panel(
     });
 }
 
+/// The signal config panel body: title, current priority, ± buttons, hint,
+/// close. Kept separate so `rebuild_switch_panel` stays a thin dispatcher
+/// between the switch and signal cases that share this root.
+fn render_signal_panel(
+    commands: &mut Commands,
+    font: &Handle<Font>,
+    root: Entity,
+    cell: Cell,
+    priority: i8,
+) {
+    commands.entity(root).insert(BackgroundColor(PANEL_BG));
+    let font = font.clone();
+    commands.entity(root).with_children(|panel| {
+        panel.spawn(text_bundle(
+            &font,
+            format!("{} ({}, {})", t("panel.signal_title"), cell.x, cell.y),
+            18.0,
+            TEXT_BRIGHT,
+        ));
+        panel.spawn(text_bundle(
+            &font,
+            format!("{}{priority}", t("panel.priority")),
+            15.0,
+            TEXT_BRIGHT,
+        ));
+        button(panel, &font, "+", BUTTON_BG, PanelAction::PrioDelta(1));
+        button(panel, &font, "−", BUTTON_BG, PanelAction::PrioDelta(-1));
+        panel.spawn((
+            text_bundle(&font, t("panel.prio_hint"), 11.0, TEXT_DIM),
+            Node {
+                margin: UiRect::vertical(Val::Px(8.0)),
+                ..default()
+            },
+        ));
+        small_button(panel, &font, &t("panel.close"), PanelAction::Close);
+    });
+}
+
 fn panel_clicks(
     mut interactions: Query<(&Interaction, &PanelAction), Changed<Interaction>>,
     mut editor: ResMut<Editor>,
@@ -150,6 +211,38 @@ fn panel_clicks(
         }
         if matches!(action, PanelAction::Close) {
             editor.selected_switch = None;
+            editor.selected_signal = None;
+            continue;
+        }
+        // Signal priority edit — handled before the switch lookup, since it
+        // works off `selected_signal`, not `selected_switch`.
+        if let PanelAction::PrioDelta(delta) = action {
+            let Some((cell, at)) = editor.selected_signal else {
+                continue;
+            };
+            let Some(before) = editor
+                .layout
+                .signals
+                .iter()
+                .find(|s| s.cell == cell && s.at == at)
+                .copied()
+            else {
+                continue;
+            };
+            let mut after = before;
+            after.priority =
+                (before.priority + *delta).clamp(*PRIO_RANGE.start(), *PRIO_RANGE.end());
+            do_op(
+                &mut editor,
+                &mut active.level,
+                EditOp::ConfigureSignal {
+                    cell,
+                    at,
+                    before,
+                    after,
+                },
+            );
+            commands.trigger(crate::audio::SfxKind::Switch);
             continue;
         }
         let Some(cell) = editor.selected_switch else {
@@ -169,7 +262,7 @@ fn panel_clicks(
             PanelAction::ToggleDefault => after.default_branch = 1 - after.default_branch,
             PanelAction::CycleDest(sink) => cycle_rule(&mut after, RuleWhen::DestIs(*sink)),
             PanelAction::CycleClass(class) => cycle_rule(&mut after, RuleWhen::ClassIs(*class)),
-            PanelAction::Close => unreachable!(),
+            PanelAction::PrioDelta(_) | PanelAction::Close => unreachable!(),
         }
         normalize_rules(&mut after, &active.level);
         do_op(

@@ -20,7 +20,7 @@ use crate::console::ConsoleLog;
 use crate::font::UiFont;
 use crate::i18n::set_lang;
 use crate::levels::{Catalog, Progress, load_catalog};
-use crate::state::{ActiveLevel, GameState};
+use crate::state::{ActiveLevel, Editor, GameState};
 
 /// Chapter range matches the campaign; order steps of 10 leave room to insert.
 const CHAPTER_MIN: i64 = 1;
@@ -127,6 +127,7 @@ fn save_click(
     chapter: Query<&NumericField, With<ChapterField>>,
     order: Query<&NumericField, With<OrderField>>,
     active: Option<Res<ActiveLevel>>,
+    editor: Res<Editor>,
     progress: Res<Progress>,
     mut catalog: ResMut<Catalog>,
     draft: Res<CampaignDraft>,
@@ -152,7 +153,13 @@ fn save_click(
         optional_hard: draft.hard,
         briefing: String::new(),
     };
-    match crate::authoring::write_campaign_level(&id, meta, active.level.clone()) {
+    // In the sandbox everything you draw IS the authored infrastructure, so
+    // fold the player build into `fixed` on export — no hand-written `fixed`
+    // block in the RON, and the source/sink anchor stubs come along for free.
+    let mut sim = active.level.clone();
+    sim.fixed = sim.fixed.merged(&editor.layout);
+
+    match crate::authoring::write_campaign_level(&id, meta, sim.clone()) {
         Ok(path) => {
             // i18n keys were appended; reload the live table, then refresh the
             // catalog so the new level shows up back in the level select.
@@ -163,19 +170,18 @@ fn save_click(
             };
             set_lang(lang);
             *catalog = load_catalog();
-            // A sandbox export has an EMPTY `fixed`; its sources/sinks are only
-            // anchored on the (player) track you drew, so it usually fails
-            // validate-with-empty-layout — exactly what `tests/levels.rs`
-            // checks. Don't claim a clean save when the file won't pass: report
-            // the first error to the console so the author knows to add fixed
-            // anchor track. (Console, not the panel: these lines are long and
-            // the panel is cramped.)
-            let errors = stellwerk_sim::validate(&active.level, &stellwerk_sim::Layout::default());
+            // Validate the exported level with an EMPTY player layout — exactly
+            // what `tests/levels.rs` enforces. Since the build was folded into
+            // `fixed` above, a remaining error means the authored build is
+            // genuinely incomplete (e.g. a source/sink connector with no track),
+            // not just a missing fixed anchor. Surface the first one to the
+            // console (not the cramped panel) so the author can fix it.
+            let errors = stellwerk_sim::validate(&sim, &stellwerk_sim::Layout::default());
             if errors.is_empty() {
                 log.info(format!("Gespeichert: {} · Katalog neu geladen", path.display()));
             } else {
                 log.warn(format!(
-                    "Gespeichert ({}), aber noch ungültig — fixed-Anker ergänzen: {}",
+                    "Gespeichert ({}), aber noch ungültig — Bau unvollständig: {}",
                     path.display(),
                     errors[0]
                 ));

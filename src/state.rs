@@ -73,6 +73,9 @@ pub struct Editor {
     pub drag: Option<Vec<Cell>>,
     /// Switch cell whose config panel is open.
     pub selected_switch: Option<Cell>,
+    /// Signal (cell, connector) whose config panel is open. Mutually exclusive
+    /// with `selected_switch` — the Select tool sets one and clears the other.
+    pub selected_signal: Option<(Cell, Dir8)>,
     /// Cell whose radial track menu is open (RMB on the Track tool).
     pub radial: Option<Cell>,
 }
@@ -88,6 +91,7 @@ impl Default for Editor {
             track_form: (Dir8::W, Dir8::E),
             drag: None,
             selected_switch: None,
+            selected_signal: None,
             radial: None,
         }
     }

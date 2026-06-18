@@ -299,14 +299,24 @@ impl Sim {
     /// Trains already standing at a signal request clearance in
     /// (waiting_since, id) order — first come wins, ties go to the lower id.
     fn phase_signal_claims(&mut self, tick: &mut TickState) {
-        let mut order: Vec<(u64, TrainId)> = self
+        // Priority first, then first-come, then lowest id. A standing train's
+        // head edge IS its signal edge, so `effective_priority` returns that
+        // signal's priority without walking. Priority 0 (the default) reduces
+        // the key to the historical `(waiting_since, id)` order — bit-identical.
+        let mut order: Vec<(std::cmp::Reverse<i8>, u64, TrainId)> = self
             .trains
             .iter()
             .filter(|t| self.at_signal_end(t))
-            .map(|t| (t.waiting_since.map_or(self.now.0, |w| w.0), t.id))
+            .map(|t| {
+                (
+                    std::cmp::Reverse(self.effective_priority(t)),
+                    t.waiting_since.map_or(self.now.0, |w| w.0),
+                    t.id,
+                )
+            })
             .collect();
         order.sort();
-        for (_, id) in order {
+        for (_, _, id) in order {
             let train = self.train(id);
             let head = train.head_edge();
             // Arrival edges are handled in movement; a signal there is moot.
@@ -447,13 +457,44 @@ impl Sim {
     // --- Phase 3 -----------------------------------------------------------
 
     fn phase_movement(&mut self, tick: &mut TickState) {
-        let ids: Vec<TrainId> = self.trains.iter().map(|t| t.id).collect();
-        for id in ids {
+        // Higher-priority trains move (and so claim contested blocks) first;
+        // ties keep ascending-id order. This is what makes priority decide a
+        // merge where two trains reach their signals in the SAME tick — those
+        // are resolved here, not in `phase_signal_claims`. With every priority
+        // 0 the key collapses to ascending id, the historical order, so the
+        // movement (and the replay hash) is unchanged for existing levels.
+        let mut order: Vec<(std::cmp::Reverse<i8>, TrainId)> = self
+            .trains
+            .iter()
+            .map(|t| (std::cmp::Reverse(self.effective_priority(t)), t.id))
+            .collect();
+        order.sort();
+        for (_, id) in order {
             if self.outcome.is_some() {
                 return;
             }
             self.move_train(id, tick);
         }
+    }
+
+    /// Priority that ranks a train for block contention this tick: the
+    /// priority of the next signal on its route (the one it is approaching or
+    /// standing at), 0 if none lies ahead. Switches are resolved for this
+    /// train, so the walk follows its actual path; the edge-count guard bounds
+    /// it on rings. O(edges) worst case, run per train per tick — fine at
+    /// puzzle scale. // ponytail: cache per tick if a huge level ever shows it.
+    fn effective_priority(&self, train: &Train) -> i8 {
+        let mut edge = train.head_edge();
+        for _ in 0..=self.graph.edges.len() {
+            if let Some(sig) = self.graph.edge(edge).signal {
+                return self.graph.signals[sig.0 as usize].priority;
+            }
+            match self.continuation(train, edge) {
+                Some(next) => edge = next,
+                None => return 0,
+            }
+        }
+        0
     }
 
     fn move_train(&mut self, id: TrainId, tick: &mut TickState) {
@@ -807,11 +848,13 @@ mod tests {
                     cell: cell(0, 1),
                     at: Dir8::SE,
                     kind: SignalKind::Block,
+                    priority: 0,
                 },
                 SignalDef {
                     cell: cell(0, -1),
                     at: Dir8::NE,
                     kind: SignalKind::Block,
+                    priority: 0,
                 },
             ],
         };
@@ -897,5 +940,36 @@ mod tests {
             Outcome::Success { .. } => {}
             other => panic!("expected success, got {other:?}"),
         }
+    }
+
+    /// Same merge, same tick — but source 1's approach signal carries a higher
+    /// priority. The default lowest-id winner is overruled: t1 crosses, t0
+    /// waits. The exact mirror of `same_tick_contention_goes_to_lower_id`,
+    /// proving priority drives the `phase_movement` ordering (the contention is
+    /// resolved there, not in `phase_signal_claims`, for same-tick arrivals).
+    #[test]
+    fn higher_priority_signal_wins_same_tick_contention() {
+        let (level, mut layout) = merge_level();
+        layout
+            .signals
+            .iter_mut()
+            .find(|s| s.cell == cell(0, -1))
+            .expect("source-1 signal exists")
+            .priority = 1;
+
+        let mut sim = Sim::new(&level, &layout).expect("valid");
+        for _ in 0..13 {
+            sim.step();
+        }
+        let t0 = &sim.trains()[0];
+        let t1 = &sim.trains()[1];
+        assert_eq!(t1.path.len(), 2, "t1 (higher priority) crossed the signal");
+        assert_eq!(t1.head_dist, Len(93));
+        assert_eq!(t0.path.len(), 1, "t0 held at its signal");
+        assert_eq!(t0.head_dist, Len(707));
+        assert!(t0.waiting_since.is_some(), "t0 is registered as waiting");
+
+        let outcome = sim.run(Tick(10_000));
+        assert!(matches!(outcome, Outcome::Success { .. }), "got {outcome:?}");
     }
 }

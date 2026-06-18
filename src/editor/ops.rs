@@ -6,7 +6,7 @@
 //! (sources/sinks/schedule). Both apply through [`EditTarget`] so a single
 //! Ctrl+Z unwinds them in order — no second stack to interleave.
 
-use stellwerk_sim::grid::Cell;
+use stellwerk_sim::grid::{Cell, Dir8};
 use stellwerk_sim::layout::{Layout, SignalDef, SwitchDef, TrackPiece};
 use stellwerk_sim::level::{Level, ScheduleEntry, SinkDef, SourceDef};
 use stellwerk_sim::units::{SinkId, SourceId};
@@ -29,6 +29,15 @@ pub enum EditOp {
         cell: Cell,
         before: SwitchDef,
         after: SwitchDef,
+    },
+    /// Signal reconfigure (currently: priority). A signal is keyed by
+    /// `(cell, at)`; carries full before/after so it inverts by value like
+    /// [`Configure`](EditOp::Configure).
+    ConfigureSignal {
+        cell: Cell,
+        at: Dir8,
+        before: SignalDef,
+        after: SignalDef,
     },
     // Sandbox-only level edits. Stations carry their full
     // def so Place/Remove invert by value, like the layout `Element` ops.
@@ -101,6 +110,16 @@ fn apply(target: &mut EditTarget, op: &EditOp) {
                 *s = after.clone();
             }
         }
+        EditOp::ConfigureSignal { cell, at, after, .. } => {
+            if let Some(s) = target
+                .layout
+                .signals
+                .iter_mut()
+                .find(|s| s.cell == *cell && s.at == *at)
+            {
+                *s = *after;
+            }
+        }
         EditOp::PlaceSource(s) => target.level.sources.push(s.clone()),
         EditOp::RemoveSource(s) => remove_first(&mut target.level.sources, s),
         EditOp::PlaceSink(s) => target.level.sinks.push(s.clone()),
@@ -160,6 +179,17 @@ fn invert(op: &EditOp) -> EditOp {
             cell: *cell,
             before: after.clone(),
             after: before.clone(),
+        },
+        EditOp::ConfigureSignal {
+            cell,
+            at,
+            before,
+            after,
+        } => EditOp::ConfigureSignal {
+            cell: *cell,
+            at: *at,
+            before: *after,
+            after: *before,
         },
         EditOp::PlaceSource(s) => EditOp::RemoveSource(s.clone()),
         EditOp::RemoveSource(s) => EditOp::PlaceSource(s.clone()),
@@ -435,6 +465,47 @@ mod tests {
                 },
             ],
         );
+    }
+
+    /// ConfigureSignal applies the new priority and inverts back to the old —
+    /// keyed by (cell, at), mutating the matching signal in place.
+    #[test]
+    fn configure_signal_inverts() {
+        use stellwerk_sim::grid::Dir8;
+        use stellwerk_sim::layout::{SignalDef, SignalKind};
+        let sig = |priority: i8| SignalDef {
+            cell: Cell { x: 1, y: 0 },
+            at: Dir8::E,
+            kind: SignalKind::Block,
+            priority,
+        };
+        let mut layout = Layout {
+            signals: vec![sig(0)],
+            ..Default::default()
+        };
+        let mut level = fresh_level();
+        let op = EditOp::ConfigureSignal {
+            cell: Cell { x: 1, y: 0 },
+            at: Dir8::E,
+            before: sig(0),
+            after: sig(5),
+        };
+        apply(
+            &mut EditTarget {
+                layout: &mut layout,
+                level: &mut level,
+            },
+            &op,
+        );
+        assert_eq!(layout.signals[0].priority, 5);
+        apply(
+            &mut EditTarget {
+                layout: &mut layout,
+                level: &mut level,
+            },
+            &invert(&op),
+        );
+        assert_eq!(layout.signals[0].priority, 0);
     }
 
     #[test]

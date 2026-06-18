@@ -68,6 +68,12 @@ pub struct SignalDef {
     pub cell: Cell,
     pub at: Dir8,
     pub kind: SignalKind,
+    /// Higher = wins block contention at a merge; 0 is neutral. Defaults to 0
+    /// so older saves/levels/codes (which have no field) keep today's exact
+    /// first-come/lowest-id behaviour. `#[serde(default)]` covers RON; the
+    /// binary share codes get a versioned migration (see `stellwerk_codes`).
+    #[serde(default)]
+    pub priority: i8,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -660,6 +666,7 @@ mod tests {
             cell: cell(1, 0),
             at: Dir8::N,
             kind: SignalKind::Block,
+            priority: 0,
         });
         assert_eq!(
             validate(&level, &layout),
