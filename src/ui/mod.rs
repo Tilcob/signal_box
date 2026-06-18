@@ -18,6 +18,7 @@ mod schedule_panel;
 pub(crate) mod select;
 mod station_panel;
 mod switch_panel;
+mod toolbar;
 pub(crate) mod valerr;
 mod widgets;
 
@@ -44,6 +45,7 @@ impl Plugin for UiPlugin {
             result::ResultPlugin,
             encyclopedia::EncyclopediaPlugin,
             pause::PausePlugin,
+            toolbar::ToolbarPlugin,
         ))
         // All states: hover/press feedback for every button.
         .add_systems(Update, widgets::button_feedback);
