@@ -149,30 +149,6 @@ pub(super) fn signal_arrow(
     ]
 }
 
-/// Small priority badge next to a signal lamp — only drawn when non-zero, so
-/// neutral signals stay uncluttered. Shared by the edit and run boards.
-pub(super) fn signal_priority_label(
-    commands: &mut Commands,
-    font: &Handle<Font>,
-    cell: Cell,
-    at: Dir8,
-    priority: i8,
-    tag: Tag,
-) {
-    if priority == 0 {
-        return;
-    }
-    label(
-        commands,
-        font,
-        signal_pos(cell, at) + Vec2::new(0.0, 14.0),
-        format!("P{priority:+}"),
-        11.0,
-        col_label(),
-        tag,
-    );
-}
-
 pub(super) fn draw_layout(
     commands: &mut Commands,
     font: &Handle<Font>,
@@ -279,7 +255,6 @@ pub(super) fn draw_layout(
             tag,
         );
         signal_arrow(commands, signal.cell, signal.at, col_signal_green(), tag);
-        signal_priority_label(commands, font, signal.cell, signal.at, signal.priority, tag);
     }
 }
 
