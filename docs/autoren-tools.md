@@ -178,6 +178,12 @@ Reihenfolge beim Bauen (Details: [level-bauen.md §3](level-bauen.md#3-der-autor
 6. `cargo test` grün ([§4](level-bauen.md#4-was-grün-sein-muss))
 7. Tempo in [content-log.md](../plans/M2/content-log.md) notieren
 
+> **Bestehendes Level nachbessern:** in der Streckenwahl `SBX` neben dem Level →
+> editieren → „Speichern" überschreibt die echte `.ron` in place (mit erhaltener
+> `meta`), statt eine `_neu`-Datei anzulegen. Der Schalter **„Bau einbacken"**
+> entscheidet, ob dein Gleis als `fixed` mitgeschrieben wird. Details:
+> [level-bauen.md §3](level-bauen.md#3-der-autorenworkflow-schritt-für-schritt).
+
 > Merke: `par_suggest` **liest** (Sim-Wahrheit), `i18n_fill` **legt an**
 > (nie überschreiben). Beide sind dry-run-freundlich — `par_suggest` ohne
 > `--write`, `i18n_fill` durch seine „nie überschreiben"-Garantie.

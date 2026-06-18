@@ -19,7 +19,7 @@ use super::widgets::{
 use crate::console::ConsoleLog;
 use crate::font::UiFont;
 use crate::i18n::set_lang;
-use crate::levels::{Catalog, Progress, load_catalog};
+use crate::levels::{Catalog, Progress, SANDBOX_ID, load_catalog};
 use crate::state::{ActiveLevel, Editor, GameState};
 
 /// Chapter range matches the campaign; order steps of 10 leave room to insert.
@@ -28,11 +28,23 @@ const CHAPTER_MAX: i64 = 8;
 const ORDER_MIN: i64 = 10;
 const ORDER_MAX: i64 = 200;
 
-/// The save input that doesn't come from the numeric fields: the hard flag.
-/// (The save result is logged to the in-level console, not kept here.)
-#[derive(Resource, Default)]
+/// Toggle inputs that don't come from the numeric fields. (The save result is
+/// logged to the in-level console, not kept here.)
+#[derive(Resource)]
 struct CampaignDraft {
     hard: bool,
+    /// Fold the on-screen build into `sim.fixed` on save. On = the build
+    /// becomes pre-placed infrastructure (sandbox semantics, makes a level
+    /// valid standalone); off = only the definition is written and `fixed` is
+    /// left as authored, so a player-builds level isn't pre-solved. Reset to
+    /// on each time the edit screen opens.
+    fold: bool,
+}
+
+impl Default for CampaignDraft {
+    fn default() -> Self {
+        Self { hard: false, fold: true }
+    }
 }
 
 #[derive(Component)]
@@ -44,9 +56,25 @@ struct OrderField;
 #[derive(Component)]
 struct HardButton;
 #[derive(Component)]
+struct FoldButton;
+#[derive(Component)]
 struct SaveButton;
 #[derive(Component)]
 struct InfoText;
+
+/// When this sandbox session was opened from a real campaign level (the SBX
+/// dev button), saving overwrites THAT file with its original meta preserved,
+/// instead of minting a fresh `_neu` level. `None` = a true sandbox.
+fn overwrite_target(active: &ActiveLevel, catalog: &Catalog) -> Option<(String, LevelMeta)> {
+    if active.id == SANDBOX_ID {
+        return None;
+    }
+    catalog
+        .0
+        .iter()
+        .find(|e| e.id == active.id)
+        .map(|e| (e.id.clone(), e.meta.clone()))
+}
 
 pub(super) struct CampaignSavePlugin;
 
@@ -59,17 +87,29 @@ impl Plugin for CampaignSavePlugin {
                 Update,
                 // `save_click` after `numeric_field_focus`: clicking Save blurs
                 // the focused field, committing its typed buffer into `.value`.
-                (toggle_hard, save_click.after(numeric_field_focus), update_info)
+                (
+                    toggle_hard,
+                    toggle_fold,
+                    save_click.after(numeric_field_focus),
+                    update_info,
+                )
                     .run_if(in_state(GameState::Edit)),
             );
     }
 }
 
-fn spawn_panel(mut commands: Commands, ui_font: Res<UiFont>, active: Option<Res<ActiveLevel>>) {
+fn spawn_panel(
+    mut commands: Commands,
+    ui_font: Res<UiFont>,
+    active: Option<Res<ActiveLevel>>,
+    mut draft: ResMut<CampaignDraft>,
+) {
     // Only in the sandbox — campaign levels are not re-authored from inside.
     if !active.is_some_and(|a| a.sandbox) {
         return;
     }
+    // Predictable defaults each time the screen opens.
+    *draft = CampaignDraft::default();
     let font = ui_font.0.clone();
     commands
         .spawn((
@@ -108,6 +148,7 @@ fn spawn_panel(mut commands: Commands, ui_font: Res<UiFont>, active: Option<Res<
                     numeric_field(row, &font, ORDER_MIN, ORDER_MIN, ORDER_MAX, OrderField);
                     button(row, &font, "hart umschalten", BUTTON_BG, HardButton);
                 });
+            button(panel, &font, "Bau einbacken umschalten", BUTTON_BG, FoldButton);
             button(panel, &font, "Speichern", BUTTON_BG_PRIMARY, SaveButton);
         });
 }
@@ -121,6 +162,15 @@ fn toggle_hard(
     }
 }
 
+fn toggle_fold(
+    fold: Query<&Interaction, (Changed<Interaction>, With<FoldButton>)>,
+    mut draft: ResMut<CampaignDraft>,
+) {
+    if fold.iter().any(|i| *i == Interaction::Pressed) {
+        draft.fold = !draft.fold;
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 fn save_click(
     interactions: Query<&Interaction, (Changed<Interaction>, With<SaveButton>)>,
@@ -128,7 +178,7 @@ fn save_click(
     order: Query<&NumericField, With<OrderField>>,
     active: Option<Res<ActiveLevel>>,
     editor: Res<Editor>,
-    progress: Res<Progress>,
+    mut progress: ResMut<Progress>,
     mut catalog: ResMut<Catalog>,
     draft: Res<CampaignDraft>,
     mut log: ResMut<ConsoleLog>,
@@ -142,22 +192,36 @@ fn save_click(
     let (Ok(chapter), Ok(order)) = (chapter.single(), order.single()) else {
         return;
     };
-    // Fields are clamped to the ranges above, so the casts never truncate.
-    let chapter = chapter.value() as u8;
-    let order = order.value() as u16;
-    let id = unique_id(chapter, order);
-    let meta = LevelMeta {
-        schema_version: LEVEL_SCHEMA_VERSION,
-        chapter,
-        order,
-        optional_hard: draft.hard,
-        briefing: String::new(),
+    // Opened from a real campaign level (SBX) → overwrite that file, keeping its
+    // original meta (chapter/order/briefing). A true sandbox → mint a `_neu`
+    // level from the typed fields. Fields are clamped, so the casts never
+    // truncate.
+    let overwrite = overwrite_target(&active, &catalog);
+    let (id, meta) = match &overwrite {
+        Some((id, meta)) => (id.clone(), meta.clone()),
+        None => {
+            let chapter = chapter.value() as u8;
+            let order = order.value() as u16;
+            (
+                unique_id(chapter, order),
+                LevelMeta {
+                    schema_version: LEVEL_SCHEMA_VERSION,
+                    chapter,
+                    order,
+                    optional_hard: draft.hard,
+                    briefing: String::new(),
+                },
+            )
+        }
     };
-    // In the sandbox everything you draw IS the authored infrastructure, so
-    // fold the player build into `fixed` on export — no hand-written `fixed`
-    // block in the RON, and the source/sink anchor stubs come along for free.
+    // "Bau einbacken": fold the on-screen build into `fixed` so it becomes
+    // pre-placed infrastructure (the build's track anchors the sources/sinks).
+    // Off → write only the definition and leave `fixed` as authored, so a
+    // player-builds level isn't pre-solved.
     let mut sim = active.level.clone();
-    sim.fixed = sim.fixed.merged(&editor.layout);
+    if draft.fold {
+        sim.fixed = sim.fixed.merged(&editor.layout);
+    }
 
     match crate::authoring::write_campaign_level(&id, meta, sim.clone()) {
         Ok(path) => {
@@ -170,18 +234,24 @@ fn save_click(
             };
             set_lang(lang);
             *catalog = load_catalog();
-            // Validate the exported level with an EMPTY player layout — exactly
-            // what `tests/levels.rs` enforces. Since the build was folded into
-            // `fixed` above, a remaining error means the authored build is
-            // genuinely incomplete (e.g. a source/sink connector with no track),
-            // not just a missing fixed anchor. Surface the first one to the
-            // console (not the cramped panel) so the author can fix it.
+            // When the build was folded into `fixed` AND we overwrote the level
+            // in place, the per-level autosave now duplicates that build — drop
+            // it so re-opening via SBX doesn't stack a second copy on top.
+            if overwrite.is_some() && draft.fold {
+                progress.entry(&id).layout = stellwerk_sim::Layout::default();
+                progress.save();
+            }
+            // Validate with an EMPTY player layout — exactly what
+            // `tests/levels.rs` enforces. With the build folded in, an error
+            // means the build itself is incomplete; without folding, it likely
+            // means the authored `fixed` doesn't anchor the sources/sinks (the
+            // player is meant to). Surface the first one to the console.
             let errors = stellwerk_sim::validate(&sim, &stellwerk_sim::Layout::default());
             if errors.is_empty() {
                 log.info(format!("Gespeichert: {} · Katalog neu geladen", path.display()));
             } else {
                 log.warn(format!(
-                    "Gespeichert ({}), aber noch ungültig — Bau unvollständig: {}",
+                    "Gespeichert ({}), aber ungültig mit leerem Layout: {}",
                     path.display(),
                     errors[0]
                 ));
@@ -195,18 +265,30 @@ fn update_info(
     draft: Res<CampaignDraft>,
     chapter: Query<&NumericField, With<ChapterField>>,
     order: Query<&NumericField, With<OrderField>>,
+    active: Option<Res<ActiveLevel>>,
+    catalog: Option<Res<Catalog>>,
     mut texts: Query<&mut Text, With<InfoText>>,
 ) {
     let (Ok(chapter), Ok(order)) = (chapter.single(), order.single()) else {
         return;
     };
+    // Mirror `save_click`'s target choice so the line never lies about what
+    // "Speichern" will do.
+    let overwrite = match (active.as_ref(), catalog.as_ref()) {
+        (Some(a), Some(c)) => overwrite_target(a, c),
+        _ => None,
+    };
+    let target = match overwrite {
+        Some((id, _)) => format!("überschreibt {id}.ron"),
+        None => format!("neu: {}.ron", preview_id(chapter.value() as u8, order.value() as u16)),
+    };
     if let Ok(mut text) = texts.single_mut() {
-        let id = preview_id(chapter.value() as u8, order.value() as u16);
         let hard = if draft.hard { "an" } else { "aus" };
+        let fold = if draft.fold { "an" } else { "aus" };
         set_text(
             &mut text,
             format!(
-                "Kapitel: {} · Order: {} · hart: {hard} · id≈{id}",
+                "Kapitel: {} · Order: {} · hart: {hard} · einbacken: {fold} · {target}",
                 chapter.value(),
                 order.value()
             ),

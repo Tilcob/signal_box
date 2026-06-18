@@ -151,20 +151,39 @@ mit Beispielen: [autoren-tools.md](autoren-tools.md).
    Klick auf einen Block hebt ihn wieder auf), Fahrplan unten links (**+ ZUG**,
    dann Zyklus-Knöpfe je Zeile), Gleisidee ziehen.
    ⚠️ **Was wo landet:** Das gezeichnete Gleis ist der **Spieler-Build**
-   (= spätere Lösung), nicht die Level-Infrastruktur. Als Level gespeichert wird
-   nur die **Definition** (`buildable`, `sources`, `sinks`, `schedule` und ein
-   *leeres* `fixed`). Vorplatzierte Designer-Gleise (`fixed`) trägst du
-   nachträglich in der `.ron` ein. Eine **Sperre** (`5`) ist kein eigenes Feld:
-   sie nimmt die Zelle aus `buildable` heraus — gespeichert wird das Feld
-   **minus** der gesperrten Zellen. Ein Block *innerhalb* des Felds wird als
-   dunkle Kachel gezeigt; sperrt man eine ganze Randreihe, schrumpft das Feld.
+   (= spätere Lösung). Ob es als Level-Infrastruktur (`fixed`) gespeichert wird,
+   entscheidet der Schalter **„Bau einbacken"** im Speichern-Panel (Schritt 2):
+   **an** backt den Build in `fixed` ein, **aus** schreibt nur die **Definition**
+   (`buildable`, `sources`, `sinks`, `schedule`) und lässt `fixed` unverändert —
+   dann trägst du vorplatzierte Designer-Gleise nachträglich in der `.ron` ein.
+   Eine **Sperre** (`5`) ist kein eigenes Feld: sie nimmt die Zelle aus
+   `buildable` heraus — gespeichert wird das Feld **minus** der gesperrten Zellen.
+   Ein Block *innerhalb* des Felds wird als dunkle Kachel gezeigt; sperrt man eine
+   ganze Randreihe, schrumpft das Feld.
 2. **„DEV: Als Kampagnen-Level speichern"** (Panel unten rechts im Sandbox-
-   Editor): `Kapitel` / `Order` in die Zahlenfelder eingeben, `hart umschalten`
-   togglen — die id wird
-   generiert (`k<kap>_<order>_neu`, de-dupliziert) und als `id≈…` vorab gezeigt.
-   **Speichern** schreibt `assets/levels/<id>.ron` (gefüllter `meta`-Block +
-   Sandbox-`sim`), legt Platzhalter-i18n-Keys in **beide** Tabellen an und lädt
-   den Katalog neu.
+   Editor). Eingaben: `Kapitel` / `Order` (Zahlenfelder), `hart umschalten` und
+   **`Bau einbacken umschalten`**. Die Info-Zeile zeigt **live**, was
+   **Speichern** tun wird (z. B. `… · einbacken: an · überschreibt k1_06_test.ron`).
+
+   **Wohin gespeichert wird — zwei Fälle:**
+   - **Aus NEUE SANDBOX** (echte Sandbox): neue Datei `k<kap>_<order>_neu.ron`
+     (id generiert, de-dupliziert), `meta` aus den Feldern, `briefing` leer.
+   - **Aus `SBX`** (bestehendes Level zum Bearbeiten geöffnet, s.
+     [Dev-Knöpfe](#dev-knöpfe-in-der-streckenwahl-nur-dev-build)):
+     **überschreibt genau diese Datei**. Die **Original-`meta`**
+     (`chapter`/`order`/`optional_hard`/`briefing`) bleibt erhalten — die
+     Zahlenfelder und `hart` werden in diesem Fall **ignoriert**.
+
+   **`Bau einbacken`** steuert das gezeichnete Gleis:
+   - **an** (Default): Build → `sim.fixed` (vorplatzierte Infrastruktur; das
+     Level wird standalone gültig, weil die Gleise Quellen/Senken verankern).
+   - **aus**: nur die Definition wird geschrieben, `fixed` bleibt unverändert —
+     dein Build bleibt deine private Lösung. Für ein „Spieler baut selbst"-Level
+     willst du das.
+
+   Speichern legt zusätzlich fehlende Platzhalter-i18n-Keys in **beide** Tabellen
+   an, lädt den Katalog neu und validiert mit leerem Layout (die In-Level-Konsole
+   meldet, falls das Level so noch ungültig ist).
 3. **(Optional) Datei feilen** in `assets/levels/<id>.ron`:
    - **id umbenennen** auf den endgültigen Stamm (`kN_MM_kurzname`) — **jetzt**,
      denn der Stamm ist der stabile Schlüssel (s. [§1](#1-wo-level-leben-und-wie-sie-heißen)).
@@ -192,6 +211,11 @@ mit Beispielen: [autoren-tools.md](autoren-tools.md).
 
 ### Dev-Knöpfe in der Streckenwahl (nur dev-Build)
 
+- **`SBX`** neben jedem Level — öffnet **dieses** Kampagnen-Level im
+  Sandbox-Editor (die ganze Definition wird editierbar). „Speichern" überschreibt
+  dann **die echte Level-Datei** unter ihrer id mit erhaltener `meta`
+  (s. Schritt 2), statt eine `_neu`-Datei anzulegen — der In-Place-Weg zum
+  Nachbessern eines bestehenden Levels.
 - **`DEL`** neben jedem Level — löscht **dieses** Level komplett: `.ron`,
   Solutions, i18n-Keys, Fortschritt (keine Waisen).
 - **`DEV: ALLE Level löschen`** — wie oben für alle, mit **Zwei-Klick-
@@ -235,7 +259,15 @@ cargo test
   `meta.order` ändern.
 - **Werkzeug-geschriebene `.ron` sieht anders aus** (`Tick(60)` statt `60`,
   `Some(…)`) → Absicht: serde-RON schreibt die gewickelte Form **ohne** den
-  `#![enable(…)]`-Header. Parst identisch; bei Bedarf von Hand angleichen.
+  `#![enable(…)]`-Header. Parst identisch; bei Bedarf von Hand angleichen. Das
+  **Überschreiben via `SBX`** schreibt die Datei ebenso neu — handgeschriebene
+  Kommentare gehen dabei verloren (die `meta`-/`sim`-**Werte** bleiben).
+- **`SBX` + `Bau einbacken` + erneutes Öffnen:** beim Überschreiben mit
+  eingebackenem Build wird der per-Level-Autosave geleert (sonst zeigte ein
+  erneutes `SBX` den Build doppelt: einmal in `fixed`, einmal aus dem Autosave).
+  Startest du nach dem Speichern denselben Run, sichert `start_run` den Build
+  wieder — dann kann ein erneutes `SBX` die Duplikate zurückbringen. Im Ablauf
+  „öffnen → bearbeiten → speichern → verlassen" tritt das nicht auf.
 - **`cargo run` „could not determine which binary"** → sollte nicht auftreten
   (`default-run = "signal_box"` ist gesetzt). Sonst `cargo run --bin signal_box`;
   die Werkzeuge brauchen `--bin par_suggest` / `--bin i18n_fill`.

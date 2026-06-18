@@ -171,6 +171,32 @@ pub(super) fn pointer(
         return;
     }
 
+    // Erase: a held drag wipes every cell the cursor crosses; a plain click is
+    // a one-cell stroke. Like Track and Block it collects a path and applies it
+    // as one undo step.
+    if editor.tool == Tool::Erase {
+        if buttons.just_pressed(MouseButton::Left) && !over_ui {
+            editor.bypass_change_detection().drag = Some(vec![cell]);
+        }
+        if buttons.pressed(MouseButton::Left) {
+            let bypass = editor.bypass_change_detection();
+            if let Some(path) = &mut bypass.drag
+                && path.last() != Some(&cell)
+            {
+                path.push(cell);
+            }
+        }
+        if buttons.just_released(MouseButton::Left) {
+            let path = editor
+                .bypass_change_detection()
+                .drag
+                .take()
+                .unwrap_or_default();
+            apply_erase_stroke(&mut editor, &mut active, &path, cursor);
+        }
+        return;
+    }
+
     if !buttons.just_pressed(MouseButton::Left) || over_ui {
         return;
     }
@@ -267,7 +293,7 @@ pub(super) fn pointer(
         // Sandbox case returns early above; outside the sandbox the tool is
         // unreachable (its hotkey is sandbox-gated).
         Tool::Block => {}
-        Tool::Erase => erase_at(&mut editor, &mut active, cell, cursor),
+        Tool::Erase => unreachable!("handled above"),
         Tool::Select => {
             // Switch takes precedence (a switch cell holds no signal); otherwise
             // pick the signal at the connector nearest the cursor, then any on
@@ -391,17 +417,19 @@ fn apply_block_stroke(editor: &mut Editor, level: &mut Level, merged: &Layout, p
     }
 }
 
-/// Removal priority: (sandbox: source/sink at the connector) → signal at the
-/// nearest connector → switch → piece. Designer track is untouchable.
-fn erase_at(editor: &mut Editor, active: &mut ActiveLevel, cell: Cell, cursor: Vec2) {
-    let at = board::nearest_connector(cell, cursor);
+/// The op that erases the topmost element at `(cell, at)`, in priority order:
+/// (sandbox: block → source → sink at the connector) → signal at the connector
+/// → switch → piece. `None` if the cell holds nothing erasable. Pure — reads
+/// state and builds the op so both a click and a drag stroke can collect ops
+/// and apply them as one undo step. Designer track lives in `level.fixed`,
+/// never in `editor.layout`, so it can never be returned here: untouchable.
+fn erase_op(editor: &Editor, active: &ActiveLevel, cell: Cell, at: Dir8) -> Option<EditOp> {
     if active.sandbox {
         // A sandbox block holds nothing else (blocking requires the cell empty),
         // so erasing it just restores buildability. Sandbox only: a campaign
         // level's non-buildable cells are its authored shape, not blocks.
         if board::is_blocked(&active.level.buildable, cell) {
-            do_op(editor, &mut active.level, EditOp::SetBuildable { cell, on: true });
-            return;
+            return Some(EditOp::SetBuildable { cell, on: true });
         }
         if let Some(source) = active
             .level
@@ -410,8 +438,7 @@ fn erase_at(editor: &mut Editor, active: &mut ActiveLevel, cell: Cell, cursor: V
             .find(|s| s.cell == cell && s.dir == at)
             .cloned()
         {
-            do_op(editor, &mut active.level, EditOp::RemoveSource(source));
-            return;
+            return Some(EditOp::RemoveSource(source));
         }
         if let Some(sink) = active
             .level
@@ -437,8 +464,7 @@ fn erase_at(editor: &mut Editor, active: &mut ActiveLevel, cell: Cell, cursor: V
                 .collect();
             ops.reverse();
             ops.push(EditOp::RemoveSink(sink));
-            do_op(editor, &mut active.level, EditOp::Group(ops));
-            return;
+            return Some(EditOp::Group(ops));
         }
     }
     if let Some(signal) = editor
@@ -449,34 +475,51 @@ fn erase_at(editor: &mut Editor, active: &mut ActiveLevel, cell: Cell, cursor: V
         .or_else(|| editor.layout.signals.iter().find(|s| s.cell == cell))
         .copied()
     {
-        // Drop the selection if it pointed at this signal, else the panel would
-        // linger on a removed signal (mirrors the switch reset below).
-        if editor.selected_signal == Some((signal.cell, signal.at)) {
-            editor.selected_signal = None;
-        }
-        do_op(editor, &mut active.level, EditOp::Remove(Element::Signal(signal)));
-        return;
+        return Some(EditOp::Remove(Element::Signal(signal)));
     }
-    if let Some(switch) = editor
-        .layout
-        .switches
-        .iter()
-        .find(|s| s.cell == cell)
-        .cloned()
-    {
-        if editor.selected_switch == Some(cell) {
-            editor.selected_switch = None;
-        }
-        do_op(editor, &mut active.level, EditOp::Remove(Element::Switch(switch)));
-        return;
+    if let Some(switch) = editor.layout.switches.iter().find(|s| s.cell == cell).cloned() {
+        return Some(EditOp::Remove(Element::Switch(switch)));
     }
-    if let Some(piece) = editor
-        .layout
-        .pieces
-        .iter()
-        .find(|p| p.cell == cell)
-        .copied()
-    {
-        do_op(editor, &mut active.level, EditOp::Remove(Element::Piece(piece)));
+    if let Some(piece) = editor.layout.pieces.iter().find(|p| p.cell == cell).copied() {
+        return Some(EditOp::Remove(Element::Piece(piece)));
+    }
+    None
+}
+
+/// Erase stroke shared by click and drag. A click is a one-cell stroke using
+/// the actual `cursor` (so the connector-nearest signal is targeted precisely);
+/// a multi-cell drag uses each cell's center connector. One element per cell, in
+/// the same priority order as a click — wipe again to peel a second layer. The
+/// whole stroke is one undo step (mirrors Track/Block).
+fn apply_erase_stroke(editor: &mut Editor, active: &mut ActiveLevel, path: &[Cell], cursor: Vec2) {
+    let single = path.len() == 1;
+    let mut ops = Vec::new();
+    let mut seen = std::collections::BTreeSet::new();
+    for &cell in path {
+        if !seen.insert(cell) {
+            continue;
+        }
+        let pos = if single { cursor } else { board::cell_world(cell) };
+        let at = board::nearest_connector(cell, pos);
+        let Some(op) = erase_op(editor, active, cell, at) else {
+            continue;
+        };
+        // Drop a selection that pointed at a now-erased element, else its panel
+        // lingers on something gone (mirrors the old single-click reset).
+        match &op {
+            EditOp::Remove(Element::Signal(s)) if editor.selected_signal == Some((s.cell, s.at)) => {
+                editor.selected_signal = None;
+            }
+            EditOp::Remove(Element::Switch(s)) if editor.selected_switch == Some(s.cell) => {
+                editor.selected_switch = None;
+            }
+            _ => {}
+        }
+        ops.push(op);
+    }
+    match ops.len() {
+        0 => {}
+        1 => do_op(editor, &mut active.level, ops.pop().expect("len 1")),
+        _ => do_op(editor, &mut active.level, EditOp::Group(ops)),
     }
 }
