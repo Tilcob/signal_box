@@ -72,7 +72,8 @@ Die `par:`-Zeile in `assets/levels/k4_04_rangierfahrt.ron` steht jetzt auf
 Nach einer Bau-Session über mehrere Level einmal alles prüfen. Legst du neben
 `solutions/k2_04_ueberholung.ron` (durchsatz-optimal) noch
 `solutions/k2_04_ueberholung__material.ron` (material-sparsam) ab, nimmt
-`par_suggest` **je Achse das Beste aus beiden**:
+`par_suggest` **je Achse das Beste aus beiden** (wie man solche Varianten
+anlegt: [alternative-loesungen.md](alternative-loesungen.md)):
 
 ```sh
 $ cargo run --bin par_suggest
