@@ -47,7 +47,7 @@ du liest ab, was eine echte Lösung schafft.
 ### Beispiel 1 — frisches Level: Par ablesen, dann schreiben
 
 Du hast `k4_04_rangierfahrt.ron` angelegt (Par noch Platzhalter `0,0,0`) und
-über „DEV: Lösung sichern" eine Lösung abgelegt. Erst ansehen:
+über „DEV: Haupt" eine Lösung abgelegt. Erst ansehen:
 
 ```sh
 $ cargo run --bin par_suggest -- k4_04_rangierfahrt
@@ -173,7 +173,7 @@ Reihenfolge beim Bauen (Details: [level-bauen.md §3](level-bauen.md#3-der-autor
 
 1. In Sandbox entwerfen → „DEV: Als Kampagnen-Level speichern"
 2. Datei feilen (id, `fixed`, `briefing`)
-3. Lösung bauen → „DEV: Lösung sichern"
+3. Lösung bauen → „DEV: Haupt" (Achsen-Varianten: „DEV: +material/+durchsatz/+pünktlich")
 4. **`par_suggest`** → Par scharfstellen
 5. **`i18n_fill`** → Text-Keys ergänzen, dann `[TODO]` übersetzen
 6. `cargo test` grün ([§4](level-bauen.md#4-was-grün-sein-muss))

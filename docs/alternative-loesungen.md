@@ -103,33 +103,41 @@ simuliert.
 
 ## 3. Schritt für Schritt: eine Variante anlegen
 
-**Der Knackpunkt:** Der Knopf **„DEV: Lösung sichern"** im Ergebnis-Screen
-schreibt **immer** die primäre `solutions/<id>.ron` — er überschreibt sie bei
-jedem Klick. Es gibt **keine** Oberfläche, um direkt eine `__variante` zu
-benennen. Varianten entstehen also durch **Umbenennen auf der Platte** zwischen
-zwei Speichervorgängen.
+Der Ergebnis-Screen bietet (im dev-Build, nur bei Erfolg) **vier** Speicher-Knöpfe.
+Du entscheidest beim Klick, in welche Datei der Build wandert — **kein Umbenennen
+auf der Platte** mehr:
 
-So legst du eine zweite (dritte, …) Lösung an:
+| Knopf | schreibt |
+|---|---|
+| **DEV: Haupt** | `solutions/<id>.ron` (primäre Lösung) |
+| **DEV: +material** | `solutions/<id>__material.ron` |
+| **DEV: +durchsatz** | `solutions/<id>__durchsatz.ron` |
+| **DEV: +pünktlich** | `solutions/<id>__puenktlich.ron` |
+
+Die drei Varianten-Knöpfe sind nach den drei Par-Achsen benannt — genau der
+übliche Fall „eine Lösung je Achsen-Optimum" (§1). **Erneutes Klicken desselben
+Knopfes überschreibt gezielt diese eine Datei** — so iterierst du an einer Achse
+weiter, ohne Karteileichen anzulegen. Nach jedem Speichern listet die Status-Zeile
+die vorhandenen Lösungen des Levels (`Gesichert: … — Lösungen: <id>, <id>__material, …`),
+damit ein Überschreiben sichtbar ist.
+
+So legst du mehrere Lösungen an:
 
 1. **Erste Lösung bauen.** Level öffnen, Strecke nach Strategie A bauen,
-   **START**. Bei Erfolg im Ergebnis-Screen **„DEV: Lösung sichern"**.
-   → schreibt `assets/levels/solutions/<id>.ron`.
-2. **Umbenennen.** In `assets/levels/solutions/` die eben geschriebene
-   `<id>.ron` umbenennen auf `<id>__<name>.ron`, z. B.
-   `k2_04_ueberholung__durchsatz.ron`. Damit ist Strategie A „weggeräumt" und
-   der primäre Slot wieder frei.
-3. **Zweite Lösung bauen.** Dasselbe Level erneut öffnen, Strecke nach
+   **START**. Bei Erfolg den passenden Knopf drücken — z. B. **DEV: Haupt** für
+   die schnelle Hauptlösung.
+2. **Zweite Lösung bauen.** Dasselbe Level erneut öffnen, Strecke nach
    Strategie B bauen (anderer Kompromiss — z. B. weniger Gleis), **START**, bei
-   Erfolg wieder **„DEV: Lösung sichern"**.
-   → schreibt eine **frische** `<id>.ron`.
-4. **Wiederholen.** Für jede weitere Variante: Schritt 2 (umbenennen) + Schritt 3
-   (neu bauen & sichern). Optional auch die letzte primäre `<id>.ron` noch in
-   `…__name.ron` umbenennen — fürs Tooling ist es egal, ob die Bestwerte aus
-   `<id>.ron` oder aus Varianten kommen; die primäre Datei ist **nicht**
-   zwingend (eine Variante allein erfüllt `par_proof` bereits).
+   Erfolg den Knopf der passenden Achse drücken — z. B. **DEV: +material**.
+3. **Wiederholen.** Für jede weitere Achse derselbe Ablauf. Die primäre `<id>.ron`
+   ist **nicht** zwingend — fürs Tooling ist egal, ob ein Bestwert aus `<id>.ron`
+   oder aus einer Variante stammt; eine Variante allein erfüllt `par_proof` schon.
 
-> Vergisst du Schritt 2, **überschreibt** der zweite Speicher-Klick deine erste
-> Lösung — sie ist dann weg. Erst umbenennen, dann neu sichern.
+> **Etiketten jenseits der drei Achsen:** Der `__name`-Teil ist auf Datei-Ebene
+> frei (§2, „Der Namens-Vertrag"). Brauchst du einen anderen Namen
+(`__nachtsprung` o. ä.), benenne
+> die Datei nach dem Speichern von Hand um — die drei Knöpfe decken nur den
+> Achsen-Standardfall ab.
 
 ---
 
@@ -187,8 +195,11 @@ Zwei Wege, dieselbe Wahrheit (beide nutzen exakt die obige Datei-Matching-Regel)
 
 ## 6. Stolperfallen
 
-- **Zweimal sichern ohne Umbenennen** → der zweite Klick überschreibt die erste
-  Lösung. Reihenfolge: bauen → sichern → **umbenennen** → neu bauen → sichern.
+- **Falscher Knopf** → der gewählte Knopf überschreibt **seine** Datei (derselbe
+  Achsen-Knopf zweimal = gewolltes Iterieren; **DEV: Haupt** überschreibt immer
+  die primäre `<id>.ron`). Zwei verschiedene Strategien also auf **zwei
+  verschiedene** Knöpfe legen — die Status-Zeile zeigt nach dem Speichern, welche
+  Dateien existieren.
 - **Einfacher statt doppelter Unterstrich** (`<id>_name.ron`) → still ignoriert,
   trägt nichts bei. Immer `<id>__name.ron`.
 - **Variante scheitert** (erreicht keine Senke, Timeout) → `par_proof` wird rot;

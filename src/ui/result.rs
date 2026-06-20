@@ -29,11 +29,16 @@ enum ResultAction {
     ExportCode,
 }
 
-/// Dev authoring: saves the just-succeeded build straight
-/// into `solutions/<id>.ron` — no export/import detour.
+/// Dev authoring: which solution file the just-succeeded build is saved to.
+/// `Main` is the primary `solutions/<id>.ron`; `Axis` is a per-par-axis variant
+/// `solutions/<id>__<name>.ron` (so `par_proof` can take each axis's best from
+/// the matching build). Re-saving the same choice overwrites that one file.
 #[cfg(feature = "dev")]
-#[derive(Component)]
-struct SaveSolutionButton;
+#[derive(Component, Clone, Copy)]
+enum SaveSolution {
+    Main,
+    Axis(&'static str),
+}
 
 pub(super) struct ResultPlugin;
 
@@ -153,16 +158,18 @@ fn spawn_result(
                     BUTTON_BG,
                     ResultAction::LevelSelect,
                 );
-                // Dev authoring: stash the winning build as a designer solution.
+                // Dev authoring: stash the winning build as the primary solution
+                // or as a per-axis variant — pick at save time, no disk renames.
                 #[cfg(feature = "dev")]
                 if success && !active.sandbox {
-                    button(
-                        row,
-                        &font,
-                        "DEV: Lösung sichern",
-                        BUTTON_BG,
-                        SaveSolutionButton,
-                    );
+                    button(row, &font, "DEV: Haupt", BUTTON_BG, SaveSolution::Main);
+                    for (label, name) in [
+                        ("DEV: +material", "material"),
+                        ("DEV: +durchsatz", "durchsatz"),
+                        ("DEV: +pünktlich", "puenktlich"),
+                    ] {
+                        button(row, &font, label, BUTTON_BG, SaveSolution::Axis(name));
+                    }
                 }
             });
             root.spawn((text_bundle(&font, String::new(), 14.0, TEXT_DIM), StatusText));
@@ -284,20 +291,32 @@ fn result_clicks(
 
 #[cfg(feature = "dev")]
 fn save_solution_click(
-    interactions: Query<&Interaction, (Changed<Interaction>, With<SaveSolutionButton>)>,
+    interactions: Query<(&Interaction, &SaveSolution), Changed<Interaction>>,
     active: Option<Res<ActiveLevel>>,
     editor: Res<Editor>,
     mut status_texts: Query<&mut Text, With<StatusText>>,
 ) {
-    if !interactions.iter().any(|i| *i == Interaction::Pressed) {
-        return;
-    }
     let Some(active) = active else { return };
-    let msg = match crate::authoring::write_solution(&active.id, None, &editor.layout) {
-        Ok(path) => format!("Designer-Lösung gesichert: {}", path.display()),
-        Err(e) => format!("Sichern fehlgeschlagen: {e}"),
-    };
-    if let Ok(mut text) = status_texts.single_mut() {
-        text.0 = msg;
+    for (interaction, choice) in &interactions {
+        if *interaction != Interaction::Pressed {
+            continue;
+        }
+        let variant = match choice {
+            SaveSolution::Main => None,
+            SaveSolution::Axis(name) => Some(*name),
+        };
+        let msg = match crate::authoring::write_solution(&active.id, variant, &editor.layout) {
+            // List what's on disk now, so an overwrite (or a forgotten variant)
+            // is visible at a glance instead of a silent clobber.
+            Ok(path) => format!(
+                "Gesichert: {} — Lösungen: {}",
+                path.display(),
+                crate::authoring::list_solutions(&active.id).join(", "),
+            ),
+            Err(e) => format!("Sichern fehlgeschlagen: {e}"),
+        };
+        if let Ok(mut text) = status_texts.single_mut() {
+            text.0 = msg;
+        }
     }
 }

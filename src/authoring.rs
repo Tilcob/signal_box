@@ -49,6 +49,25 @@ pub fn write_solution(id: &str, variant: Option<&str>, layout: &Layout) -> Resul
     Ok(path)
 }
 
+/// The solution file stems on disk that belong to `id`: the primary `<id>` and
+/// every `<id>__variant`, sorted. Same match rule as [`delete_level`] and the
+/// `par_proof`/`par_suggest` tools. For showing the dev what exists after a
+/// save, so an overwrite is never a silent surprise. Empty if the dir is gone.
+pub fn list_solutions(id: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    if let Ok(rd) = std::fs::read_dir(solutions_dir()) {
+        for e in rd.flatten() {
+            if let Some(stem) = e.path().file_stem().and_then(|s| s.to_str())
+                && (stem == id || stem.starts_with(&format!("{id}__")))
+            {
+                out.push(stem.to_string());
+            }
+        }
+    }
+    out.sort();
+    out
+}
+
 /// Tool 1 — write a sandbox build out as a campaign level
 /// (`assets/levels/<id>.ron`) and seed placeholder i18n keys for its name,
 /// briefing and station labels in BOTH tables. The caller reloads the live

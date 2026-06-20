@@ -190,10 +190,11 @@ mit Beispielen: [autoren-tools.md](autoren-tools.md).
      Danach Schritt 6 (`i18n_fill`) neu laufen lassen, alte Keys entfernen.
    - `briefing` füllen, ggf. `fixed`-Gleise eintragen.
 4. **Lösung bauen & sichern.** Streckenwahl → neues Level öffnen → Lösung
-   bauen → **START**. Bei **Erfolg** im Ergebnis-Screen **„DEV: Lösung sichern"**
-   → schreibt `assets/levels/solutions/<id>.ron`. Achsen-Varianten legst du als
-   `…__material.ron` o. ä. von Hand ab — die ausführliche Anleitung dazu (warum
-   und wie) steht in [alternative-loesungen.md](alternative-loesungen.md).
+   bauen → **START**. Bei **Erfolg** im Ergebnis-Screen **„DEV: Haupt"**
+   → schreibt `assets/levels/solutions/<id>.ron`. Achsen-Varianten legst du
+   direkt über die Knöpfe **„DEV: +material/+durchsatz/+pünktlich"** ab — die
+   ausführliche Anleitung dazu (warum und wie) steht in
+   [alternative-loesungen.md](alternative-loesungen.md).
 5. **Par scharfstellen** (CLI):
    ```sh
    cargo run --bin par_suggest                # Dry-run: erreichte Werte zeigen

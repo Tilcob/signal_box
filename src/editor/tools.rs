@@ -326,9 +326,13 @@ fn next_id(used: impl Iterator<Item = u32>) -> u32 {
 }
 
 /// Interior cells of the drag path get the piece connecting entry and exit
-/// direction; start/end cells stay open (drags begin/end on existing track).
-/// Returns `true` when at least one piece was actually placed (so the caller
-/// can play the build sound only on a real placement, not an empty/blocked drag).
+/// direction; the two endpoints (each knows only one drag direction) get a
+/// straight piece along it, so a free draw is continuous from the very first
+/// cell. An endpoint that sits on existing track (a source/sink anchor) makes
+/// the straight clash, so it is skipped and the cell is left to its existing
+/// piece — the anchor→anchor campaign drag is unchanged. Returns `true` when at
+/// least one piece was actually placed (so the caller plays the build sound
+/// only on a real placement, not an empty/blocked drag).
 fn finish_track_drag(editor: &mut Editor, level: &mut Level, merged: &Layout, path: &[Cell]) -> bool {
     let dir_between = |from: Cell, to: Cell| -> Option<Dir8> {
         let delta = (to.x - from.x, to.y - from.y);
@@ -361,6 +365,32 @@ fn finish_track_drag(editor: &mut Editor, level: &mut Level, merged: &Layout, pa
         }
         placed.push(piece);
         ops.push(EditOp::Place(Element::Piece(piece)));
+    }
+
+    // The windows(3) pass never makes the endpoints a `cur`, so they stay empty.
+    // Give each a straight piece along its single drag direction. The same
+    // `can_place_piece` gate as above rejects it when the cell already carries
+    // track (an anchor), so anchor-started drags are unchanged.
+    if path.len() >= 2 {
+        for (cell, toward) in [
+            (path[0], path[1]),
+            (path[path.len() - 1], path[path.len() - 2]),
+        ] {
+            let Some(dir) = dir_between(cell, toward) else {
+                continue; // cursor jumped — no single-step direction
+            };
+            let opp = dir.opposite();
+            let (a, b) = if dir.index() <= opp.index() { (dir, opp) } else { (opp, dir) };
+            let piece = TrackPiece { cell, a, b };
+            let drag_conflict = placed
+                .iter()
+                .any(|p| p.cell == cell && [p.a, p.b].iter().any(|d| *d == a || *d == b));
+            if !can_place_piece(level, merged, &piece) || drag_conflict {
+                continue;
+            }
+            placed.push(piece);
+            ops.push(EditOp::Place(Element::Piece(piece)));
+        }
     }
 
     if ops.is_empty() && path.len() == 1 {
@@ -525,5 +555,54 @@ fn apply_erase_stroke(editor: &mut Editor, active: &mut ActiveLevel, path: &[Cel
         0 => {}
         1 => do_op(editor, &mut active.level, ops.pop().expect("len 1")),
         _ => do_op(editor, &mut active.level, EditOp::Group(ops)),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use stellwerk_sim::level::Par;
+    use stellwerk_sim::units::Tick;
+
+    fn buildable_row(n: i32) -> Level {
+        Level {
+            name: String::new(),
+            buildable: (0..n).map(|x| Cell { x, y: 0 }).collect(),
+            fixed: Layout::default(),
+            sources: Vec::new(),
+            sinks: Vec::new(),
+            schedule: Vec::new(),
+            par: Par { throughput: Tick(0), material: 0, lateness: 0 },
+        }
+    }
+
+    fn row(xs: &[i32]) -> Vec<Cell> {
+        xs.iter().map(|&x| Cell { x, y: 0 }).collect()
+    }
+
+    /// Free draw over empty buildable cells fills EVERY crossed cell, including
+    /// the first and last — the old gap at the drag start is closed.
+    #[test]
+    fn free_drag_fills_both_endpoints() {
+        let mut editor = Editor::default();
+        let mut level = buildable_row(4);
+        assert!(finish_track_drag(&mut editor, &mut level, &Layout::default(), &row(&[0, 1, 2, 3])));
+        let mut xs: Vec<i32> = editor.layout.pieces.iter().map(|p| p.cell.x).collect();
+        xs.sort();
+        assert_eq!(xs, vec![0, 1, 2, 3], "start and end cells get a piece too");
+    }
+
+    /// A drag starting on existing track (an anchor) leaves that cell to the
+    /// anchor — the straight clashes and is skipped, so the campaign
+    /// anchor→anchor flow is unchanged. The far (empty) endpoint still fills.
+    #[test]
+    fn drag_skips_endpoint_on_existing_track() {
+        let mut editor = Editor::default();
+        let mut level = buildable_row(4);
+        level.fixed.pieces.push(TrackPiece { cell: Cell { x: 0, y: 0 }, a: Dir8::W, b: Dir8::E });
+        let merged = level.fixed.merged(&editor.layout);
+        finish_track_drag(&mut editor, &mut level, &merged, &row(&[0, 1, 2, 3]));
+        assert!(!editor.layout.pieces.iter().any(|p| p.cell.x == 0), "anchored start left open");
+        assert!(editor.layout.pieces.iter().any(|p| p.cell.x == 3), "empty end still filled");
     }
 }
