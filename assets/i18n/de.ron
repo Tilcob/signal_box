@@ -164,4 +164,6 @@
     "level.k1_01_erste_gleise.briefing": "Lege die ersten Gleise und verbinde Start und Ziel. Du kannst die Gleise auch wieder entfernen, wenn du sie falsch gelegt hast.",
     "level.k1_01_erste_gleise.name": "1.1 Erste Gleise",
     "station.Start": "Start",
+    "level.k1_02_kurvige_strecke.name": "1.2 Kurvige Strecke",
+    "level.k1_02_kurvige_strecke.briefing": "Sie müssen die Züge durch eine kurvige Strecke von Süden nach Norden fahren lassen. Dann können Sie sich 'Kurven-Meister' nennen.",
 }

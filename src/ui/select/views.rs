@@ -248,10 +248,18 @@ pub(super) fn dev_open_sandbox(
             continue;
         }
         let entry = &catalog.0[btn.0];
+        // SBX = re-author this level: lift its authored track out of `fixed`
+        // into the editable player layout so it can be erased/reconfigured
+        // (otherwise `fixed` is untouchable — see `erase_op`). "Bau einbacken"
+        // (default on, forced for SBX) folds it back into `fixed` on save. The
+        // merged total is unchanged everywhere (MergedLayout/validate/graph/run
+        // all merge fixed+player), so gating, diagnostics and runs behave the same.
+        let mut level = entry.level.clone();
+        let authored = std::mem::take(&mut level.fixed);
         enter_level(
             btn.0,
             entry.id.clone(),
-            entry.level.clone(),
+            level,
             entry.meta.briefing.clone(),
             true,
             &progress,
@@ -259,5 +267,9 @@ pub(super) fn dev_open_sandbox(
             &mut editor,
             &mut next,
         );
+        // enter_level seeded `layout` from the per-level autosave; for authoring
+        // the authored track IS the working set (ignoring the play autosave also
+        // sidesteps the old fixed-vs-autosave duplication).
+        editor.layout = authored;
     }
 }

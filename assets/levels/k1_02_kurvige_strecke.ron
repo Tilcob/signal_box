@@ -2,131 +2,115 @@
     meta: (
         schema_version: 1,
         chapter: 1,
-        order: 10,
+        order: 20,
         optional_hard: false,
-        briefing: "Lege die ersten Gleise und verbinde Start und Ziel. Du kannst die Gleise auch wieder entfernen, wenn du sie falsch gelegt hast.",
+        briefing: "Sie müssen die Züge durch eine kurvige Strecke von Süden nach Norden fahren lassen. Dann können Sie sich \'Kurven-Meister\' nennen.",
     ),
     sim: (
-        name: "1.1 Erste Gleise",
+        name: "1.2 Kurvige Strecke",
         buildable: [
             (
-                x: -6,
-                y: -1,
-            ),
-            (
-                x: -6,
-                y: 0,
-            ),
-            (
-                x: -6,
-                y: 1,
-            ),
-            (
-                x: -5,
-                y: -1,
-            ),
-            (
-                x: -5,
-                y: 0,
-            ),
-            (
-                x: -5,
-                y: 1,
-            ),
-            (
-                x: -4,
-                y: -1,
-            ),
-            (
-                x: -4,
-                y: 0,
-            ),
-            (
-                x: -3,
-                y: -1,
-            ),
-            (
-                x: -3,
-                y: 0,
-            ),
-            (
-                x: -2,
-                y: 0,
-            ),
-            (
                 x: -1,
-                y: 0,
+                y: -1,
+            ),
+            (
+                x: 0,
+                y: -7,
+            ),
+            (
+                x: 0,
+                y: -6,
+            ),
+            (
+                x: 0,
+                y: -5,
+            ),
+            (
+                x: 0,
+                y: -1,
             ),
             (
                 x: 0,
                 y: 0,
             ),
             (
+                x: 0,
+                y: 1,
+            ),
+            (
+                x: 0,
+                y: 2,
+            ),
+            (
+                x: 0,
+                y: 5,
+            ),
+            (
+                x: 0,
+                y: 6,
+            ),
+            (
+                x: 0,
+                y: 7,
+            ),
+            (
                 x: 1,
-                y: 0,
+                y: -7,
             ),
             (
                 x: 1,
-                y: 1,
+                y: -5,
             ),
             (
-                x: 2,
-                y: 1,
+                x: 1,
+                y: -4,
             ),
             (
-                x: 3,
+                x: 1,
+                y: -3,
+            ),
+            (
+                x: 1,
+                y: -2,
+            ),
+            (
+                x: 1,
                 y: -1,
             ),
             (
-                x: 3,
-                y: 0,
+                x: -1,
+                y: 3,
             ),
             (
-                x: 3,
-                y: 1,
+                x: -1,
+                y: 4,
             ),
             (
-                x: 4,
-                y: -1,
+                x: -1,
+                y: 5,
             ),
             (
-                x: 4,
-                y: 0,
-            ),
-            (
-                x: 4,
-                y: 1,
-            ),
-            (
-                x: 5,
-                y: -1,
-            ),
-            (
-                x: 5,
-                y: 0,
-            ),
-            (
-                x: 5,
-                y: 1,
+                x: -1,
+                y: 2,
             ),
         ],
         fixed: (
             pieces: [
                 (
                     cell: (
-                        x: -6,
-                        y: 0,
+                        x: 1,
+                        y: -7,
                     ),
                     a: W,
-                    b: E,
+                    b: S,
                 ),
                 (
                     cell: (
-                        x: 5,
-                        y: 0,
+                        x: 0,
+                        y: 7,
                     ),
-                    a: W,
-                    b: E,
+                    a: S,
+                    b: N,
                 ),
             ],
             switches: [],
@@ -136,10 +120,10 @@
             (
                 id: (0),
                 cell: (
-                    x: -6,
-                    y: 0,
+                    x: 1,
+                    y: -7,
                 ),
-                dir: W,
+                dir: S,
                 label: "Start",
             ),
         ],
@@ -147,10 +131,10 @@
             (
                 id: (0),
                 cell: (
-                    x: 5,
-                    y: 0,
+                    x: 0,
+                    y: 7,
                 ),
-                dir: E,
+                dir: N,
                 label: "Ziel",
             ),
         ],
@@ -158,28 +142,34 @@
             (
                 train: (0),
                 class: (0),
-                length: (800),
-                speed: (100),
+                length: (1000),
+                speed: (110),
                 source: (0),
                 sink: (0),
-                depart: (5),
+                depart: (10),
                 due: (80),
             ),
             (
                 train: (1),
                 class: (0),
-                length: (800),
-                speed: (100),
+                length: (600),
+                speed: (110),
                 source: (0),
                 sink: (0),
                 depart: (50),
                 due: (90),
             ),
+            (
+                train: (2),
+                class: (0),
+                length: (1200),
+                speed: (110),
+                source: (0),
+                sink: (0),
+                depart: (100),
+                due: (100),
+            ),
         ],
-        par: (
-            throughput: (154),
-            material: 12,
-            lateness: 124,
-        ),
+        par: (throughput: (281), material: 18, lateness: 433),
     ),
 )

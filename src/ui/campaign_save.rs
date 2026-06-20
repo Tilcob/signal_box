@@ -217,9 +217,11 @@ fn save_click(
     // "Bau einbacken": fold the on-screen build into `fixed` so it becomes
     // pre-placed infrastructure (the build's track anchors the sources/sinks).
     // Off → write only the definition and leave `fixed` as authored, so a
-    // player-builds level isn't pre-solved.
+    // player-builds level isn't pre-solved. Forced on for an SBX overwrite: there
+    // the layout IS the level's authored track (lifted out of `fixed` on open),
+    // so not folding would drop it on save.
     let mut sim = active.level.clone();
-    if draft.fold {
+    if draft.fold || overwrite.is_some() {
         sim.fixed = sim.fixed.merged(&editor.layout);
     }
 
@@ -278,13 +280,22 @@ fn update_info(
         (Some(a), Some(c)) => overwrite_target(a, c),
         _ => None,
     };
+    // SBX always folds (the layout is the level's authored track) — show that
+    // rather than the raw toggle, so the line never lies about the result.
+    let forced_fold = overwrite.is_some();
     let target = match overwrite {
         Some((id, _)) => format!("überschreibt {id}.ron"),
         None => format!("neu: {}.ron", preview_id(chapter.value() as u8, order.value() as u16)),
     };
     if let Ok(mut text) = texts.single_mut() {
         let hard = if draft.hard { "an" } else { "aus" };
-        let fold = if draft.fold { "an" } else { "aus" };
+        let fold = if forced_fold {
+            "an (SBX)"
+        } else if draft.fold {
+            "an"
+        } else {
+            "aus"
+        };
         set_text(
             &mut text,
             format!(
