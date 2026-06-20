@@ -6,10 +6,11 @@
 //! Routing never needs geometry at runtime: every directed edge knows its
 //! continuation (`Next`), switches are the only dynamic decision points.
 //!
-//! Known M0 limitation (deliberate): two routes crossing in one cell share
-//! the center node, and therefore the block — block signals are the
-//! protection. A geometric collision *at* the crossing point between trains
-//! on different stubs is not separately detected.
+//! Two routes crossing in one cell share the center node, and therefore the
+//! block. Two trains meeting *at* that crossing point collide: the collision
+//! check looks at shared interior nodes, not only shared edges (see
+//! `Sim::phase_checks`). Block/chain signals are the protection that keeps the
+//! trains from meeting there in the first place.
 
 use crate::blocks::{self, BlockSet};
 use crate::grid::{Cell, Point};

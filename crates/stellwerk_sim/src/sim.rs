@@ -13,8 +13,9 @@
 //!    signals re-check clearance against live occupancy + claims.
 //! 4. **Arrival** happens inline during movement (head reaches a sink
 //!    anchor); wrong sink or dead end ⇒ misrouting.
-//! 5. **Checks:** collision (interval overlap), deadlock (wait-for cycle),
-//!    success, stall fallback. Then the replay hash is advanced.
+//! 5. **Checks:** collision (edge interval overlap + shared interior crossing
+//!    node), deadlock (wait-for cycle), success, stall fallback. Then the
+//!    replay hash is advanced.
 //!
 //! Block entry rule is *strict*: a block counts as busy even if only the
 //! train itself occupies it. Normally a train's own body is never ahead of
@@ -31,7 +32,7 @@ use crate::level::{Level, ScheduleEntry};
 use crate::routing::{RouteEnd, resolve, walk_route};
 use crate::score::{Score, material_cost};
 use crate::train::Train;
-use crate::units::{BlockId, EdgeId, Len, STALL_TICKS, SinkId, SourceId, Tick, TrainId};
+use crate::units::{BlockId, EdgeId, Len, NodeId, STALL_TICKS, SinkId, SourceId, Tick, TrainId};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -640,8 +641,16 @@ impl Sim {
     // --- Phase 5 -----------------------------------------------------------
 
     fn phase_checks(&mut self, tick: &mut TickState) {
-        // Collision: strict interval overlap on canonical edges.
+        // Collision (1): strict interval overlap on the same canonical edge —
+        // head-on / rear-end on one track.
         let mut per_edge: BTreeMap<EdgeId, Vec<(TrainId, i64, i64)>> = BTreeMap::new();
+        // Collision (2): two bodies meeting at a shared interior joint — the
+        // crossing point two routes share as a NODE but never as the same edge
+        // (lifts the old M0 "crossings don't collide" limitation). A train's
+        // strictly-interior nodes are the joints between its consecutive occupied
+        // edges; the head tip and tail end are excluded, so a nose-to-tail touch
+        // at a node does NOT count — same strict semantics as the edge overlap.
+        let mut per_node: BTreeMap<NodeId, Vec<(TrainId, EdgeId)>> = BTreeMap::new();
         let mut occ_buf = Vec::new();
         for train in &self.trains {
             train.occupied_into(&self.graph, &mut occ_buf);
@@ -657,6 +666,12 @@ impl Sim {
                     .or_default()
                     .push((train.id, lo, hi));
             }
+            // `occ_buf` is head-first with no gaps, so each adjacent pair shares
+            // a node strictly inside the body: the `from` of the head-side edge.
+            for pair in occ_buf.windows(2) {
+                let node = self.graph.edge(pair[0].0).from;
+                per_node.entry(node).or_default().push((train.id, pair[0].0));
+            }
         }
         for (edge, intervals) in &per_edge {
             for (i, &(id_a, lo_a, hi_a)) in intervals.iter().enumerate() {
@@ -666,6 +681,20 @@ impl Sim {
                         self.finish(Outcome::Collision {
                             trains: pair,
                             edge: *edge,
+                        });
+                        return;
+                    }
+                }
+            }
+        }
+        for occupants in per_node.values() {
+            for (i, &(id_a, edge_a)) in occupants.iter().enumerate() {
+                for &(id_b, _) in &occupants[i + 1..] {
+                    if id_a != id_b {
+                        let pair = (id_a.min(id_b), id_a.max(id_b));
+                        self.finish(Outcome::Collision {
+                            trains: pair,
+                            edge: edge_a,
                         });
                         return;
                     }

@@ -1,0 +1,48 @@
+#![enable(unwrap_newtypes, implicit_some)]
+// Szenario 21: ungesicherte Kreuzung → Kollision. t0 fährt W→O über Zeile 0,
+// t1 fährt S→N über Spalte 0; beide kreuzen die Zelle (0,0) und starten
+// symmetrisch (gleiche Distanz zum Mittelpunkt, gleiche Geschwindigkeit),
+// treffen sich also genau im geteilten Kreuzungs-Knoten. OHNE Signal schützt
+// nichts den Block → echte Kollision (hebt die alte M0-Grenze auf).
+//
+//              (0,1) NORD↑
+//                │
+//  (-1,0)──────(0,0)──────(1,0)  Zeile 0 (t0 ostwärts → OST)
+//                │
+//              (0,-1) ↑t1
+(
+    level: (
+        name: "S21 — Kollision an der Kreuzung",
+        buildable: [
+            (x: -1, y: 0), (x: 0, y: 0), (x: 1, y: 0),
+            (x: 0, y: -1), (x: 0, y: 1),
+        ],
+        fixed: (pieces: [], switches: [], signals: []),
+        sources: [
+            (id: 0, cell: (x: -1, y: 0), dir: W),
+            (id: 1, cell: (x: 0, y: -1), dir: S),
+        ],
+        sinks: [
+            (id: 0, cell: (x: 1, y: 0), dir: E, label: "OST"),
+            (id: 1, cell: (x: 0, y: 1), dir: N, label: "NORD"),
+        ],
+        schedule: [
+            (train: 0, class: 0, length: 800, speed: 100, source: 0, sink: 0, depart: 0, due: 200),
+            (train: 1, class: 0, length: 800, speed: 100, source: 1, sink: 1, depart: 0, due: 200),
+        ],
+        par: (throughput: 100, material: 10, lateness: 0),
+    ),
+    layout: (
+        pieces: [
+            (cell: (x: -1, y: 0), a: W, b: E),
+            (cell: (x: 0, y: 0), a: W, b: E),
+            (cell: (x: 0, y: 0), a: N, b: S),
+            (cell: (x: 1, y: 0), a: W, b: E),
+            (cell: (x: 0, y: -1), a: N, b: S),
+            (cell: (x: 0, y: 1), a: N, b: S),
+        ],
+        switches: [],
+        signals: [],
+    ),
+    expect: Collision(trains: (0, 1)),
+)

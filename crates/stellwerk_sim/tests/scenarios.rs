@@ -128,6 +128,11 @@ fn s19_full_scoring() {
     run_and_check("s19_full_scoring");
 }
 
+#[test]
+fn s21_unsignalled_crossing_collision() {
+    run_and_check("s21_unsignalled_crossing_collision");
+}
+
 /// Scenario 20: determinism. Two fresh runs of s14 produce the
 /// identical per-tick hash sequence — and a serde roundtrip of level and
 /// layout changes nothing.

@@ -1,0 +1,555 @@
+(
+    meta: (
+        schema_version: 1,
+        chapter: 1,
+        order: 40,
+        optional_hard: false,
+        briefing: "Sie müssen Signale nutzen, um die Züge nicht kollidieren zu lassen.",
+    ),
+    sim: (
+        name: "1.4 Signale Nutzen",
+        buildable: [
+            (
+                x: -4,
+                y: -1,
+            ),
+            (
+                x: -4,
+                y: 0,
+            ),
+            (
+                x: -4,
+                y: 1,
+            ),
+            (
+                x: -3,
+                y: -1,
+            ),
+            (
+                x: -3,
+                y: 0,
+            ),
+            (
+                x: -3,
+                y: 1,
+            ),
+            (
+                x: -2,
+                y: -1,
+            ),
+            (
+                x: -2,
+                y: 0,
+            ),
+            (
+                x: -2,
+                y: 1,
+            ),
+            (
+                x: -1,
+                y: -3,
+            ),
+            (
+                x: -1,
+                y: -2,
+            ),
+            (
+                x: -1,
+                y: -1,
+            ),
+            (
+                x: -1,
+                y: 0,
+            ),
+            (
+                x: -1,
+                y: 1,
+            ),
+            (
+                x: -1,
+                y: 2,
+            ),
+            (
+                x: -1,
+                y: 3,
+            ),
+            (
+                x: 0,
+                y: -3,
+            ),
+            (
+                x: 0,
+                y: -2,
+            ),
+            (
+                x: 0,
+                y: -1,
+            ),
+            (
+                x: 0,
+                y: 0,
+            ),
+            (
+                x: 0,
+                y: 1,
+            ),
+            (
+                x: 0,
+                y: 2,
+            ),
+            (
+                x: 0,
+                y: 3,
+            ),
+            (
+                x: 1,
+                y: -3,
+            ),
+            (
+                x: 1,
+                y: -2,
+            ),
+            (
+                x: 1,
+                y: -1,
+            ),
+            (
+                x: 1,
+                y: 0,
+            ),
+            (
+                x: 1,
+                y: 1,
+            ),
+            (
+                x: 1,
+                y: 2,
+            ),
+            (
+                x: 1,
+                y: 3,
+            ),
+            (
+                x: 2,
+                y: 0,
+            ),
+            (
+                x: 2,
+                y: 1,
+            ),
+            (
+                x: 3,
+                y: 0,
+            ),
+            (
+                x: 3,
+                y: 1,
+            ),
+            (
+                x: 4,
+                y: 0,
+            ),
+            (
+                x: 4,
+                y: 1,
+            ),
+            (
+                x: 4,
+                y: -1,
+            ),
+            (
+                x: 3,
+                y: -1,
+            ),
+            (
+                x: 2,
+                y: -1,
+            ),
+        ],
+        fixed: (
+            pieces: [
+                (
+                    cell: (
+                        x: -3,
+                        y: 1,
+                    ),
+                    a: E,
+                    b: W,
+                ),
+                (
+                    cell: (
+                        x: -2,
+                        y: 1,
+                    ),
+                    a: E,
+                    b: W,
+                ),
+                (
+                    cell: (
+                        x: -4,
+                        y: 1,
+                    ),
+                    a: E,
+                    b: W,
+                ),
+                (
+                    cell: (
+                        x: 1,
+                        y: 1,
+                    ),
+                    a: E,
+                    b: W,
+                ),
+                (
+                    cell: (
+                        x: 2,
+                        y: 1,
+                    ),
+                    a: E,
+                    b: W,
+                ),
+                (
+                    cell: (
+                        x: 3,
+                        y: 1,
+                    ),
+                    a: E,
+                    b: W,
+                ),
+                (
+                    cell: (
+                        x: -1,
+                        y: 1,
+                    ),
+                    a: E,
+                    b: W,
+                ),
+                (
+                    cell: (
+                        x: 4,
+                        y: 1,
+                    ),
+                    a: E,
+                    b: W,
+                ),
+                (
+                    cell: (
+                        x: 3,
+                        y: -1,
+                    ),
+                    a: E,
+                    b: W,
+                ),
+                (
+                    cell: (
+                        x: 2,
+                        y: -1,
+                    ),
+                    a: E,
+                    b: W,
+                ),
+                (
+                    cell: (
+                        x: 1,
+                        y: -1,
+                    ),
+                    a: E,
+                    b: W,
+                ),
+                (
+                    cell: (
+                        x: -1,
+                        y: -1,
+                    ),
+                    a: E,
+                    b: W,
+                ),
+                (
+                    cell: (
+                        x: -2,
+                        y: -1,
+                    ),
+                    a: E,
+                    b: W,
+                ),
+                (
+                    cell: (
+                        x: -3,
+                        y: -1,
+                    ),
+                    a: E,
+                    b: W,
+                ),
+                (
+                    cell: (
+                        x: 4,
+                        y: -1,
+                    ),
+                    a: E,
+                    b: W,
+                ),
+                (
+                    cell: (
+                        x: -4,
+                        y: -1,
+                    ),
+                    a: E,
+                    b: W,
+                ),
+                (
+                    cell: (
+                        x: -1,
+                        y: 2,
+                    ),
+                    a: N,
+                    b: S,
+                ),
+                (
+                    cell: (
+                        x: -1,
+                        y: 1,
+                    ),
+                    a: N,
+                    b: S,
+                ),
+                (
+                    cell: (
+                        x: -1,
+                        y: 0,
+                    ),
+                    a: N,
+                    b: S,
+                ),
+                (
+                    cell: (
+                        x: -1,
+                        y: -1,
+                    ),
+                    a: N,
+                    b: S,
+                ),
+                (
+                    cell: (
+                        x: -1,
+                        y: -2,
+                    ),
+                    a: N,
+                    b: S,
+                ),
+                (
+                    cell: (
+                        x: -1,
+                        y: 3,
+                    ),
+                    a: N,
+                    b: S,
+                ),
+                (
+                    cell: (
+                        x: -1,
+                        y: -3,
+                    ),
+                    a: N,
+                    b: S,
+                ),
+                (
+                    cell: (
+                        x: 1,
+                        y: 2,
+                    ),
+                    a: N,
+                    b: S,
+                ),
+                (
+                    cell: (
+                        x: 1,
+                        y: 1,
+                    ),
+                    a: N,
+                    b: S,
+                ),
+                (
+                    cell: (
+                        x: 1,
+                        y: 0,
+                    ),
+                    a: N,
+                    b: S,
+                ),
+                (
+                    cell: (
+                        x: 1,
+                        y: -1,
+                    ),
+                    a: N,
+                    b: S,
+                ),
+                (
+                    cell: (
+                        x: 1,
+                        y: -2,
+                    ),
+                    a: N,
+                    b: S,
+                ),
+                (
+                    cell: (
+                        x: 1,
+                        y: 3,
+                    ),
+                    a: N,
+                    b: S,
+                ),
+                (
+                    cell: (
+                        x: 0,
+                        y: -1,
+                    ),
+                    a: W,
+                    b: E,
+                ),
+                (
+                    cell: (
+                        x: 0,
+                        y: 1,
+                    ),
+                    a: W,
+                    b: E,
+                ),
+                (
+                    cell: (
+                        x: 1,
+                        y: -3,
+                    ),
+                    a: S,
+                    b: N,
+                ),
+            ],
+            switches: [],
+            signals: [],
+        ),
+        sources: [
+            (
+                id: (0),
+                cell: (
+                    x: -4,
+                    y: 1,
+                ),
+                dir: W,
+                label: "Start 1",
+            ),
+            (
+                id: (1),
+                cell: (
+                    x: -4,
+                    y: -1,
+                ),
+                dir: W,
+                label: "Start 2",
+            ),
+            (
+                id: (2),
+                cell: (
+                    x: -1,
+                    y: 3,
+                ),
+                dir: N,
+                label: "Start 3",
+            ),
+            (
+                id: (3),
+                cell: (
+                    x: 1,
+                    y: 3,
+                ),
+                dir: N,
+                label: "Start 4",
+            ),
+        ],
+        sinks: [
+            (
+                id: (0),
+                cell: (
+                    x: 4,
+                    y: 1,
+                ),
+                dir: E,
+                label: "Ziel 1",
+            ),
+            (
+                id: (1),
+                cell: (
+                    x: 4,
+                    y: -1,
+                ),
+                dir: E,
+                label: "Ziel 2",
+            ),
+            (
+                id: (2),
+                cell: (
+                    x: -1,
+                    y: -3,
+                ),
+                dir: S,
+                label: "Ziel 3",
+            ),
+            (
+                id: (3),
+                cell: (
+                    x: 1,
+                    y: -3,
+                ),
+                dir: S,
+                label: "Ziel 4",
+            ),
+        ],
+        schedule: [
+            (
+                train: (0),
+                class: (0),
+                length: (800),
+                speed: (125),
+                source: (0),
+                sink: (0),
+                depart: (0),
+                due: (80),
+            ),
+            (
+                train: (1),
+                class: (0),
+                length: (800),
+                speed: (125),
+                source: (1),
+                sink: (1),
+                depart: (0),
+                due: (90),
+            ),
+            (
+                train: (2),
+                class: (0),
+                length: (800),
+                speed: (100),
+                source: (2),
+                sink: (2),
+                depart: (0),
+                due: (100),
+            ),
+            (
+                train: (3),
+                class: (0),
+                length: (800),
+                speed: (100),
+                source: (3),
+                sink: (3),
+                depart: (0),
+                due: (110),
+            ),
+        ],
+        par: (
+            throughput: (0),
+            material: 0,
+            lateness: 0,
+        ),
+    ),
+)
