@@ -152,7 +152,7 @@ mit Beispielen: [autoren-tools.md](autoren-tools.md).
    dann Zyklus-Knöpfe je Zeile), Gleisidee ziehen.
    ⚠️ **Was wo landet:** Das gezeichnete Gleis ist der **Spieler-Build**
    (= spätere Lösung). Ob es als Level-Infrastruktur (`fixed`) gespeichert wird,
-   entscheidet der Schalter **„Bau einbacken"** im Speichern-Panel (Schritt 2):
+   entscheidet der Schalter **„Bau einbacken"** im Speicher-Modal (Schritt 2):
    **an** backt den Build in `fixed` ein, **aus** schreibt nur die **Definition**
    (`buildable`, `sources`, `sinks`, `schedule`) und lässt `fixed` unverändert —
    dann trägst du vorplatzierte Designer-Gleise nachträglich in der `.ron` ein.
@@ -160,53 +160,54 @@ mit Beispielen: [autoren-tools.md](autoren-tools.md).
    `buildable` heraus — gespeichert wird das Feld **minus** der gesperrten Zellen.
    Ein Block *innerhalb* des Felds wird als dunkle Kachel gezeigt; sperrt man eine
    ganze Randreihe, schrumpft das Feld.
-2. **„DEV: Als Kampagnen-Level speichern"** (Panel unten rechts im Sandbox-
-   Editor). Eingaben: `Kapitel` / `Order` (Zahlenfelder), ein **`Name`**-Textfeld
-   (der Datei-Stamm), `hart umschalten` und **`Bau einbacken umschalten`**. Die
-   Info-Zeile zeigt **live**, was **Speichern** tun wird (z. B.
-   `… · einbacken: an · neu: k1_06_kurvige_strecke.ron`).
+2. **Speichern: „DEV: Level speichern".** Der Knopf unten rechts öffnet ein
+   **zentriertes Modal** über abgedunkeltem Hintergrund (das Brett ist solange
+   eingefroren). Eingaben: `Kapitel`/`Order`, ein **`Name`**-Textfeld (der
+   Datei-Stamm), ein **Briefing** (im echten Editor schreiben, kopieren, dann
+   **„Aus Zwischenablage einfügen"**) sowie die Schalter `hart` und
+   `Bau einbacken`. Eine Vorschau-Zeile zeigt **live** Dateiname und Anzeigename.
+   **Esc** oder **Abbrechen** schließt, **Speichern** schreibt.
 
    **Wohin gespeichert wird — zwei Fälle:**
    - **Aus NEUE SANDBOX** (echte Sandbox): neue Datei `k<kap>_<order>_<name>.ron`,
-     wobei `<name>` aus dem **`Name`**-Feld slugifiziert wird (Kleinbuchstaben,
-     Leer-/Sonderzeichen → einzelner `_`); leer gelassen → `_neu`. id wird
-     de-dupliziert, `meta` aus den Feldern, `briefing` leer. Der **Anzeigename**
-     (`level.<id>.name`) wird aus Kapitel/Order + dem Namen abgeleitet, in
-     Titelschreibweise — z. B. `1.6 Kurvige Strecke` (nicht mehr „Sandbox").
+     `<name>` aus dem **`Name`**-Feld slugifiziert (Kleinbuchstaben,
+     Leer-/Sonderzeichen → einzelner `_`); leer → `_neu`. id de-dupliziert. Der
+     **Anzeigename** (`level.<id>.name`) wird aus Kapitel/Order + Name in
+     Titelschreibweise abgeleitet (z. B. `1.6 Kurvige Strecke`); das **Briefing**
+     geht nach `meta.briefing` → `level.<id>.briefing`.
    - **Aus `SBX`** (bestehendes Level zum Bearbeiten geöffnet, s.
      [Dev-Knöpfe](#dev-knöpfe-in-der-streckenwahl-nur-dev-build)):
-     **überschreibt genau diese Datei**. Die **Original-`meta`**
-     (`chapter`/`order`/`optional_hard`/`briefing`) bleibt erhalten — die
-     Zahlenfelder und `hart` werden in diesem Fall **ignoriert**.
+     **überschreibt genau diese Datei**. Original-`meta`
+     (`chapter`/`order`/`optional_hard`/`briefing`) bleibt erhalten — die Felder
+     werden ignoriert, und `Bau einbacken` ist erzwungen (Anzeige „an (SBX)").
 
-   **`Bau einbacken`** steuert das gezeichnete Gleis:
-   - **an** (Default): Build → `sim.fixed` (vorplatzierte Infrastruktur; das
-     Level wird standalone gültig, weil die Gleise Quellen/Senken verankern).
-   - **aus**: nur die Definition wird geschrieben, `fixed` bleibt unverändert —
-     dein Build bleibt deine private Lösung. Für ein „Spieler baut selbst"-Level
-     willst du das.
-
-   Speichern legt zusätzlich fehlende Platzhalter-i18n-Keys in **beide** Tabellen
-   an, lädt den Katalog neu und validiert mit leerem Layout (die In-Level-Konsole
-   meldet, falls das Level so noch ungültig ist).
-3. **(Optional) Datei feilen** in `assets/levels/<id>.ron`:
-   - Der Stamm kommt jetzt aus dem **`Name`**-Feld (Schritt 2), ein nachträgliches
-     **Umbenennen** ist normalerweise unnötig. Falls doch: den Stamm **jetzt**
-     festziehen (er ist der stabile Schlüssel, s.
-     [§1](#1-wo-level-leben-und-wie-sie-heißen)), danach Schritt 6 (`i18n_fill`)
-     neu laufen lassen und die alten Keys entfernen.
-   - `briefing` füllen, ggf. `fixed`-Gleise eintragen.
-4. **Lösung bauen & sichern.** Streckenwahl → neues Level öffnen → Lösung
-   bauen → **START**. Bei **Erfolg** im Ergebnis-Screen **„DEV: Haupt"**
-   → schreibt `assets/levels/solutions/<id>.ron`. Achsen-Varianten legst du
-   direkt über die Knöpfe **„DEV: +material/+durchsatz/+pünktlich"** ab — die
-   ausführliche Anleitung dazu (warum und wie) steht in
+   **`Bau einbacken`** steuert das gezeichnete Gleis: **an** (Default) → Build →
+   `sim.fixed` (vorplatzierte Infrastruktur; macht das Level standalone gültig);
+   **aus** → nur die Definition wird geschrieben, `fixed` bleibt unverändert
+   (für „Spieler baut selbst"-Level). Speichern legt fehlende Platzhalter-i18n-
+   Keys in **beide** Tabellen an, lädt den Katalog neu und validiert mit leerem
+   Layout (die Konsole meldet, falls noch ungültig).
+3. **(Optional) Datei feilen** in `assets/levels/<id>.ron`: Der Stamm kommt aus
+   dem **`Name`**-Feld, das Briefing aus dem Modal — **Umbenennen/Briefing von
+   Hand** ist normalerweise unnötig. Falls du doch umbenennst: den Stamm **jetzt**
+   festziehen (stabiler Schlüssel, s. [§1](#1-wo-level-leben-und-wie-sie-heißen)),
+   danach Schritt 6 (`i18n_fill`) neu laufen lassen und alte Keys entfernen.
+   Bei Bedarf `fixed`-Gleise von Hand eintragen.
+4. **Lösung bauen & sichern.** Neues Level öffnen → Lösung bauen → **START**.
+   Bei **Erfolg** im Ergebnis-Screen **„DEV: Haupt"** (Achsen-Varianten:
+   **„DEV: +material/+durchsatz/+pünktlich"**) → schreibt
+   `solutions/<id>[__variante].ron` **und setzt direkt den `par:`** des Levels
+   neu (Bestwert je Achse über **alle** Lösungen — die `par_suggest --write`-
+   Logik inline). Die Status-Zeile zeigt beides. Schlägt eine Lösung fehl, bleibt
+   der Par unangetastet (`Par NICHT gesetzt: …`). Details zu Varianten:
    [alternative-loesungen.md](alternative-loesungen.md).
-5. **Par scharfstellen** (CLI):
+5. **Par prüfen / Batch (CLI, optional).** Der Par wird beim Lösung-Sichern
+   (Schritt 4) bereits gesetzt. `par_suggest` brauchst du nur noch für den
+   **Dry-Run** (ansehen ohne Schreiben) oder den **Batch** über alle Level:
    ```sh
-   cargo run --bin par_suggest                # Dry-run: erreichte Werte zeigen
+   cargo run --bin par_suggest                # Dry-run über alle Level
    cargo run --bin par_suggest -- <id>        # nur ein Level
-   cargo run --bin par_suggest -- --write     # par:-Zeile zurückschreiben
+   cargo run --bin par_suggest -- --write     # alle par:-Zeilen schreiben
    ```
    Ersetzt zielgenau nur den `par: (…)`-Block (Kommentare bleiben).
 6. **Texte** (CLI): `cargo run --bin i18n_fill` ergänzt fehlende
@@ -249,8 +250,9 @@ cargo test
 | `tests/i18n.rs · every_station_label_has_a_key` | jedes `sink.label` hat `station.<LABEL>` in beiden Tabellen. |
 | `tests/i18n.rs · language_tables_cover_identical_keys` | beide Tabellen haben exakt denselben Key-Satz. |
 
-> Wenn `all_levels_parse_and_validate_empty` die Anzahl prüft (`== 15`),
-> diese Konstante beim Hinzufügen eines Levels hochzählen.
+> `all_levels_parse_and_validate_empty` validiert **alle** gefundenen Level
+> (keine hartcodierte Anzahl mehr) — Hinzufügen/Entfernen braucht kein Hochzählen,
+> der Test prüft nur noch, dass überhaupt Level da sind.
 
 ---
 

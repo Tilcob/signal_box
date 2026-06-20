@@ -9,7 +9,7 @@ use super::UiEdit;
 use crate::console::ConsoleLog;
 use crate::font::UiFont;
 use crate::i18n::t;
-use crate::state::{Diagnostics, GameState, no_field_focused, not_paused};
+use crate::state::{Diagnostics, GameState, no_field_focused, not_paused, save_modal_closed};
 use crate::ui::valerr::{build_issue_text, valerr_text};
 use crate::ui::widgets::{BUTTON_BG_BLOCKED, BUTTON_BG_PRIMARY, ButtonBase, button, set_text};
 
@@ -29,6 +29,7 @@ impl Plugin for StartPlugin {
                 start_button
                     .run_if(not_paused)
                     .run_if(no_field_focused)
+                    .run_if(save_modal_closed)
                     .run_if(in_state(GameState::Edit)),
             );
     }

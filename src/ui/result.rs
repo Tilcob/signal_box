@@ -307,12 +307,21 @@ fn save_solution_click(
         };
         let msg = match crate::authoring::write_solution(&active.id, variant, &editor.layout) {
             // List what's on disk now, so an overwrite (or a forgotten variant)
-            // is visible at a glance instead of a silent clobber.
-            Ok(path) => format!(
-                "Gesichert: {} — Lösungen: {}",
-                path.display(),
-                crate::authoring::list_solutions(&active.id).join(", "),
-            ),
+            // is visible at a glance instead of a silent clobber. Then re-bless
+            // the par from the full solution set (par_suggest --write inlined),
+            // so saving a solution immediately tightens the level's par.
+            Ok(path) => {
+                let saved = format!(
+                    "Gesichert: {} — Lösungen: {}",
+                    path.display(),
+                    crate::authoring::list_solutions(&active.id).join(", "),
+                );
+                let par = match crate::authoring::suggest_and_write_par(&active.id) {
+                    Ok(s) => s,
+                    Err(e) => format!("Par NICHT gesetzt: {e}"),
+                };
+                format!("{saved}\n{par}")
+            }
             Err(e) => format!("Sichern fehlgeschlagen: {e}"),
         };
         if let Ok(mut text) = status_texts.single_mut() {

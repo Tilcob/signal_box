@@ -121,6 +121,11 @@ weiter, ohne Karteileichen anzulegen. Nach jedem Speichern listet die Status-Zei
 die vorhandenen Lösungen des Levels (`Gesichert: … — Lösungen: <id>, <id>__material, …`),
 damit ein Überschreiben sichtbar ist.
 
+Zusätzlich wird bei **jedem** Speichern der **`par:` des Levels automatisch neu
+gesetzt** — Bestwert je Achse über **alle** Lösungen, also die `par_suggest
+--write`-Logik inline. Nach dem letzten Speichern stimmt der Par damit schon; ein
+manueller `par_suggest --write`-Lauf ist nur noch Kontrolle/Batch (§5).
+
 So legst du mehrere Lösungen an:
 
 1. **Erste Lösung bauen.** Level öffnen, Strecke nach Strategie A bauen,
@@ -135,9 +140,8 @@ So legst du mehrere Lösungen an:
 
 > **Etiketten jenseits der drei Achsen:** Der `__name`-Teil ist auf Datei-Ebene
 > frei (§2, „Der Namens-Vertrag"). Brauchst du einen anderen Namen
-(`__nachtsprung` o. ä.), benenne
-> die Datei nach dem Speichern von Hand um — die drei Knöpfe decken nur den
-> Achsen-Standardfall ab.
+> (`__nachtsprung` o. ä.), benenne die Datei nach dem Speichern von Hand um —
+> die drei Knöpfe decken nur den Achsen-Standardfall ab.
 
 ---
 
@@ -153,18 +157,20 @@ solutions/
   k2_04_ueberholung__material.ron    # material-optimal
 ```
 
-`par_suggest` nimmt je Achse das Beste aus beiden:
+Den Par hat das Speichern der zweiten Lösung schon gesetzt; `par_suggest` zeigt
+dir hier nur (Dry-Run), je Achse das Beste aus beiden:
 
 ```sh
 $ cargo run --bin par_suggest -- k2_04_ueberholung
-k2_04_ueberholung: par (throughput: 188, material: 12, lateness: 0)   [aktuell: 200, 14, 0]
+k2_04_ueberholung: par (throughput: 188, material: 12, lateness: 0)   [aktuell: 188, 12, 0]
 
 (dry-run — mit `-- --write` in die Level-Dateien zurückschreiben)
 ```
 
 `throughput 188` stammt aus der schnellen Lösung, `material 12` aus der
-sparsamen — kein einzelner Build erreicht beides. Passt der Vorschlag,
-zurückschreiben:
+sparsamen — kein einzelner Build erreicht beides. Da das Speichern den Par schon
+gesetzt hat, stimmt `[aktuell]` bereits; ein manuelles Zurückschreiben brauchst
+du nur, wenn du eine Lösungsdatei von Hand geändert hast:
 
 ```sh
 $ cargo run --bin par_suggest -- --write k2_04_ueberholung

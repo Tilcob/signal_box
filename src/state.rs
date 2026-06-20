@@ -143,6 +143,18 @@ pub fn no_field_focused(focus: Res<FocusedField>) -> bool {
     focus.0.is_none()
 }
 
+/// True while the dev "save level" modal is open. Gates the Edit input systems
+/// (board pointer, hotkeys, start key, pause toggle) so clicks/keys behind the
+/// dim backdrop can't edit the level or leave the screen. Always present (the
+/// modal itself is dev-only); stays false in non-dev builds.
+#[derive(Resource, Default)]
+pub struct SaveModalOpen(pub bool);
+
+/// Run condition: the save-level modal is closed.
+pub fn save_modal_closed(modal: Res<SaveModalOpen>) -> bool {
+    !modal.0
+}
+
 /// A sandbox build problem the sim's `ValidationError` cannot express: a
 /// runnable level needs at least one source AND one sink. Checked only in the
 /// sandbox (campaign levels are authored with both) and blocks START like a
@@ -178,6 +190,7 @@ impl Plugin for StatePlugin {
             .init_resource::<Editor>()
             .init_resource::<Paused>()
             .init_resource::<FocusedField>()
+            .init_resource::<SaveModalOpen>()
             .init_resource::<Diagnostics>();
     }
 }

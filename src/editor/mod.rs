@@ -22,7 +22,7 @@ pub use ops::{EditOp, do_op};
 use bevy::prelude::*;
 use stellwerk_sim::Layout;
 
-use crate::state::{ActiveLevel, Editor, GameState, no_field_focused, not_paused};
+use crate::state::{ActiveLevel, Editor, GameState, no_field_focused, not_paused, save_modal_closed};
 
 /// `fixed ⊕ player` layout, rebuilt only when the build or level changes.
 /// Both the pointer (placement gates) and the overlays (ghost colouring) read
@@ -41,15 +41,22 @@ impl Plugin for EditorPlugin {
                 sync_merged_layout,
                 // Suppressed while a numeric field is focused, so typing digits
                 // can't switch tools / undo, and a focus-blur click can't also
-                // place track.
-                tools::hotkeys.run_if(not_paused).run_if(no_field_focused),
-                tools::pointer.run_if(not_paused).run_if(no_field_focused),
+                // place track. Also frozen while the save-level modal is open.
+                tools::hotkeys
+                    .run_if(not_paused)
+                    .run_if(no_field_focused)
+                    .run_if(save_modal_closed),
+                tools::pointer
+                    .run_if(not_paused)
+                    .run_if(no_field_focused)
+                    .run_if(save_modal_closed),
                 overlays::draw_overlays.run_if(not_paused),
                 validation::revalidate,
                 // Esc opens/closes the pause menu in place of leaving the
                 // level. It yields to an open radial menu, so it must run
-                // before `radial_menu` (which closes the radial after).
-                crate::ui::pause::toggle_pause,
+                // before `radial_menu` (which closes the radial after). Frozen
+                // while the save modal is open — there Esc closes the modal.
+                crate::ui::pause::toggle_pause.run_if(save_modal_closed),
                 radial::radial_menu.run_if(not_paused),
             )
                 .chain()

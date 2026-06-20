@@ -16,6 +16,8 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 use stellwerk_sim::layout::Layout;
 use stellwerk_sim::level::{Level, LevelDef, LevelMeta};
+use stellwerk_sim::units::Tick;
+use stellwerk_sim::{Outcome, Sim};
 
 /// Marks an untranslated English placeholder (shared with the `i18n_fill` CLI).
 /// ASCII only — the game font has no fancy bracket glyphs.
@@ -66,6 +68,65 @@ pub fn list_solutions(id: &str) -> Vec<String> {
     }
     out.sort();
     out
+}
+
+/// The "bless" step inlined for the in-game solution-save (the `par_suggest`
+/// CLI does the same): runs every stored solution of `id` through the headless
+/// sim, takes the best value per axis, and rewrites the level file's `par:`
+/// block in place. Returns a status line, or an error when a solution is
+/// missing / invalid / not `Success` — in which case the par is left untouched,
+/// so an unprovable par is never written.
+pub fn suggest_and_write_par(id: &str) -> Result<String, String> {
+    let level_path = levels_dir().join(format!("{id}.ron"));
+    let text = std::fs::read_to_string(&level_path).map_err(|e| e.to_string())?;
+    let def: LevelDef = ron::from_str(&text).map_err(|e| e.to_string())?;
+
+    // Solution files belonging to `id` — same match rule as `list_solutions`.
+    let mut solutions: Vec<PathBuf> = std::fs::read_dir(solutions_dir())
+        .map_err(|e| e.to_string())?
+        .flatten()
+        .map(|e| e.path())
+        .filter(|p| {
+            let stem = p.file_stem().and_then(|s| s.to_str()).unwrap_or("");
+            stem == id || stem.starts_with(&format!("{id}__"))
+        })
+        .collect();
+    solutions.sort();
+    if solutions.is_empty() {
+        return Err(format!("{id}: keine Lösung gefunden"));
+    }
+
+    let (mut bt, mut bm, mut bl) = (u64::MAX, u32::MAX, u64::MAX);
+    for sp in &solutions {
+        let stext = std::fs::read_to_string(sp).map_err(|e| e.to_string())?;
+        let layout: Layout = ron::from_str(&stext).map_err(|e| format!("{}: {e}", sp.display()))?;
+        if !stellwerk_sim::validate(&def.sim, &layout).is_empty() {
+            return Err(format!("{}: validiert nicht", sp.display()));
+        }
+        let mut sim = Sim::new(&def.sim, &layout).map_err(|_| format!("{}: Sim-Aufbau", sp.display()))?;
+        match sim.run(Tick(50_000)) {
+            Outcome::Success { score } => {
+                bt = bt.min(score.throughput.0);
+                bm = bm.min(score.material);
+                bl = bl.min(score.lateness);
+            }
+            other => return Err(format!("{}: {other:?}", sp.display())),
+        }
+    }
+
+    // Match the file's RON dialect (see `par_suggest::replace_par`): only
+    // throughput is a newtype — bare with the `unwrap_newtypes` header, wrapped
+    // without it; material/lateness are plain ints in both.
+    let throughput = if text.contains("unwrap_newtypes") {
+        format!("{bt}")
+    } else {
+        format!("({bt})")
+    };
+    let new_par = format!("par: (throughput: {throughput}, material: {bm}, lateness: {bl})");
+    let updated = replace_par(&text, &new_par)
+        .ok_or_else(|| format!("par-Block in {} nicht gefunden", level_path.display()))?;
+    std::fs::write(&level_path, updated).map_err(|e| e.to_string())?;
+    Ok(format!("Par gesetzt: throughput {bt}, material {bm}, lateness {bl}"))
 }
 
 /// Tool 1 — write a sandbox build out as a campaign level
@@ -175,4 +236,53 @@ fn remove_lines_for_keys(path: &PathBuf, keys: &[String]) {
         })
         .collect();
     let _ = std::fs::write(path, out);
+}
+
+/// Replaces the single `par: ( … )` block, balancing parens to find its end so a
+/// machine-written `throughput: (0)` (whose first `)` closes the inner newtype,
+/// not the block) is handled. Everything else — comments, formatting — survives
+/// verbatim. Anchored after `sim:` so a briefing in `meta` containing "par:"
+/// can't match first. Mirrors `par_suggest::replace_par`.
+fn replace_par(text: &str, new_par: &str) -> Option<String> {
+    let sim = text.find("sim:")?;
+    let start = sim + text[sim..].find("par:")?;
+    let open = text[start..].find('(')? + start;
+    let mut depth = 0usize;
+    let mut close = None;
+    for (i, c) in text[open..].char_indices() {
+        match c {
+            '(' => depth += 1,
+            ')' => {
+                depth -= 1;
+                if depth == 0 {
+                    close = Some(open + i);
+                    break;
+                }
+            }
+            _ => {}
+        }
+    }
+    let close = close?;
+    let mut out = String::with_capacity(text.len());
+    out.push_str(&text[..start]);
+    out.push_str(new_par);
+    out.push_str(&text[close + 1..]);
+    Some(out)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::replace_par;
+
+    /// A headerless file wraps throughput as `(0)`, so a first-`)` scan would
+    /// slice the block. The whole nested block must be replaced, leaving
+    /// balanced, re-parseable RON.
+    #[test]
+    fn replaces_par_block_with_nested_parens() {
+        let text = "(\n  sim: (\n    par: (\n      throughput: (0),\n      material: 0,\n      lateness: 0,\n    ),\n  ),\n)\n";
+        let out = replace_par(text, "par: (throughput: (276), material: 34, lateness: 430)").unwrap();
+        assert!(out.contains("par: (throughput: (276), material: 34, lateness: 430)"));
+        assert!(!out.contains("throughput: (0)"), "old block must be gone");
+        assert_eq!(out.matches('(').count(), out.matches(')').count(), "balanced");
+    }
 }

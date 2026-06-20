@@ -25,6 +25,12 @@ bleiben unangetastet.
 Damit ist ein Par per Konstruktion **erreichbar** — du erfindest ihn nicht,
 du liest ab, was eine echte Lösung schafft.
 
+> **Inline beim Speichern:** Genau diese `--write`-Logik läuft inzwischen
+> **automatisch**, sobald du im Ergebnis-Screen eine Lösung sicherst (Workflow
+> Schritt 4) — der Par des Levels wird sofort neu gesetzt. `par_suggest` brauchst
+> du daher vor allem noch für den **Dry-Run** (ansehen ohne Schreiben) und den
+> **Batch über alle Level**.
+
 ### Aufrufe
 
 | Befehl | Wirkung |
@@ -171,12 +177,13 @@ nach dem Umbenennen erledigen, solange du weißt, welcher alte Stamm es war.
 
 Reihenfolge beim Bauen (Details: [level-bauen.md §3](level-bauen.md#3-der-autorenworkflow-schritt-für-schritt)):
 
-1. In Sandbox entwerfen → „DEV: Als Kampagnen-Level speichern" (Datei-Stamm im
-   **`Name`**-Feld eintippen)
-2. Datei feilen (`fixed`, `briefing`) — id ist über das `Name`-Feld schon gesetzt
+1. In Sandbox entwerfen → „DEV: Level speichern" (Modal: **`Name`**-Feld = Stamm,
+   Briefing aus der Zwischenablage einfügen)
+2. (Optional) Datei feilen (`fixed`) — id, Name und Briefing kommen schon aus dem Modal
 3. Lösung bauen → „DEV: Haupt" (Achsen-Varianten: „DEV: +material/+durchsatz/+pünktlich")
-4. **`par_suggest`** → Par scharfstellen
-5. **`i18n_fill`** → Text-Keys ergänzen, dann `[TODO]` übersetzen
+   → setzt den `par:` dabei **automatisch**
+4. **`par_suggest`** (optional) → Dry-Run/Batch zum Prüfen; Par ist aus 3 schon gesetzt
+5. **`i18n_fill`** → fehlende Text-Keys ergänzen, dann `[TODO]` übersetzen
 6. `cargo test` grün ([§4](level-bauen.md#4-was-grün-sein-muss))
 7. Tempo in [content-log.md](../plans/M2/content-log.md) notieren
 
