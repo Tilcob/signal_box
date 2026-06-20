@@ -1,0 +1,70 @@
+(
+    pieces: [
+        (
+            cell: (
+                x: 2,
+                y: -4,
+            ),
+            a: S,
+            b: NW,
+        ),
+        (
+            cell: (
+                x: -4,
+                y: 3,
+            ),
+            a: S,
+            b: N,
+        ),
+        (
+            cell: (
+                x: -3,
+                y: 1,
+            ),
+            a: SE,
+            b: NW,
+        ),
+        (
+            cell: (
+                x: -2,
+                y: 0,
+            ),
+            a: SE,
+            b: NW,
+        ),
+        (
+            cell: (
+                x: -1,
+                y: -1,
+            ),
+            a: SE,
+            b: NW,
+        ),
+        (
+            cell: (
+                x: 0,
+                y: -2,
+            ),
+            a: SE,
+            b: NW,
+        ),
+        (
+            cell: (
+                x: 1,
+                y: -3,
+            ),
+            a: SE,
+            b: NW,
+        ),
+        (
+            cell: (
+                x: -4,
+                y: 2,
+            ),
+            a: N,
+            b: SE,
+        ),
+    ],
+    switches: [],
+    signals: [],
+)

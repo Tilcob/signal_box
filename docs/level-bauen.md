@@ -161,13 +161,18 @@ mit Beispielen: [autoren-tools.md](autoren-tools.md).
    Ein Block *innerhalb* des Felds wird als dunkle Kachel gezeigt; sperrt man eine
    ganze Randreihe, schrumpft das Feld.
 2. **„DEV: Als Kampagnen-Level speichern"** (Panel unten rechts im Sandbox-
-   Editor). Eingaben: `Kapitel` / `Order` (Zahlenfelder), `hart umschalten` und
-   **`Bau einbacken umschalten`**. Die Info-Zeile zeigt **live**, was
-   **Speichern** tun wird (z. B. `… · einbacken: an · überschreibt k1_06_test.ron`).
+   Editor). Eingaben: `Kapitel` / `Order` (Zahlenfelder), ein **`Name`**-Textfeld
+   (der Datei-Stamm), `hart umschalten` und **`Bau einbacken umschalten`**. Die
+   Info-Zeile zeigt **live**, was **Speichern** tun wird (z. B.
+   `… · einbacken: an · neu: k1_06_kurvige_strecke.ron`).
 
    **Wohin gespeichert wird — zwei Fälle:**
-   - **Aus NEUE SANDBOX** (echte Sandbox): neue Datei `k<kap>_<order>_neu.ron`
-     (id generiert, de-dupliziert), `meta` aus den Feldern, `briefing` leer.
+   - **Aus NEUE SANDBOX** (echte Sandbox): neue Datei `k<kap>_<order>_<name>.ron`,
+     wobei `<name>` aus dem **`Name`**-Feld slugifiziert wird (Kleinbuchstaben,
+     Leer-/Sonderzeichen → einzelner `_`); leer gelassen → `_neu`. id wird
+     de-dupliziert, `meta` aus den Feldern, `briefing` leer. Der **Anzeigename**
+     (`level.<id>.name`) wird aus Kapitel/Order + dem Namen abgeleitet, in
+     Titelschreibweise — z. B. `1.6 Kurvige Strecke` (nicht mehr „Sandbox").
    - **Aus `SBX`** (bestehendes Level zum Bearbeiten geöffnet, s.
      [Dev-Knöpfe](#dev-knöpfe-in-der-streckenwahl-nur-dev-build)):
      **überschreibt genau diese Datei**. Die **Original-`meta`**
@@ -185,9 +190,11 @@ mit Beispielen: [autoren-tools.md](autoren-tools.md).
    an, lädt den Katalog neu und validiert mit leerem Layout (die In-Level-Konsole
    meldet, falls das Level so noch ungültig ist).
 3. **(Optional) Datei feilen** in `assets/levels/<id>.ron`:
-   - **id umbenennen** auf den endgültigen Stamm (`kN_MM_kurzname`) — **jetzt**,
-     denn der Stamm ist der stabile Schlüssel (s. [§1](#1-wo-level-leben-und-wie-sie-heißen)).
-     Danach Schritt 6 (`i18n_fill`) neu laufen lassen, alte Keys entfernen.
+   - Der Stamm kommt jetzt aus dem **`Name`**-Feld (Schritt 2), ein nachträgliches
+     **Umbenennen** ist normalerweise unnötig. Falls doch: den Stamm **jetzt**
+     festziehen (er ist der stabile Schlüssel, s.
+     [§1](#1-wo-level-leben-und-wie-sie-heißen)), danach Schritt 6 (`i18n_fill`)
+     neu laufen lassen und die alten Keys entfernen.
    - `briefing` füllen, ggf. `fixed`-Gleise eintragen.
 4. **Lösung bauen & sichern.** Streckenwahl → neues Level öffnen → Lösung
    bauen → **START**. Bei **Erfolg** im Ergebnis-Screen **„DEV: Haupt"**

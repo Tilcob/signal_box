@@ -43,6 +43,13 @@ impl NumericField {
     pub(super) fn value(&self) -> i64 {
         self.text.parse().unwrap_or(0)
     }
+
+    /// Current committed text — the typed string for a `Text` field, the decimal
+    /// for an `Int`. Lets a caller read a text field synchronously, like
+    /// [`value`](Self::value) does for integers.
+    pub(super) fn text(&self) -> &str {
+        &self.text
+    }
 }
 
 /// Emitted when an `Int` field commits a (clamped) value — on Enter/Tab or

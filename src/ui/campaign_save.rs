@@ -12,7 +12,7 @@
 use bevy::prelude::*;
 use stellwerk_sim::level::{LEVEL_SCHEMA_VERSION, LevelMeta};
 
-use super::numeric_field::{NumericField, numeric_field, numeric_field_focus};
+use super::numeric_field::{NumericField, numeric_field, numeric_field_focus, text_field};
 use super::widgets::{
     BUTTON_BG, BUTTON_BG_PRIMARY, PANEL_BG, TEXT_BRIGHT, TEXT_DIM, button, set_text, text_bundle,
 };
@@ -27,6 +27,8 @@ const CHAPTER_MIN: i64 = 1;
 const CHAPTER_MAX: i64 = 8;
 const ORDER_MIN: i64 = 10;
 const ORDER_MAX: i64 = 200;
+/// Cap on the typed level-name suffix — keeps the id a sane file-stem length.
+const NAME_MAX: usize = 24;
 
 /// Toggle inputs that don't come from the numeric fields. (The save result is
 /// logged to the in-level console, not kept here.)
@@ -53,6 +55,8 @@ struct UiCampaignSave;
 struct ChapterField;
 #[derive(Component)]
 struct OrderField;
+#[derive(Component)]
+struct NameField;
 #[derive(Component)]
 struct HardButton;
 #[derive(Component)]
@@ -148,6 +152,20 @@ fn spawn_panel(
                     numeric_field(row, &font, ORDER_MIN, ORDER_MIN, ORDER_MAX, OrderField);
                     button(row, &font, "hart umschalten", BUTTON_BG, HardButton);
                 });
+            // Level-name suffix → file id (`kC_OO_<name>`). Slugified on save;
+            // ignored when overwriting (the existing id stays). Default "neu"
+            // keeps the historical `_neu` id when left untouched.
+            panel
+                .spawn(Node {
+                    flex_direction: FlexDirection::Row,
+                    align_items: AlignItems::Center,
+                    column_gap: Val::Px(6.0),
+                    ..default()
+                })
+                .with_children(|row| {
+                    row.spawn(text_bundle(&font, "Name".into(), 13.0, TEXT_DIM));
+                    text_field(row, &font, "neu", NAME_MAX, NameField);
+                });
             button(panel, &font, "Bau einbacken umschalten", BUTTON_BG, FoldButton);
             button(panel, &font, "Speichern", BUTTON_BG_PRIMARY, SaveButton);
         });
@@ -176,6 +194,7 @@ fn save_click(
     interactions: Query<&Interaction, (Changed<Interaction>, With<SaveButton>)>,
     chapter: Query<&NumericField, With<ChapterField>>,
     order: Query<&NumericField, With<OrderField>>,
+    name: Query<&NumericField, With<NameField>>,
     active: Option<Res<ActiveLevel>>,
     editor: Res<Editor>,
     mut progress: ResMut<Progress>,
@@ -197,13 +216,18 @@ fn save_click(
     // level from the typed fields. Fields are clamped, so the casts never
     // truncate.
     let overwrite = overwrite_target(&active, &catalog);
-    let (id, meta) = match &overwrite {
-        Some((id, meta)) => (id.clone(), meta.clone()),
+    let (id, meta, display_name) = match &overwrite {
+        // SBX overwrite keeps the level's existing name (and meta).
+        Some((id, meta)) => (id.clone(), meta.clone(), active.level.name.clone()),
         None => {
             let chapter = chapter.value() as u8;
             let order = order.value() as u16;
+            let slug = name.single().map(|f| slugify(f.text())).unwrap_or_else(|_| "neu".into());
+            // Display name matches the `level.<id>.name` convention, e.g.
+            // "1.2 Kurvige Strecke" — chapter.order + the title-cased slug.
+            let display = format!("{}.{} {}", chapter, order / 10, titleize(&slug));
             (
-                unique_id(chapter, order),
+                unique_id(chapter, order, &slug),
                 LevelMeta {
                     schema_version: LEVEL_SCHEMA_VERSION,
                     chapter,
@@ -211,6 +235,7 @@ fn save_click(
                     optional_hard: draft.hard,
                     briefing: String::new(),
                 },
+                display,
             )
         }
     };
@@ -221,6 +246,9 @@ fn save_click(
     // the layout IS the level's authored track (lifted out of `fixed` on open),
     // so not folding would drop it on save.
     let mut sim = active.level.clone();
+    // Replace the carried-over "Sandbox" name with the derived one (unchanged
+    // for an SBX overwrite, which reuses the level's own name).
+    sim.name = display_name;
     if draft.fold || overwrite.is_some() {
         sim.fixed = sim.fixed.merged(&editor.layout);
     }
@@ -267,6 +295,7 @@ fn update_info(
     draft: Res<CampaignDraft>,
     chapter: Query<&NumericField, With<ChapterField>>,
     order: Query<&NumericField, With<OrderField>>,
+    name: Query<&NumericField, With<NameField>>,
     active: Option<Res<ActiveLevel>>,
     catalog: Option<Res<Catalog>>,
     mut texts: Query<&mut Text, With<InfoText>>,
@@ -274,6 +303,7 @@ fn update_info(
     let (Ok(chapter), Ok(order)) = (chapter.single(), order.single()) else {
         return;
     };
+    let slug = name.single().map(|f| slugify(f.text())).unwrap_or_else(|_| "neu".into());
     // Mirror `save_click`'s target choice so the line never lies about what
     // "Speichern" will do.
     let overwrite = match (active.as_ref(), catalog.as_ref()) {
@@ -283,9 +313,19 @@ fn update_info(
     // SBX always folds (the layout is the level's authored track) — show that
     // rather than the raw toggle, so the line never lies about the result.
     let forced_fold = overwrite.is_some();
+    // The display name `save_click` will write: an SBX overwrite keeps the
+    // level's own name, a new level derives "chapter.order Titel" from the slug.
+    let display_name = if forced_fold {
+        active.as_ref().map(|a| a.level.name.clone()).unwrap_or_default()
+    } else {
+        format!("{}.{} {}", chapter.value() as u8, order.value() as u16 / 10, titleize(&slug))
+    };
     let target = match overwrite {
         Some((id, _)) => format!("überschreibt {id}.ron"),
-        None => format!("neu: {}.ron", preview_id(chapter.value() as u8, order.value() as u16)),
+        None => format!(
+            "neu: {}.ron",
+            preview_id(chapter.value() as u8, order.value() as u16, &slug)
+        ),
     };
     if let Ok(mut text) = texts.single_mut() {
         let hard = if draft.hard { "an" } else { "aus" };
@@ -299,7 +339,7 @@ fn update_info(
         set_text(
             &mut text,
             format!(
-                "Kapitel: {} · Order: {} · hart: {hard} · einbacken: {fold} · {target}",
+                "Kapitel: {} · Order: {} · hart: {hard} · einbacken: {fold} · {target} · Name: {display_name}",
                 chapter.value(),
                 order.value()
             ),
@@ -307,15 +347,53 @@ fn update_info(
     }
 }
 
+/// Turns a typed level name into the id suffix: lowercase ASCII, every run of
+/// other characters collapsed to a single `_`, ends trimmed. Empty → `"neu"`
+/// (the historical default). Never yields `__` (the solution-variant separator)
+/// or spaces, so the id stays a valid, unambiguous file stem.
+fn slugify(name: &str) -> String {
+    let mut slug = String::new();
+    let mut gap = false; // saw a separator char since the last alnum
+    for c in name.chars() {
+        if c.is_ascii_alphanumeric() {
+            if gap && !slug.is_empty() {
+                slug.push('_'); // one `_` between alnum runs; never leading/trailing
+            }
+            slug.push(c.to_ascii_lowercase());
+            gap = false;
+        } else {
+            gap = true;
+        }
+    }
+    if slug.is_empty() { "neu".to_string() } else { slug }
+}
+
+/// `kurvige_strecke` → `Kurvige Strecke`: split on `_`, capitalize each word's
+/// first letter, join with spaces. The level's display name, mirroring the
+/// existing `level.<id>.name` convention ("1.2 Kurvige Strecke").
+fn titleize(slug: &str) -> String {
+    slug.split('_')
+        .filter(|w| !w.is_empty())
+        .map(|w| {
+            let mut chars = w.chars();
+            match chars.next() {
+                Some(first) => first.to_uppercase().chain(chars).collect::<String>(),
+                None => String::new(),
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
 /// id stem the next save would use, BEFORE de-duplication (preview only).
-fn preview_id(chapter: u8, order: u16) -> String {
-    format!("k{chapter}_{:02}_neu", order / 10)
+fn preview_id(chapter: u8, order: u16, slug: &str) -> String {
+    format!("k{chapter}_{:02}_{slug}", order / 10)
 }
 
 /// A real, free file id: the preview stem, with `_2`, `_3`, … appended if a
 /// file already exists. Falls back to the bare stem if everything is taken.
-fn unique_id(chapter: u8, order: u16) -> String {
-    let base = preview_id(chapter, order);
+fn unique_id(chapter: u8, order: u16, slug: &str) -> String {
+    let base = preview_id(chapter, order, slug);
     let exists = |id: &str| std::path::Path::new("assets/levels").join(format!("{id}.ron")).exists();
     if !exists(&base) {
         return base;
@@ -324,4 +402,33 @@ fn unique_id(chapter: u8, order: u16) -> String {
         .map(|n| format!("{base}_{n}"))
         .find(|cand| !exists(cand))
         .unwrap_or(base)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::slugify;
+
+    #[test]
+    fn slugify_makes_valid_id_suffixes() {
+        assert_eq!(slugify("Kurvige Strecke"), "kurvige_strecke");
+        assert_eq!(slugify("  Erste   Gleise  "), "erste_gleise");
+        // Empty or punctuation-only → the historical default.
+        assert_eq!(slugify(""), "neu");
+        assert_eq!(slugify("!!!"), "neu");
+        // Never a leading/trailing or doubled `_` (the variant separator).
+        let s = slugify("__A b__");
+        assert!(
+            !s.starts_with('_') && !s.ends_with('_') && !s.contains("__"),
+            "bad slug: {s}"
+        );
+    }
+
+    #[test]
+    fn titleize_capitalizes_words() {
+        assert_eq!(super::titleize("kurvige_strecke"), "Kurvige Strecke");
+        assert_eq!(super::titleize("neu"), "Neu");
+        // Round-trips the slugify output: a save of "Kurvige Strecke" reads back
+        // the same display words.
+        assert_eq!(super::titleize(&slugify("Kurvige Strecke")), "Kurvige Strecke");
+    }
 }

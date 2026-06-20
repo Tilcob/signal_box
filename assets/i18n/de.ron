@@ -166,4 +166,6 @@
     "station.Start": "Start",
     "level.k1_02_kurvige_strecke.name": "1.2 Kurvige Strecke",
     "level.k1_02_kurvige_strecke.briefing": "Sie müssen die Züge durch eine kurvige Strecke von Süden nach Norden fahren lassen. Dann können Sie sich 'Kurven-Meister' nennen.",
+    "level.k1_03_mehere_wege.name": "1.3 Mehrere Wege",
+    "level.k1_03_mehere_wege.briefing": "Sie haben nun mehere Wege, um das Ziel zu erreichen. Je weniger Schienen Sie bauen, desto besser.",
 }

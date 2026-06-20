@@ -171,8 +171,9 @@ nach dem Umbenennen erledigen, solange du weißt, welcher alte Stamm es war.
 
 Reihenfolge beim Bauen (Details: [level-bauen.md §3](level-bauen.md#3-der-autorenworkflow-schritt-für-schritt)):
 
-1. In Sandbox entwerfen → „DEV: Als Kampagnen-Level speichern"
-2. Datei feilen (id, `fixed`, `briefing`)
+1. In Sandbox entwerfen → „DEV: Als Kampagnen-Level speichern" (Datei-Stamm im
+   **`Name`**-Feld eintippen)
+2. Datei feilen (`fixed`, `briefing`) — id ist über das `Name`-Feld schon gesetzt
 3. Lösung bauen → „DEV: Haupt" (Achsen-Varianten: „DEV: +material/+durchsatz/+pünktlich")
 4. **`par_suggest`** → Par scharfstellen
 5. **`i18n_fill`** → Text-Keys ergänzen, dann `[TODO]` übersetzen
