@@ -11,8 +11,9 @@ use stellwerk_sim::units::{SinkId, SourceId};
 
 use super::ops::{EditOp, Element, do_op, redo, undo};
 use super::placement::{
-    auto_switch_orientation, can_block_cell, can_place_piece, can_place_signal, can_place_station,
-    can_place_switch, signal_stub, station_dir, switch_variants,
+    auto_station_orientation, auto_switch_orientation, can_block_cell, can_place_piece,
+    can_place_signal, can_place_station, can_place_switch, signal_stub, station_dir,
+    switch_variants,
 };
 use crate::board;
 use crate::camera::{MainCamera, cursor_world};
@@ -254,7 +255,9 @@ pub(super) fn pointer(
             commands.trigger(crate::audio::SfxKind::BuildingSound);
         }
         Tool::Source if active.sandbox => {
-            let dir = station_dir(editor.variant);
+            // Snap outward at a level edge; R/T drives it where ambiguous.
+            let dir = auto_station_orientation(&active.level, cell)
+                .unwrap_or_else(|| station_dir(editor.variant));
             if !can_place_station(&active.level, cell, dir) {
                 return;
             }
@@ -272,7 +275,8 @@ pub(super) fn pointer(
             commands.trigger(crate::audio::SfxKind::BuildingSound);
         }
         Tool::Sink if active.sandbox => {
-            let dir = station_dir(editor.variant);
+            let dir = auto_station_orientation(&active.level, cell)
+                .unwrap_or_else(|| station_dir(editor.variant));
             if !can_place_station(&active.level, cell, dir) {
                 return;
             }

@@ -271,6 +271,20 @@ pub(super) fn draw_blocks(commands: &mut Commands, buildable: &[Cell], tag: Tag)
     }
 }
 
+/// A two-winged chevron meeting at `tip`, pointing along the unit vector `dir`.
+/// Built from the same bands as the signal arrow's head; used to mark a
+/// source's travel direction (trains enter the cell this way).
+fn chevron(commands: &mut Commands, tip: Vec2, dir: Vec2, size: f32, color: Color, tag: Tag) {
+    let perp = dir.perp();
+    let back = tip - dir * size;
+    band(commands, tip, back + perp * size * 0.8, 3.0, color, 2.5, tag);
+    band(commands, tip, back - perp * size * 0.8, 3.0, color, 2.5, tag);
+}
+
+/// Stations get distinct silhouettes so neither reads as a signal (a lamp on
+/// the stub) or plain track: a source is an outward stub with chevrons marching
+/// INTO the cell ("trains enter here"); a sink is an outward stub capped by a
+/// buffer-stop bar ("end of the line"). Each in its own palette colour.
 pub(super) fn draw_stations(commands: &mut Commands, font: &Handle<Font>, level: &Level, tag: Tag) {
     for source in &level.sources {
         let connector = connector_world(source.cell, source.dir);
@@ -278,12 +292,17 @@ pub(super) fn draw_stations(commands: &mut Commands, font: &Handle<Font>, level:
         band(
             commands,
             connector,
-            connector + outward * 30.0,
-            10.0,
-            col_fixed(),
+            connector + outward * 26.0,
+            8.0,
+            col_source(),
             2.0,
             tag,
         );
+        // Two chevrons pointing inward (into the cell): the way trains arrive.
+        for i in 0..2 {
+            let tip = connector - outward * (2.0 + i as f32 * 10.0);
+            chevron(commands, tip, -outward, 9.0, col_source(), tag);
+        }
         label(
             commands,
             font,
@@ -297,15 +316,11 @@ pub(super) fn draw_stations(commands: &mut Commands, font: &Handle<Font>, level:
     for sink in &level.sinks {
         let connector = connector_world(sink.cell, sink.dir);
         let outward = (connector - cell_world(sink.cell)).normalize_or_zero();
-        band(
-            commands,
-            connector,
-            connector + outward * 30.0,
-            10.0,
-            col_fixed(),
-            2.0,
-            tag,
-        );
+        let end = connector + outward * 22.0;
+        band(commands, connector, end, 8.0, col_sink(), 2.0, tag);
+        // Buffer-stop bar across the stub end: the track terminates here.
+        let perp = outward.perp();
+        band(commands, end - perp * 13.0, end + perp * 13.0, 6.0, col_sink(), 2.5, tag);
         label(
             commands,
             font,

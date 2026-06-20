@@ -46,6 +46,15 @@ fn main() {
             }
             expected.insert(format!("station.{}", sink.label), sink.label.clone());
         }
+        // Named sources localize through the same `station.<label>` lookup as
+        // sinks (see `i18n::source_label`); an unnamed source renders as `Q{id}`
+        // and needs no key.
+        for source in &def.sim.sources {
+            if source.label.is_empty() {
+                continue;
+            }
+            expected.insert(format!("station.{}", source.label), source.label.clone());
+        }
     }
 
     let de_added = fill_table(&format!("{root}/assets/i18n/de.ron"), &expected, false);

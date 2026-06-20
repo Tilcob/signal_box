@@ -83,5 +83,15 @@ fn every_station_label_has_a_key() {
             assert!(de.contains(&key), "de.ron fehlt {key}");
             assert!(en.contains(&key), "en.ron fehlt {key}");
         }
+        // Named sources render through the same `station.<label>` key as sinks;
+        // an unnamed source falls back to `Q{id}` and needs none.
+        for source in &def.sim.sources {
+            if source.label.is_empty() {
+                continue;
+            }
+            let key = format!("station.{}", source.label);
+            assert!(de.contains(&key), "de.ron fehlt {key}");
+            assert!(en.contains(&key), "en.ron fehlt {key}");
+        }
     }
 }

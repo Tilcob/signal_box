@@ -7,8 +7,8 @@ use stellwerk_sim::ValidationError;
 use stellwerk_sim::layout::TrackPiece;
 
 use super::placement::{
-    can_block_cell, can_place_piece, can_place_signal, can_place_station, can_place_switch,
-    signal_stub, station_dir, switch_variants,
+    auto_station_orientation, can_block_cell, can_place_piece, can_place_signal, can_place_station,
+    can_place_switch, signal_stub, station_dir, switch_variants,
 };
 use crate::board::{self, CELL};
 use crate::camera::{MainCamera, cursor_world};
@@ -108,8 +108,13 @@ pub(super) fn draw_overlays(
                 gizmos.rect_2d(Isometry2d::from_translation(center), Vec2::splat(CELL - 8.0), ghost);
             }
             Tool::Source | Tool::Sink => {
-                // R/T pick the connector; the mouse only picks the cell.
-                let at = station_dir(editor.variant);
+                // Mirror placement: snap outward at a level edge, else the
+                // R/T-cycled connector. Showing the real direction here is what
+                // makes the auto-orientation visible before the click.
+                let at = active
+                    .as_ref()
+                    .and_then(|a| auto_station_orientation(&a.level, cell))
+                    .unwrap_or_else(|| station_dir(editor.variant));
                 let connector = board::connector_world(cell, at);
                 let ok = active
                     .as_ref()
@@ -119,11 +124,25 @@ pub(super) fn draw_overlays(
                 } else {
                     blocked
                 };
-                gizmos.circle_2d(Isometry2d::from_translation(connector), 10.0, ghost);
-                // Entry/exit direction (across `at`), shown before placing so
-                // the R/T-chosen orientation is visible.
+                // Ghost of the model that will be placed (matches `draw_stations`):
+                // a source's inward chevrons, a sink's buffer-stop bar.
                 let outward = (connector - center).normalize_or_zero();
-                gizmos.line_2d(connector, connector + outward * 26.0, ghost);
+                if editor.tool == Tool::Source {
+                    gizmos.line_2d(connector, connector + outward * 26.0, ghost);
+                    let inward = -outward;
+                    let perp = inward.perp();
+                    for i in 0..2 {
+                        let tip = connector - outward * (2.0 + i as f32 * 10.0);
+                        let back = tip - inward * 9.0;
+                        gizmos.line_2d(tip, back + perp * 7.0, ghost);
+                        gizmos.line_2d(tip, back - perp * 7.0, ghost);
+                    }
+                } else {
+                    let end = connector + outward * 22.0;
+                    let perp = outward.perp();
+                    gizmos.line_2d(connector, end, ghost);
+                    gizmos.line_2d(end - perp * 13.0, end + perp * 13.0, ghost);
+                }
             }
             _ => {}
         }

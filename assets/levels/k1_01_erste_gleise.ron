@@ -1,0 +1,164 @@
+(
+    meta: (
+        schema_version: 1,
+        chapter: 1,
+        order: 10,
+        optional_hard: false,
+        briefing: "Lege die ersten Gleise und verbinde Start und Ziel. Du kannst die Gleise auch wieder entfernen, wenn du sie falsch gelegt hast.",
+    ),
+    sim: (
+        name: "1.1 Erste Gleise",
+        buildable: [
+            (
+                x: -6,
+                y: -1,
+            ),
+            (
+                x: -6,
+                y: 0,
+            ),
+            (
+                x: -6,
+                y: 1,
+            ),
+            (
+                x: -5,
+                y: -1,
+            ),
+            (
+                x: -5,
+                y: 0,
+            ),
+            (
+                x: -5,
+                y: 1,
+            ),
+            (
+                x: -4,
+                y: -1,
+            ),
+            (
+                x: -4,
+                y: 0,
+            ),
+            (
+                x: -3,
+                y: -1,
+            ),
+            (
+                x: -3,
+                y: 0,
+            ),
+            (
+                x: -2,
+                y: 0,
+            ),
+            (
+                x: -1,
+                y: 0,
+            ),
+            (
+                x: 0,
+                y: 0,
+            ),
+            (
+                x: 1,
+                y: 0,
+            ),
+            (
+                x: 1,
+                y: 1,
+            ),
+            (
+                x: 2,
+                y: 1,
+            ),
+            (
+                x: 3,
+                y: -1,
+            ),
+            (
+                x: 3,
+                y: 0,
+            ),
+            (
+                x: 3,
+                y: 1,
+            ),
+            (
+                x: 4,
+                y: -1,
+            ),
+            (
+                x: 4,
+                y: 0,
+            ),
+            (
+                x: 4,
+                y: 1,
+            ),
+            (
+                x: 5,
+                y: -1,
+            ),
+            (
+                x: 5,
+                y: 0,
+            ),
+            (
+                x: 5,
+                y: 1,
+            ),
+        ],
+        fixed: (
+            pieces: [
+                (
+                    cell: (
+                        x: -6,
+                        y: 0,
+                    ),
+                    a: W,
+                    b: E,
+                ),
+                (
+                    cell: (
+                        x: 5,
+                        y: 0,
+                    ),
+                    a: W,
+                    b: E,
+                ),
+            ],
+            switches: [],
+            signals: [],
+        ),
+        sources: [
+            (
+                id: (0),
+                cell: (
+                    x: -6,
+                    y: 0,
+                ),
+                dir: W,
+                label: "Start",
+            ),
+        ],
+        sinks: [
+            (
+                id: (0),
+                cell: (
+                    x: 5,
+                    y: 0,
+                ),
+                dir: E,
+                label: "Ziel",
+            ),
+        ],
+        schedule: [],
+        par: (
+            throughput: (0),
+            material: 0,
+            lateness: 0,
+        ),
+    ),
+)

@@ -1,8 +1,0 @@
-#![enable(unwrap_newtypes, implicit_some)]
-(
-    pieces: [], switches: [],
-    signals: [
-        (cell: (x: 0, y: 0), at: E, kind: Chain),
-        (cell: (x: 3, y: -1), at: N, kind: Chain),
-    ],
-)

@@ -64,6 +64,14 @@ pub fn write_campaign_level(id: &str, meta: LevelMeta, sim: Level) -> Result<Pat
         }
         pairs.push((format!("station.{}", sink.label), sink.label.clone()));
     }
+    // Named sources localize through the same `station.<label>` key as sinks
+    // (see `i18n::source_label`); unnamed ones render as `Q{id}`.
+    for source in &sim.sources {
+        if source.label.is_empty() {
+            continue;
+        }
+        pairs.push((format!("station.{}", source.label), source.label.clone()));
+    }
     let def = LevelDef { meta, sim };
     let path = levels_dir().join(format!("{id}.ron"));
     std::fs::write(&path, ron_pretty(&def)?).map_err(|e| e.to_string())?;

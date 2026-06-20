@@ -78,6 +78,17 @@ pub fn col_head() -> Color {
 pub fn col_label() -> Color {
     Color::srgb(0.55, 0.58, 0.65)
 }
+/// Source station (trains enter here): a cool entry colour, kept clear of
+/// signal-green and switch-amber so a station never reads as track gear.
+/// Purely visual, tune freely.
+pub fn col_source() -> Color {
+    Color::srgb(0.32, 0.58, 0.74)
+}
+/// Sink station (trains terminate here): a warm arrival colour, paired against
+/// [`col_source`]. Purely visual.
+pub fn col_sink() -> Color {
+    Color::srgb(0.80, 0.47, 0.30)
+}
 /// Cell index in buildable tiles: readable on the dark desk, but clearly
 /// quieter than tracks and labels.
 pub fn col_cell_index() -> Color {

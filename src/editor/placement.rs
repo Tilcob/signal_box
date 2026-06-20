@@ -128,6 +128,32 @@ pub(super) fn auto_switch_orientation(
     }
 }
 
+/// Auto-orientation for a source/sink placed at `cell`: when the cell sits on
+/// exactly one straight edge of the buildable bounding box, return the cardinal
+/// pointing off the board so the station faces outward without the player
+/// aiming it. `None` at a corner (two edges — ambiguous) or in the interior,
+/// where the R/T-cycled `station_dir` drives the direction instead. Tested
+/// against the bounding box, not mere buildability, so a cell beside an
+/// interior hole is not mistaken for an edge and never points into the hole.
+pub(super) fn auto_station_orientation(level: &Level, cell: Cell) -> Option<Dir8> {
+    let min_x = level.buildable.iter().map(|c| c.x).min()?;
+    let max_x = level.buildable.iter().map(|c| c.x).max()?;
+    let min_y = level.buildable.iter().map(|c| c.y).min()?;
+    let max_y = level.buildable.iter().map(|c| c.y).max()?;
+    // Cardinal neighbours that leave the bounding box are real level edges.
+    let outward: Vec<Dir8> = [Dir8::N, Dir8::E, Dir8::S, Dir8::W]
+        .into_iter()
+        .filter(|&d| {
+            let n = cell.neighbor(d);
+            n.x < min_x || n.x > max_x || n.y < min_y || n.y > max_y
+        })
+        .collect();
+    match outward.as_slice() {
+        [d] => Some(*d),
+        _ => None, // 0 = interior, 2 = corner, 3 = thin strip → ambiguous
+    }
+}
+
 /// The signal anchor chosen by the R/T-cycled `variant` among the connectors
 /// of `cell` that actually carry track. `None` for a cell with no track —
 /// the mouse only picks the cell, the direction is keyboard-driven.
@@ -220,6 +246,40 @@ mod tests {
         assert!(!can_place_station(&lvl, cell(1, 0), Dir8::E));
         // A free connector on the same buildable cell is fine.
         assert!(can_place_station(&lvl, cell(0, 0), Dir8::E));
+    }
+
+    fn rect_buildable(w: i32, h: i32) -> Vec<Cell> {
+        (0..w).flat_map(|x| (0..h).map(move |y| cell(x, y))).collect()
+    }
+
+    #[test]
+    fn station_auto_faces_off_a_straight_edge() {
+        let mut lvl = bare_level();
+        lvl.buildable = rect_buildable(3, 3);
+        assert_eq!(auto_station_orientation(&lvl, cell(0, 1)), Some(Dir8::W));
+        assert_eq!(auto_station_orientation(&lvl, cell(2, 1)), Some(Dir8::E));
+        assert_eq!(auto_station_orientation(&lvl, cell(1, 2)), Some(Dir8::N));
+        assert_eq!(auto_station_orientation(&lvl, cell(1, 0)), Some(Dir8::S));
+    }
+
+    #[test]
+    fn station_auto_declines_at_corner_and_interior() {
+        let mut lvl = bare_level();
+        lvl.buildable = rect_buildable(3, 3);
+        assert_eq!(auto_station_orientation(&lvl, cell(0, 0)), None); // corner
+        assert_eq!(auto_station_orientation(&lvl, cell(1, 1)), None); // interior
+    }
+
+    #[test]
+    fn station_auto_ignores_interior_holes() {
+        // A hole at (1,1): its neighbours stay inside the bbox, so an adjacent
+        // cell is not read as an edge and a real edge still resolves.
+        let mut lvl = bare_level();
+        let mut cells = rect_buildable(3, 3);
+        cells.retain(|c| *c != cell(1, 1));
+        lvl.buildable = cells;
+        assert_eq!(auto_station_orientation(&lvl, cell(1, 0)), Some(Dir8::S));
+        assert_eq!(auto_station_orientation(&lvl, cell(0, 1)), Some(Dir8::W));
     }
 
     fn piece(c: Cell, a: Dir8, b: Dir8) -> TrackPiece {
