@@ -54,6 +54,7 @@
     "run.paused": "PAUSE",
     "pause.title": "PAUSE",
     "pause.resume": "WEITER",
+    "pause.editor": "ZURÜCK ZUM EDITOR",
     "pause.leave": "LEVEL VERLASSEN",
     "result.success": "FAHRPLAN ERFÜLLT",
     "result.collision": "KOLLISION",

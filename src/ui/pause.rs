@@ -21,11 +21,14 @@ struct PauseRoot;
 struct ResumeButton;
 #[derive(Component)]
 struct LeaveButton;
+#[derive(Component)]
+struct EditorButton;
 
 /// Pause-menu i18n keys, asserted present in both language tables by the
 /// `crate::i18n` coverage test.
 #[cfg(test)]
-pub(crate) const PAUSE_KEYS: &[&str] = &["pause.title", "pause.resume", "pause.leave"];
+pub(crate) const PAUSE_KEYS: &[&str] =
+    &["pause.title", "pause.resume", "pause.editor", "pause.leave"];
 
 pub(super) struct PausePlugin;
 
@@ -33,7 +36,7 @@ impl Plugin for PausePlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,
-            (resume_click, leave_click, sync_overlay)
+            (resume_click, leave_click, back_editor_click, sync_overlay)
                 .run_if(in_state(GameState::Edit).or(in_state(GameState::Run))),
         )
         // Leaving a level (via Leave below, a started run, or a finished run)
@@ -70,6 +73,21 @@ fn resume_click(
 ) {
     if interactions.iter().any(|i| *i == Interaction::Pressed) {
         paused.0 = false;
+    }
+}
+
+/// "Back to editor": jump straight from a paused Run into Edit. The build lives
+/// in the `Editor` resource (untouched by the run), and every `OnEnter(Edit)`
+/// system tears the run down and rebuilds the editor board — so this only has
+/// to flip the state. Shown only in Run (see `sync_overlay`).
+fn back_editor_click(
+    interactions: Query<&Interaction, (Changed<Interaction>, With<EditorButton>)>,
+    mut paused: ResMut<Paused>,
+    mut next: ResMut<NextState<GameState>>,
+) {
+    if interactions.iter().any(|i| *i == Interaction::Pressed) {
+        paused.0 = false;
+        next.set(GameState::Edit);
     }
 }
 
@@ -114,6 +132,7 @@ fn sync_overlay(
     mut commands: Commands,
     paused: Res<Paused>,
     ui_font: Res<UiFont>,
+    state: Res<State<GameState>>,
     roots: Query<Entity, With<PauseRoot>>,
 ) {
     if !paused.is_changed() {
@@ -163,6 +182,10 @@ fn sync_overlay(
                     },
                 ));
                 button(panel, &font, &t("pause.resume"), BUTTON_BG_PRIMARY, ResumeButton);
+                // Run → Edit: only meaningful while a simulation runs; hidden in Edit.
+                if *state.get() == GameState::Run {
+                    button(panel, &font, &t("pause.editor"), BUTTON_BG, EditorButton);
+                }
                 button(panel, &font, &t("pause.leave"), BUTTON_BG, LeaveButton);
             });
         });

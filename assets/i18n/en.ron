@@ -54,6 +54,7 @@
     "run.paused": "PAUSED",
     "pause.title": "PAUSED",
     "pause.resume": "RESUME",
+    "pause.editor": "BACK TO EDITOR",
     "pause.leave": "LEAVE LEVEL",
     "result.success": "TIMETABLE FULFILLED",
     "result.collision": "COLLISION",
