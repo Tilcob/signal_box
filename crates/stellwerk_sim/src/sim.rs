@@ -82,6 +82,12 @@ pub struct Sim {
     /// Chain-signal route reservations. A reservation is dropped
     /// once its owner occupies the block (occupancy takes over) or despawns.
     reservations: BTreeMap<BlockId, TrainId>,
+    /// Crossing-point reservations from chain grants: `node → (owner, occupied)`.
+    /// `occupied` flips true once the owner's body covers the point; the
+    /// reservation is dropped the first tick after it stops covering it (the
+    /// owner has passed), or on arrival. Block grants use the per-tick point
+    /// claim instead, so they never appear here.
+    point_reservations: BTreeMap<NodeId, (TrainId, bool)>,
     sink_by_arrival: BTreeMap<EdgeId, SinkId>,
     entry_by_source: BTreeMap<SourceId, EdgeId>,
     material: u32,
@@ -98,6 +104,9 @@ struct TickState {
     occupancy: BTreeMap<BlockId, BTreeSet<TrainId>>,
     /// Block-signal grants of this tick (phase 2 priority order).
     claims: BTreeMap<BlockId, TrainId>,
+    /// Crossing point → trains whose body covers it (built from bodies, extended
+    /// live as trains cross). The cross-block conflict resource at a flat crossing.
+    point_occupancy: BTreeMap<NodeId, BTreeSet<TrainId>>,
     /// Wait-for edges discovered this tick (blocked train → holder).
     waits: BTreeMap<TrainId, TrainId>,
     progressed: bool,
@@ -120,6 +129,7 @@ impl Sim {
             arrivals: Vec::new(),
             lateness_total: 0,
             reservations: BTreeMap::new(),
+            point_reservations: BTreeMap::new(),
             sink_by_arrival,
             entry_by_source,
             material: material_cost(player),
@@ -180,6 +190,7 @@ impl Sim {
         let mut tick = TickState {
             occupancy: BTreeMap::new(),
             claims: BTreeMap::new(),
+            point_occupancy: BTreeMap::new(),
             waits: BTreeMap::new(),
             progressed: false,
         };
@@ -201,7 +212,30 @@ impl Sim {
                 .entry(self.graph.blocks.block_of(train.head_edge()))
                 .or_default()
                 .insert(train.id);
+            // Crossing points the body strictly covers: the joints between
+            // consecutive occupied edges (head tip / tail end excluded) that are
+            // flat-crossing centres.
+            for pair in occ_buf.windows(2) {
+                let node = self.graph.edge(pair[0].0).from;
+                if self.graph.crossing_nodes.contains(&node) {
+                    tick.point_occupancy.entry(node).or_default().insert(train.id);
+                }
+            }
         }
+        // Release chain point reservations whose owner has passed the point:
+        // `occupied` flips true while covering it, then the reservation drops the
+        // first tick it no longer covers it. Uses this tick's body snapshot, so
+        // it over-holds by at most one tick — never under-holds.
+        self.point_reservations.retain(|node, (owner, occupied)| {
+            let covering = tick
+                .point_occupancy
+                .get(node)
+                .is_some_and(|s| s.contains(owner));
+            if covering {
+                *occupied = true;
+            }
+            covering || !*occupied
+        });
 
         self.phase_spawn(&mut tick);
         self.phase_signal_claims(&mut tick);
@@ -328,16 +362,7 @@ impl Sim {
                 continue;
             };
             if let Some(grant) = self.clearance(train, head, next_edge, tick) {
-                match grant {
-                    Grant::Block(block) => {
-                        tick.claims.insert(block, id);
-                    }
-                    Grant::Chain(blocks) => {
-                        for block in blocks {
-                            self.reservations.insert(block, id);
-                        }
-                    }
-                }
+                self.apply_grant(grant, id, tick);
             }
         }
     }
@@ -389,6 +414,81 @@ impl Sim {
         }
     }
 
+    /// A crossing point is free for `train` when no OTHER train covers it (this
+    /// tick) or has reserved it (block/chain grant). Mirrors
+    /// [`block_free`](Self::block_free) for the cross-block crossing resource.
+    fn point_free(&self, point: NodeId, train: TrainId, tick: &TickState) -> bool {
+        tick.point_occupancy
+            .get(&point)
+            .is_none_or(|s| s.iter().all(|&o| o == train))
+            && self
+                .point_reservations
+                .get(&point)
+                .is_none_or(|(o, _)| *o == train)
+    }
+
+    /// Holder of a busy crossing point, for the wait-for graph. Mirrors
+    /// [`holder_of`](Self::holder_of).
+    fn point_holder_of(&self, point: NodeId, train: TrainId, tick: &TickState) -> Option<TrainId> {
+        if let Some(owners) = tick.point_occupancy.get(&point)
+            && let Some(other) = owners.iter().copied().find(|&o| o != train)
+        {
+            return Some(other);
+        }
+        match self.point_reservations.get(&point) {
+            Some(&(o, _)) if o != train => Some(o),
+            _ => None,
+        }
+    }
+
+    /// Crossing points the train crosses while travelling within `blocks` from
+    /// `first`. Mirrors the block walk so a grant reserves the points it will
+    /// foul; the `blocks` bound keeps a block grant to its own block.
+    fn route_points(&self, train: &Train, first: EdgeId, blocks: &[BlockId]) -> Vec<NodeId> {
+        let mut points = Vec::new();
+        let mut current = first;
+        for _ in 0..=self.graph.edges.len() {
+            if !blocks.contains(&self.graph.blocks.block_of(current)) {
+                break;
+            }
+            let node = self.graph.edge(current).to;
+            if self.graph.crossing_nodes.contains(&node) && !points.contains(&node) {
+                points.push(node);
+            }
+            if self.sink_by_arrival.contains_key(&current) {
+                break;
+            }
+            match self.continuation(train, current) {
+                Some(next) => current = next,
+                None => break,
+            }
+        }
+        points
+    }
+
+    /// Records a clearance grant. Blocks: a block grant claims (per-tick, the
+    /// block is entered the same tick), a chain grant reserves (persistent).
+    /// Crossing points are ALWAYS reserved persistently — a point sits INSIDE a
+    /// block, so the train still has to travel to it; a per-tick claim would
+    /// expire mid-traversal and let a perpendicular train grab the point in the
+    /// gap before the body arrives (`or_insert` keeps an existing own
+    /// reservation's `occupied` flag on an idempotent re-grant).
+    fn apply_grant(&mut self, grant: Grant, id: TrainId, tick: &mut TickState) {
+        let (blocks_persist, points): (Vec<BlockId>, Vec<NodeId>) = match grant {
+            Grant::Block(block, points) => {
+                tick.claims.insert(block, id);
+                (Vec::new(), points)
+            }
+            Grant::Chain(blocks, points) => (blocks, points),
+        };
+        for block in blocks_persist {
+            self.reservations.insert(block, id);
+        }
+        for p in points {
+            self.point_reservations.entry(p).or_insert((id, false));
+        }
+    }
+
     /// Evaluates the signal on `signal_edge` for a crossing onto `next_edge`.
     /// `Some(grant)` = green (chain grants list the blocks to reserve).
     fn clearance(
@@ -402,16 +502,22 @@ impl Sim {
         match self.graph.signals[signal_id.0 as usize].kind {
             SignalKind::Block => {
                 let block = self.graph.blocks.block_of(next_edge);
-                if self.block_free(block, train.id, tick) {
-                    Some(Grant::Block(block))
+                let points = self.route_points(train, next_edge, &[block]);
+                if self.block_free(block, train.id, tick)
+                    && points.iter().all(|&p| self.point_free(p, train.id, tick))
+                {
+                    Some(Grant::Block(block, points))
                 } else {
                     None
                 }
             }
             SignalKind::Chain => {
                 let blocks = self.chain_route_blocks(train, next_edge);
-                if blocks.iter().all(|&b| self.block_free(b, train.id, tick)) {
-                    Some(Grant::Chain(blocks))
+                let points = self.route_points(train, next_edge, &blocks);
+                if blocks.iter().all(|&b| self.block_free(b, train.id, tick))
+                    && points.iter().all(|&p| self.point_free(p, train.id, tick))
+                {
+                    Some(Grant::Chain(blocks, points))
                 } else {
                     None
                 }
@@ -538,14 +644,7 @@ impl Sim {
 
             if self.graph.edge(head).signal.is_some() {
                 match self.clearance(self.train(id), head, next_edge, tick) {
-                    Some(Grant::Block(block)) => {
-                        tick.claims.insert(block, id);
-                    }
-                    Some(Grant::Chain(blocks)) => {
-                        for block in blocks {
-                            self.reservations.insert(block, id);
-                        }
-                    }
+                    Some(grant) => self.apply_grant(grant, id, tick),
                     None => {
                         // Blocked: remember since when (first-come priority)
                         // and on whom we wait (deadlock detection).
@@ -554,11 +653,16 @@ impl Sim {
                             self.events.push(SimEvent::SignalBlocked { train: id });
                         }
                         let needed = self.needed_blocks(self.train(id), head, next_edge);
-                        for block in needed {
-                            if let Some(holder) = self.holder_of(block, id, tick) {
-                                tick.waits.insert(id, holder);
-                                break;
-                            }
+                        let block_holder =
+                            needed.iter().find_map(|&b| self.holder_of(b, id, tick));
+                        let holder = block_holder.or_else(|| {
+                            // No block holder: maybe a crossing point we'd foul.
+                            self.route_points(self.train(id), next_edge, &needed)
+                                .iter()
+                                .find_map(|&p| self.point_holder_of(p, id, tick))
+                        });
+                        if let Some(holder) = holder {
+                            tick.waits.insert(id, holder);
                         }
                         return;
                     }
@@ -575,6 +679,12 @@ impl Sim {
             // Occupancy takes over from a reservation the moment we enter.
             if self.reservations.get(&block) == Some(&id) {
                 self.reservations.remove(&block);
+            }
+            // Entering a crossing point: occupancy takes over this tick too, so a
+            // lower-priority train moving later sees it busy.
+            let crossed = self.graph.edge(head).to;
+            if self.graph.crossing_nodes.contains(&crossed) {
+                tick.point_occupancy.entry(crossed).or_default().insert(id);
             }
             let train = self.train_mut(id);
             train.waiting_since = None;
@@ -608,6 +718,7 @@ impl Sim {
         self.arrivals.push((id, self.now));
         self.lateness_total += self.now.0.saturating_sub(due.0);
         self.reservations.retain(|_, owner| *owner != id);
+        self.point_reservations.retain(|_, (owner, _)| *owner != id);
         self.trains.retain(|t| t.id != id);
         self.events.push(SimEvent::TrainArrived {
             train: id,
@@ -828,8 +939,10 @@ impl Sim {
 }
 
 enum Grant {
-    Block(BlockId),
-    Chain(Vec<BlockId>),
+    /// One block plus the crossing points the train will cross inside it.
+    Block(BlockId, Vec<NodeId>),
+    /// A chain route's blocks plus its crossing points.
+    Chain(Vec<BlockId>, Vec<NodeId>),
 }
 
 #[cfg(test)]

@@ -1,11 +1,10 @@
 #![enable(unwrap_newtypes, implicit_some)]
-// Szenario 18 (Plan §5): Stillstand OHNE Zyklus — die Denksportaufgabe.
-// Die Strecke führt über eine Schleife zurück zur Kreuzungszelle (2,0):
-// Ein einzelner Schnitt auf einem Ring trennt nichts, also ist fast alles
-// EIN Block. Am Signal (2,1)S ist der „Folgeblock" derselbe Ringblock, in
-// dem der Zug selbst steht — strikte Blockregel: durch den eigenen Schwanz
-// fährt man nicht. Kein anderer Zug ⇒ kein Wait-for-Zyklus ⇒ nach
-// STALL_TICKS (600) endet der Run als Stalled, nicht als Deadlock.
+// Szenario 18: Schleife, die sich an der Kreuzung (2,0) selbst quert. FRÜHER
+// eine Selbstblockade (die verschmolzene Kreuzung machte fast alles zu EINEM
+// Block, der eigene Schwanz sperrte den Kopf → Stalled). Seit dem Diamant-Umbau
+// sind die W↔O- und N↔S-Durchfahrten von (2,0) GETRENNTE Blöcke, und am
+// geteilten Punkt sperrt sich ein Zug nicht selbst (`point_free` ignoriert den
+// eigenen Körper). Der Zug fährt die Schleife durch und kommt an.
 //
 //   (2,2)──(3,2)
 //     │      │
@@ -49,5 +48,5 @@
             (cell: (x: 2, y: 1), at: S, kind: Block),
         ],
     ),
-    expect: Stalled(waiting: [0]),
+    expect: Success(last_arrival_by: 120),
 )

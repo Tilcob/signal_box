@@ -104,6 +104,9 @@ pub struct TrackGraph {
     pub blocks: BlockSet,
     pub sources: Vec<SourceData>,
     pub sinks: Vec<SinkData>,
+    /// Centre nodes of flat crossings (two pieces in one cell). The two routes
+    /// are separate blocks but conflict at this point — the sim reserves it.
+    pub crossing_nodes: BTreeSet<NodeId>,
 }
 
 impl TrackGraph {
@@ -274,8 +277,22 @@ pub fn build(level: &Level, player: &Layout) -> Result<TrackGraph, Vec<Validatio
         cut_nodes.insert(point);
     }
 
-    // 5. Blocks.
-    let blocks = blocks::derive(&edges, &cut_nodes);
+    // 5. Blocks. Switch centres connect all their stubs (a switch never splits
+    //    a block); a flat crossing's centre does NOT (its two routes stay apart).
+    let switch_centers: BTreeSet<NodeId> = switch_data.iter().map(|s| s.center).collect();
+    let blocks = blocks::derive(&edges, &cut_nodes, &switch_centers);
+
+    // Flat crossings: a cell carrying two pieces. Its centre is the conflict
+    // point the two (now separate) route blocks share.
+    let mut pieces_per_cell: BTreeMap<Cell, u32> = BTreeMap::new();
+    for p in &pieces {
+        *pieces_per_cell.entry(p.cell).or_default() += 1;
+    }
+    let crossing_nodes: BTreeSet<NodeId> = pieces
+        .iter()
+        .filter(|p| pieces_per_cell[&p.cell] >= 2)
+        .map(|p| node_id[&p.cell.center_point()])
+        .collect();
 
     // 6. Sources and sinks (anchoring validated).
     let sources = level
@@ -313,6 +330,7 @@ pub fn build(level: &Level, player: &Layout) -> Result<TrackGraph, Vec<Validatio
         blocks,
         sources,
         sinks,
+        crossing_nodes,
     })
 }
 

@@ -1,9 +1,9 @@
 #![enable(unwrap_newtypes, implicit_some)]
-// Szenario 15 (Plan §5): Reservierungs-Timing. Wie s14, aber t1 startet so,
-// dass t0 die Fahrstraße bereits hält, wenn t1 sein Kettensignal erreicht:
-// t1 muss warten, bis t0s Zugende den Kreuzungsblock verlassen hat
-// (~Tick 48), und kommt deshalb erst um ~Tick 73 an (ungebremst wäre ~46).
-// last_arrival_at_least beweist das Warten.
+// Szenario 15: Reservierungs-Timing. Wie s14, aber t1 startet versetzt. Seit
+// dem Diamant-Umbau reserviert das Kettensignal nur den Kreuzungspunkt, nicht
+// den ganzen verschmolzenen Block — t1 wartet höchstens, bis t0 den PUNKT
+// geräumt hat (viel kürzer als früher der ganze Block). Beide kommen an,
+// kollisionsfrei.
 (
     level: (
         name: "S15 — Fahrstraßen-Timing",
@@ -44,5 +44,5 @@
             (cell: (x: 3, y: 0), at: E, kind: Block),
         ],
     ),
-    expect: Success(last_arrival_by: 90, last_arrival_at_least: 60),
+    expect: Success(last_arrival_by: 70),
 )

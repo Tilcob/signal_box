@@ -45,5 +45,7 @@
             (cell: (x: 3, y: 0), at: E, kind: Block),
         ],
     ),
-    expect: Success(last_arrival_by: 80, last_arrival_at_least: 55),
+    // Diamant-Umbau: das Kettensignal sperrt nur noch den Kreuzungspunkt (nicht
+    // den ganzen verschmolzenen Block), die Durchfahrt ist darum schneller.
+    expect: Success(last_arrival_by: 70),
 )

@@ -34,6 +34,14 @@ fn s02_curves_and_diagonals_builds() {
 }
 
 #[test]
+fn flat_crossing_splits_into_two_blocks() {
+    // The unsignalled crossing's two routes (W-E and N-S) no longer fuse into
+    // one block — they are separate blocks, conflicting only at the point.
+    let graph = builds_clean("s21_unsignalled_crossing_collision");
+    assert_eq!(graph.blocks.count, 2, "flat crossing = two independent blocks");
+}
+
+#[test]
 fn s01_single_train_straight_runs() {
     run_and_check("s01_single_train_straight");
 }
@@ -94,7 +102,7 @@ fn s12_reachability_check() {
 }
 
 #[test]
-fn s13_block_only_crossing_deadlocks() {
+fn s13_block_only_crossing_takes_turns() {
     run_and_check("s13_block_only_crossing");
 }
 
@@ -119,7 +127,7 @@ fn s17_long_train_two_blocks() {
 }
 
 #[test]
-fn s18_ring_self_jam_stalls() {
+fn s18_self_crossing_ring_completes() {
     run_and_check("s18_ring_self_jam");
 }
 
@@ -131,6 +139,11 @@ fn s19_full_scoring() {
 #[test]
 fn s21_unsignalled_crossing_collision() {
     run_and_check("s21_unsignalled_crossing_collision");
+}
+
+#[test]
+fn s22_signalled_crossing_takes_turns() {
+    run_and_check("s22_signalled_crossing_takes_turns");
 }
 
 /// Scenario 20: determinism. Two fresh runs of s14 produce the
@@ -171,6 +184,8 @@ fn s20_determinism_hash_sequences() {
 const GOLD: &[(&str, u64)] = &[
     ("s01_single_train_straight", 0xaf009bb080fffc4b),
     ("s02_curves_and_diagonals", 0x8f4c8dd015854ae9),
+    // Re-blessed: the diamond-crossing redesign (flat crossings = separate
+    // blocks + crossing-point interlocking) changed the four crossing scenarios.
     ("s03_two_trains_block_signal", 0x76e4f3a9471309ce),
     ("s04_rear_end_no_signal", 0x5cc1b9c3f396555c),
     ("s05_head_on_single_track", 0x9931a1bac59d3afc),
@@ -182,12 +197,12 @@ const GOLD: &[(&str, u64)] = &[
     ("s09_switch_rule_order", 0x43e6d27bfb7748ce),
     ("s10_misrouting_wrong_sink", 0xd1b72535c8dd39f3),
     ("s11_misrouting_dead_end", 0xbe092f768c924f9d),
-    ("s13_block_only_crossing", 0x2043e36fb1968d67),
-    ("s14_chain_signal_crossing", 0x059d8791202a235a),
-    ("s15_chain_reservation_timing", 0xc9d5f0fd701e4917),
+    ("s13_block_only_crossing", 0x2014e9b8f9b51d1f),
+    ("s14_chain_signal_crossing", 0x9d402d8313b6ecef),
+    ("s15_chain_reservation_timing", 0xb8231854007af5f6),
     ("s16_source_fifo", 0x70fd35b8304896bf),
     ("s17_long_train_two_blocks", 0x09eda40416d89b8b),
-    ("s18_ring_self_jam", 0xace23424b3abf55c),
+    ("s18_ring_self_jam", 0x69b37ddc667582e6),
     ("s19_full_scoring", 0xd4f8cb459f46bac5),
 ];
 

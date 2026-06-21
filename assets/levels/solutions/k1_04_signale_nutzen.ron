@@ -8,34 +8,16 @@
                 y: 1,
             ),
             at: E,
-            kind: Block,
+            kind: Chain,
             priority: 0,
         ),
         (
             cell: (
-                x: 0,
+                x: -2,
                 y: -1,
             ),
             at: E,
-            kind: Block,
-            priority: 0,
-        ),
-        (
-            cell: (
-                x: -1,
-                y: 2,
-            ),
-            at: S,
-            kind: Block,
-            priority: 0,
-        ),
-        (
-            cell: (
-                x: 1,
-                y: 0,
-            ),
-            at: S,
-            kind: Block,
+            kind: Chain,
             priority: 0,
         ),
     ],
