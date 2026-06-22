@@ -316,11 +316,22 @@ fn save_solution_click(
                     path.display(),
                     crate::authoring::list_solutions(&active.id).join(", "),
                 );
+                // The MAIN solution defines the timetable: calibrate `due` from
+                // it FIRST (so the par below is then measured against it), then
+                // re-bless the par. Variant saves leave the timetable alone.
+                let due = if variant.is_none() {
+                    match crate::authoring::suggest_and_write_due(&active.id) {
+                        Ok(s) => format!("{s}\n"),
+                        Err(e) => format!("Sollzeiten NICHT gesetzt: {e}\n"),
+                    }
+                } else {
+                    String::new()
+                };
                 let par = match crate::authoring::suggest_and_write_par(&active.id) {
                     Ok(s) => s,
                     Err(e) => format!("Par NICHT gesetzt: {e}"),
                 };
-                format!("{saved}\n{par}")
+                format!("{saved}\n{due}{par}")
             }
             Err(e) => format!("Sichern fehlgeschlagen: {e}"),
         };

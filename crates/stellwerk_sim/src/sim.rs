@@ -166,6 +166,14 @@ impl Sim {
         &self.reservations
     }
 
+    /// Per-train arrival ticks, in arrival order. Empty until trains finish;
+    /// after a `Success` run it holds one entry per scheduled train. Used by
+    /// the `due_suggest` authoring tool to derive timetable `due` values from a
+    /// reference solution.
+    pub fn arrivals(&self) -> &[(TrainId, Tick)] {
+        &self.arrivals
+    }
+
     /// Headless run until an outcome or `max` ticks. Hitting the cap with an
     /// unfinished schedule ends as `Stalled` (e.g. an endless runaway) — a
     /// run always terminates with a diagnosable outcome.
@@ -953,6 +961,41 @@ enum Grant {
     Chain(Vec<BlockId>, Vec<NodeId>),
 }
 
+/// Default slack budget for [`suggest_dues`]: a percentage of each train's run
+/// time. A modest band so a "good enough" solution still meets the timetable,
+/// rather than demanding the reference's exact timing.
+pub const DUE_SLACK_PCT: u64 = 10;
+
+/// Per-schedule-entry `due` ticks that make `solution` punctual: each train's
+/// measured arrival in `solution`, plus `slack_pct`% of its run time (so longer
+/// runs get proportionally more leeway). Setting the level's `due` to these
+/// makes 0 lateness achievable, with `solution` as the reference timetable.
+///
+/// Result is in schedule order (one per `level.schedule` entry). `Err` when
+/// `solution` is invalid or does not finish as `Success` — without a clean run
+/// there are no arrivals to measure, so the caller keeps the existing `due`.
+pub fn suggest_dues(level: &Level, solution: &Layout, slack_pct: u64) -> Result<Vec<Tick>, String> {
+    let mut sim = Sim::new(level, solution).map_err(|_| "Lösung validiert nicht".to_string())?;
+    match sim.run(Tick(50_000)) {
+        Outcome::Success { .. } => {}
+        other => return Err(format!("Lösung endet nicht mit Erfolg ({other:?})")),
+    }
+    let arrivals = sim.arrivals();
+    level
+        .schedule
+        .iter()
+        .map(|entry| {
+            let (_, arrival) = arrivals
+                .iter()
+                .find(|(t, _)| *t == entry.train)
+                .ok_or_else(|| format!("Zug {} kam nicht an", entry.train.0))?;
+            let journey = arrival.0.saturating_sub(entry.depart.0);
+            let slack = (journey * slack_pct).div_ceil(100);
+            Ok(Tick(arrival.0 + slack))
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1061,6 +1104,23 @@ mod tests {
             },
         };
         (level, layout)
+    }
+
+    /// Calibrated dues make the reference solution punctual: applying the
+    /// suggested `due` to the schedule, the same solution scores 0 lateness.
+    #[test]
+    fn suggest_dues_makes_solution_punctual() {
+        let (mut level, layout) = merge_level();
+        let dues = suggest_dues(&level, &layout, 10).expect("solvable reference");
+        assert_eq!(dues.len(), level.schedule.len());
+        for (entry, due) in level.schedule.iter_mut().zip(&dues) {
+            entry.due = *due;
+        }
+        let mut sim = Sim::new(&level, &layout).expect("valid");
+        match sim.run(Tick(10_000)) {
+            Outcome::Success { score } => assert_eq!(score.lateness, 0, "calibrated due ⇒ punctual"),
+            other => panic!("got {other:?}"),
+        }
     }
 
     /// Both trains reach their signals in the same tick and want the same

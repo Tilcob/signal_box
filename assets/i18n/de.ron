@@ -183,4 +183,10 @@
     "level.k1_06_weichen_und_signale.briefing": "3 Züge müssen zu 2 Ziele fahren. Nutzen Sie Weichen und Signale, um die Züge in das richtige Ziel zu leiten und nicht kollidieren zu lassen.",
     "level.k1_07_ausweichgleis.name": "1.7 Ausweichgleis",
     "level.k1_07_ausweichgleis.briefing": "Die Züge müssen durch eine Engstelle. Bauen Sie ein Ausweichgleis mit Weichen, um eine Kollision zu vermeiden.",
+    "level.k1_08_mehr_signale.name": "1.8 Mehr Signale",
+    "level.k1_08_mehr_signale.briefing": "Sichern Sie alle Kreuzungen mit Signalen, um Kollisionen zu vermeiden.",
+    "station.Ziel 4": "Ziel 4",
+    "station.Ziel 5": "Ziel 5",
+    "station.Start 4": "Start 4",
+    "station.Start 5": "Start 5",
 }

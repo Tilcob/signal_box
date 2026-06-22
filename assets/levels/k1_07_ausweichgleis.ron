@@ -280,7 +280,7 @@
                 source: (0),
                 sink: (1),
                 depart: (0),
-                due: (80),
+                due: (132),
             ),
             (
                 train: (1),
@@ -290,9 +290,9 @@
                 source: (1),
                 sink: (0),
                 depart: (0),
-                due: (90),
+                due: (160),
             ),
         ],
-        par: (throughput: (145), material: 12, lateness: 95),
+        par: (throughput: (145), material: 12, lateness: 0),
     ),
 )

@@ -38,4 +38,4 @@ pub use layout::{Layout, ValidationError, validate};
 pub use level::Level;
 pub use routing::{RouteEnd, Unreachable, check_reachability};
 pub use score::Score;
-pub use sim::{Outcome, Sim, SimEvent};
+pub use sim::{DUE_SLACK_PCT, Outcome, Sim, SimEvent, suggest_dues};

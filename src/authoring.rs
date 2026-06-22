@@ -129,6 +129,31 @@ pub fn suggest_and_write_par(id: &str) -> Result<String, String> {
     Ok(format!("Par gesetzt: throughput {bt}, material {bm}, lateness {bl}"))
 }
 
+/// The timetable-calibration step inlined for the in-game dev solution-save
+/// (the `due_suggest` CLI does the same): measures each train's arrival in the
+/// BASE solution (`<id>.ron`) and rewrites the level file's schedule `due:`
+/// values to `arrival + slack`, so 0 lateness becomes achievable. Run BEFORE
+/// [`suggest_and_write_par`] so the par is computed against the new timetable.
+/// `Err` (file left untouched) when the base solution is missing, invalid, or
+/// does not finish — an un-measured timetable is never written.
+pub fn suggest_and_write_due(id: &str) -> Result<String, String> {
+    let level_path = levels_dir().join(format!("{id}.ron"));
+    let text = std::fs::read_to_string(&level_path).map_err(|e| e.to_string())?;
+    let def: LevelDef = ron::from_str(&text).map_err(|e| e.to_string())?;
+
+    let sol_path = solutions_dir().join(format!("{id}.ron"));
+    let stext = std::fs::read_to_string(&sol_path)
+        .map_err(|_| format!("{id}: keine Basis-Lösung ({id}.ron)"))?;
+    let layout: Layout = ron::from_str(&stext).map_err(|e| format!("{}: {e}", sol_path.display()))?;
+
+    let dues = stellwerk_sim::suggest_dues(&def.sim, &layout, stellwerk_sim::DUE_SLACK_PCT)?;
+    let new: Vec<u64> = dues.iter().map(|t| t.0).collect();
+    let updated = rewrite_schedule_dues(&text, &new)
+        .ok_or_else(|| format!("schedule/due in {} nicht gefunden", level_path.display()))?;
+    std::fs::write(&level_path, updated).map_err(|e| e.to_string())?;
+    Ok(format!("Sollzeiten gesetzt (Slack {}%)", stellwerk_sim::DUE_SLACK_PCT))
+}
+
 /// Tool 1 — write a sandbox build out as a campaign level
 /// (`assets/levels/<id>.ron`) and seed placeholder i18n keys for its name,
 /// briefing and station labels in BOTH tables. The caller reloads the live
@@ -270,9 +295,87 @@ fn replace_par(text: &str, new_par: &str) -> Option<String> {
     Some(out)
 }
 
+/// Replaces the value of every `due:` field inside the `schedule:` list, in
+/// order, with `new_dues`. Each token's form is preserved per-token: a wrapped
+/// newtype `(80)` stays wrapped, a bare `80` (unwrap_newtypes dialect) stays
+/// bare — so the file's RON dialect, comments and layout survive untouched. The
+/// search is bounded to the schedule list span (anchored after `sim:` →
+/// `schedule:` → its matching `]`), so a stray "due" elsewhere can't match.
+/// `None` if the span isn't found or the `due:` count differs from the schedule
+/// length (a guard against a half-updated splice). Mirrors
+/// `due_suggest::rewrite_schedule_dues`.
+fn rewrite_schedule_dues(text: &str, new_dues: &[u64]) -> Option<String> {
+    let sim = text.find("sim:")?;
+    let sched = sim + text[sim..].find("schedule:")?;
+    let open = sched + text[sched..].find('[')?;
+    let mut depth = 0usize;
+    let mut close = None;
+    for (i, c) in text[open..].char_indices() {
+        match c {
+            '[' => depth += 1,
+            ']' => {
+                depth -= 1;
+                if depth == 0 {
+                    close = Some(open + i);
+                    break;
+                }
+            }
+            _ => {}
+        }
+    }
+    let close = close?;
+
+    let mut ranges: Vec<(usize, usize, bool)> = Vec::new();
+    let mut cursor = open;
+    while let Some(rel) = text[cursor..close].find("due:") {
+        let after = cursor + rel + "due:".len();
+        let ws = text[after..close].find(|c: char| !c.is_whitespace())?;
+        let val_start = after + ws;
+        if text.as_bytes()[val_start] == b'(' {
+            let mut d = 0usize;
+            let mut end = None;
+            for (i, c) in text[val_start..close].char_indices() {
+                match c {
+                    '(' => d += 1,
+                    ')' => {
+                        d -= 1;
+                        if d == 0 {
+                            end = Some(val_start + i + 1);
+                            break;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            ranges.push((val_start, end?, true));
+        } else {
+            let end = val_start + text[val_start..close].find(|c: char| !c.is_ascii_digit())?;
+            ranges.push((val_start, end, false));
+        }
+        cursor = ranges.last().expect("just pushed").1;
+    }
+    if ranges.len() != new_dues.len() {
+        return None;
+    }
+
+    let mut out = String::with_capacity(text.len());
+    let mut prev = 0;
+    for (&(s, e, parens), &d) in ranges.iter().zip(new_dues) {
+        out.push_str(&text[prev..s]);
+        if parens {
+            out.push_str(&format!("({d})"));
+        } else {
+            out.push_str(&format!("{d}"));
+        }
+        prev = e;
+    }
+    out.push_str(&text[prev..]);
+    Some(out)
+}
+
 #[cfg(test)]
 mod tests {
-    use super::replace_par;
+    use super::{replace_par, rewrite_schedule_dues};
 
     /// A headerless file wraps throughput as `(0)`, so a first-`)` scan would
     /// slice the block. The whole nested block must be replaced, leaving
@@ -284,5 +387,24 @@ mod tests {
         assert!(out.contains("par: (throughput: (276), material: 34, lateness: 430)"));
         assert!(!out.contains("throughput: (0)"), "old block must be gone");
         assert_eq!(out.matches('(').count(), out.matches(')').count(), "balanced");
+    }
+
+    /// Each schedule entry's due is rewritten in order, wrapped-newtype dialect
+    /// and depart values preserved, a comment survives.
+    #[test]
+    fn rewrites_each_schedule_due_in_order() {
+        let text = "( sim: ( schedule: [\n  ( train: (0), depart: (20), due: (80) ),\n  // note\n  ( train: (1), depart: (50), due: (90) ),\n], ), )";
+        let out = rewrite_schedule_dues(text, &[85, 143]).unwrap();
+        assert!(out.contains("depart: (20), due: (85)"));
+        assert!(out.contains("depart: (50), due: (143)"));
+        assert!(out.contains("// note"), "comment survives");
+        assert!(!out.contains("(80)") && !out.contains("(90)"), "old dues gone");
+    }
+
+    /// A due-count mismatch refuses rather than splicing a half-updated file.
+    #[test]
+    fn rewrite_due_refuses_on_count_mismatch() {
+        let text = "( sim: ( schedule: [ ( due: (80) ), ( due: (90) ) ], ), )";
+        assert!(rewrite_schedule_dues(text, &[1]).is_none());
     }
 }

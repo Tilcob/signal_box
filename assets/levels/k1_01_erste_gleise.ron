@@ -131,7 +131,7 @@
                 source: (0),
                 sink: (0),
                 depart: (10),
-                due: (80),
+                due: (163),
             ),
             (
                 train: (1),
@@ -141,7 +141,7 @@
                 source: (0),
                 sink: (0),
                 depart: (30),
-                due: (90),
+                due: (183),
             ),
             (
                 train: (2),
@@ -151,9 +151,9 @@
                 source: (0),
                 sink: (0),
                 depart: (50),
-                due: (100),
+                due: (203),
             ),
         ],
-        par: (throughput: (189), material: 12, lateness: 237),
+        par: (throughput: (189), material: 12, lateness: 0),
     ),
 )

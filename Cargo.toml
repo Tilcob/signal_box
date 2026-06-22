@@ -24,6 +24,11 @@ path = "tools/par_suggest.rs"
 required-features = ["dev"]
 
 [[bin]]
+name = "due_suggest"
+path = "tools/due_suggest.rs"
+required-features = ["dev"]
+
+[[bin]]
 name = "i18n_fill"
 path = "tools/i18n_fill.rs"
 required-features = ["dev"]

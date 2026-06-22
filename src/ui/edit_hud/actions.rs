@@ -104,11 +104,30 @@ fn slot_clicks(
 
 fn export_level_click(
     interactions: Query<&Interaction, (Changed<Interaction>, With<ExportLevelButton>)>,
-    active: Option<Res<ActiveLevel>>,
+    active: Option<ResMut<ActiveLevel>>,
+    editor: Res<Editor>,
     mut log: ResMut<ConsoleLog>,
 ) {
-    let Some(active) = active else { return };
+    let Some(mut active) = active else { return };
     if interactions.iter().any(|i| *i == Interaction::Pressed) {
+        // Calibrate the timetable to the solution currently on the board, so 0
+        // lateness is achievable for it (sandbox authoring): each train's `due`
+        // becomes its measured arrival + slack. Skipped with a console note when
+        // the board isn't a winning solution — there are no arrivals to measure,
+        // so the existing due is kept and the export still proceeds.
+        match stellwerk_sim::suggest_dues(&active.level, &editor.layout, stellwerk_sim::DUE_SLACK_PCT)
+        {
+            Ok(dues) => {
+                for (entry, due) in active.level.schedule.iter_mut().zip(&dues) {
+                    entry.due = *due;
+                }
+                log.info(format!(
+                    "Sollzeiten kalibriert (Slack {}%)",
+                    stellwerk_sim::DUE_SLACK_PCT
+                ));
+            }
+            Err(e) => log.warn(format!("Sollzeiten nicht kalibriert: {e}")),
+        }
         let code = stellwerk_codes::encode(&Payload::Level {
             level: active.level.clone(),
         });
