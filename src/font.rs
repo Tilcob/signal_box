@@ -15,6 +15,12 @@ use bevy::text::Font;
 /// `·`-separated columns lose their alignment).
 const PATH: &str = "assets/fonts/Saira_Semi_Condensed/SairaSemiCondensed-Regular.ttf";
 
+/// Embedded copy for wasm (the browser has no filesystem). Must stay in sync
+/// with `PATH`; `include_bytes!` needs a literal, so the path is spelled out.
+#[cfg(target_arch = "wasm32")]
+const FONT_BYTES: &[u8] =
+    include_bytes!("../assets/fonts/Saira_Semi_Condensed/SairaSemiCondensed-Regular.ttf");
+
 /// Handle to the UI font, passed explicitly into every `TextFont`.
 ///
 /// Deliberately its OWN asset under its own handle: replacing the asset
@@ -35,8 +41,14 @@ impl Plugin for FontPlugin {
         // so `OnEnter(LevelSelect)` spawns text in the same schedule a
         // PreStartup system would race against. Building the resource here
         // guarantees it exists before any schedule runs at all.
-        let handle = match std::fs::read(PATH)
-            .map_err(|e| e.to_string())
+        // Desktop reads the font from disk (swappable without a rebuild); wasm
+        // uses the embedded copy, since the browser has no filesystem.
+        #[cfg(not(target_arch = "wasm32"))]
+        let bytes = std::fs::read(PATH).map_err(|e| e.to_string());
+        #[cfg(target_arch = "wasm32")]
+        let bytes: Result<Vec<u8>, String> = Ok(FONT_BYTES.to_vec());
+
+        let handle = match bytes
             .and_then(|bytes| Font::try_from_bytes(bytes).map_err(|e| e.to_string()))
         {
             Ok(font) => app

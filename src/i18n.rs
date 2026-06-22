@@ -15,6 +15,7 @@ struct Table {
     fallback: BTreeMap<String, String>,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn load_table(lang: &str) -> BTreeMap<String, String> {
     let path = format!("assets/i18n/{lang}.ron");
     match std::fs::read_to_string(&path)
@@ -28,6 +29,20 @@ fn load_table(lang: &str) -> BTreeMap<String, String> {
             BTreeMap::new()
         }
     }
+}
+
+/// Browser: the two tables are embedded (no filesystem). Only "de"/"en" ship,
+/// so an exhaustive match is enough.
+#[cfg(target_arch = "wasm32")]
+fn load_table(lang: &str) -> BTreeMap<String, String> {
+    let text = match lang {
+        "en" => include_str!("../assets/i18n/en.ron"),
+        _ => include_str!("../assets/i18n/de.ron"),
+    };
+    ron::from_str::<BTreeMap<String, String>>(text).unwrap_or_else(|e| {
+        bevy::log::warn!("i18n: embedded {lang} table unparseable: {e}");
+        BTreeMap::new()
+    })
 }
 
 /// Switches the active language ("de" / "en") and (re)loads the tables.

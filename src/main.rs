@@ -24,31 +24,45 @@ mod dev_tools;
 mod audio;
 
 use bevy::prelude::*;
-use bevy::window::{PresentMode, WindowMode, WindowPosition};
+use bevy::window::PresentMode;
+#[cfg(not(target_arch = "wasm32"))]
+use bevy::window::{WindowMode, WindowPosition};
 
 fn main() {
     let mut app = App::new();
 
-    // Debug aid: STELLWERK_WINDOWED=1 starts in a fixed window on the
-    // primary monitor instead of borderless fullscreen — fullscreen on
-    // multi-monitor setups is awkward for screenshots and automation.
-    let windowed = std::env::var_os("STELLWERK_WINDOWED").is_some();
-    let window = if windowed {
-        Window {
-            title: "Stellwerk".into(),
-            mode: WindowMode::Windowed,
-            position: WindowPosition::At(IVec2::new(80, 80)),
-            resolution: (1600, 900).into(),
-            present_mode: PresentMode::AutoVsync,
-            ..default()
+    // Desktop: borderless fullscreen, or a fixed window with STELLWERK_WINDOWED=1
+    // (fullscreen on multi-monitor setups is awkward for screenshots/automation).
+    #[cfg(not(target_arch = "wasm32"))]
+    let window = {
+        let windowed = std::env::var_os("STELLWERK_WINDOWED").is_some();
+        if windowed {
+            Window {
+                title: "Stellwerk".into(),
+                mode: WindowMode::Windowed,
+                position: WindowPosition::At(IVec2::new(80, 80)),
+                resolution: (1600, 900).into(),
+                present_mode: PresentMode::AutoVsync,
+                ..default()
+            }
+        } else {
+            Window {
+                title: "Stellwerk".into(),
+                mode: WindowMode::BorderlessFullscreen(MonitorSelection::Current),
+                present_mode: PresentMode::AutoVsync,
+                ..default()
+            }
         }
-    } else {
-        Window {
-            title: "Stellwerk".into(),
-            mode: WindowMode::BorderlessFullscreen(MonitorSelection::Current),
-            present_mode: PresentMode::AutoVsync,
-            ..default()
-        }
+    };
+
+    // Browser: render into <canvas id="bevy"> and follow its parent's size.
+    #[cfg(target_arch = "wasm32")]
+    let window = Window {
+        title: "Stellwerk".into(),
+        canvas: Some("#bevy".into()),
+        fit_canvas_to_parent: true,
+        present_mode: PresentMode::AutoVsync,
+        ..default()
     };
 
     app.insert_resource(ClearColor(Color::srgb(0.013, 0.016, 0.022)))

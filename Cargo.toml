@@ -39,17 +39,36 @@ stellwerk_sim = { path = "crates/stellwerk_sim" }
 stellwerk_codes = { path = "crates/stellwerk_codes" }
 serde = { version = "1.0", features = ["derive"] }
 ron = "0.12"
-directories = "6"
-# Systemzwischenablage für Sharing-Codes (M2-Restfeature 01, GDD §12.2).
-# Default-Features genügen (Wayland-Support, KEIN image-data) → text-only,
-# keine Bildcodec-Kette.
-arboard = "3"
 bevy-inspector-egui = { version = "0.36", optional = true }
 # ogg (default) für Musik-Loops; wav für kurze SFX; mp3 optional dazu.
 bevy_kira_audio = { version = "0.25.0", features = ["wav"] }
 # Zufall für die Level-Musik-Playlist. Bewusst NUR in der Bevy-Schicht — der
 # stellwerk_sim-Kern bleibt deterministisch und randomness-frei.
 fastrand = "2"
+
+# --- Desktop only (Windows/Linux/macOS) -------------------------------------
+# Native-only Crates: sie landen NIE im wasm-Baum (arboard hat kein
+# Browser-Backend, directories kein Config-Verzeichnis). Der Desktop-Build ist
+# damit unverändert; der Browser-Build (plans/wasm/wasm-port.md) nutzt web-sys.
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+directories = "6"
+# Systemzwischenablage für Sharing-Codes (M2-Restfeature 01, GDD §12.2).
+# Default-Features genügen (Wayland-Support, KEIN image-data) → text-only.
+arboard = "3"
+
+# --- Browser only (wasm32) --------------------------------------------------
+# localStorage (Persistenz), Clipboard + window.prompt (Sharing-Codes). web-sys
+# ist transitiv (über bevy/wasm-bindgen) schon im Baum — kein Versionssprung.
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+web-sys = { version = "0.3", features = [
+    "Window",
+    "Navigator",
+    "Storage",
+    "Clipboard",
+] }
+# Level-Katalog ohne Dateisystem: das assets/levels-Verzeichnis wird zur
+# Compile-Zeit eingebettet (Desktop liest weiter via read_dir).
+include_dir = "0.7"
 
 [dev-dependencies]
 # Schriftprüfung (M2-Restfeature 04): Glyph-Abdeckung der ausgelieferten Font

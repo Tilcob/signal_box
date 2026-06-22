@@ -6,9 +6,11 @@
 //! migrated once, read-only — the old file stays untouched.
 
 use bevy::prelude::*;
+#[cfg(not(target_arch = "wasm32"))]
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
+#[cfg(not(target_arch = "wasm32"))]
 use std::path::{Path, PathBuf};
 use stellwerk_sim::Score;
 use stellwerk_sim::grid::Cell;
@@ -106,8 +108,10 @@ pub struct Progress {
     /// EXISTING file could not be read/parsed. The next [`Progress::save`]
     /// then preserves that original file as a `.bak` before overwriting, so a
     /// transient lock or a corrupt file never silently destroys real data.
-    /// Not persisted.
+    /// Not persisted. Only the desktop `.bak` degradation path reads this; on
+    /// wasm (localStorage) it is unused.
     #[serde(skip)]
+    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     degraded: bool,
 }
 
@@ -128,20 +132,47 @@ impl Default for Progress {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn config_dir() -> Option<PathBuf> {
     ProjectDirs::from("", "", "Stellwerk").map(|dirs| dirs.config_dir().to_path_buf())
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn progress_path() -> PathBuf {
     config_dir()
         .map(|dir| dir.join("progress.ron"))
         .unwrap_or_else(|| PathBuf::from("stellwerk_progress.ron"))
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn sandbox_path() -> PathBuf {
     config_dir()
         .map(|dir| dir.join("sandbox.ron"))
         .unwrap_or_else(|| PathBuf::from("stellwerk_sandbox.ron"))
+}
+
+// --- Browser persistence (wasm: localStorage) -------------------------------
+
+#[cfg(target_arch = "wasm32")]
+const PROGRESS_KEY: &str = "stellwerk_progress";
+#[cfg(target_arch = "wasm32")]
+const SANDBOX_KEY: &str = "stellwerk_sandbox";
+
+#[cfg(target_arch = "wasm32")]
+fn local_storage() -> Option<web_sys::Storage> {
+    web_sys::window()?.local_storage().ok().flatten()
+}
+
+#[cfg(target_arch = "wasm32")]
+fn store_get(key: &str) -> Option<String> {
+    local_storage()?.get_item(key).ok().flatten()
+}
+
+#[cfg(target_arch = "wasm32")]
+fn store_set(key: &str, value: &str) {
+    if let Some(storage) = local_storage() {
+        let _ = storage.set_item(key, value);
+    }
 }
 
 impl Progress {
@@ -149,14 +180,26 @@ impl Progress {
         self.levels.entry(id.to_string()).or_default()
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn save(&self) {
         self.save_to(&progress_path());
+    }
+
+    /// Browser: persist to localStorage (reliable key-value — no `.bak` dance,
+    /// no working-dir migration).
+    #[cfg(target_arch = "wasm32")]
+    pub fn save(&self) {
+        match ron::ser::to_string_pretty(self, Default::default()) {
+            Ok(text) => store_set(PROGRESS_KEY, &text),
+            Err(e) => warn!("cannot serialize progress: {e}"),
+        }
     }
 
     /// Writes the progress to `path`. If this instance is [`Progress::degraded`]
     /// (a previous load could not read/parse an existing file), the existing
     /// file is first preserved as `<path>.bak` — but only once, so the very
     /// first (original) version is the one kept.
+    #[cfg(not(target_arch = "wasm32"))]
     fn save_to(&self, path: &Path) {
         if let Some(parent) = path.parent() {
             let _ = std::fs::create_dir_all(parent);
@@ -181,6 +224,7 @@ impl Progress {
         }
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     fn load() -> Progress {
         let path = progress_path();
         let text = match std::fs::read_to_string(&path) {
@@ -217,6 +261,14 @@ impl Progress {
                 }
             }
         }
+    }
+
+    /// Browser: load from localStorage (no working-dir M1 migration there).
+    #[cfg(target_arch = "wasm32")]
+    fn load() -> Progress {
+        store_get(PROGRESS_KEY)
+            .and_then(|text| parse_progress(&text))
+            .unwrap_or_default()
     }
 }
 
@@ -304,6 +356,7 @@ pub fn sandbox_template() -> Level {
     empty_sandbox(SANDBOX_DEFAULT_W, SANDBOX_DEFAULT_H)
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 pub fn load_sandbox() -> Level {
     std::fs::read_to_string(sandbox_path())
         .ok()
@@ -311,6 +364,7 @@ pub fn load_sandbox() -> Level {
         .unwrap_or_else(sandbox_template)
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 pub fn save_sandbox(level: &Level) {
     let path = sandbox_path();
     if let Some(parent) = path.parent() {
@@ -326,9 +380,30 @@ pub fn save_sandbox(level: &Level) {
     }
 }
 
+/// Browser: sandbox lives in localStorage.
+#[cfg(target_arch = "wasm32")]
+pub fn load_sandbox() -> Level {
+    store_get(SANDBOX_KEY)
+        .and_then(|text| ron::from_str(&text).ok())
+        .unwrap_or_else(sandbox_template)
+}
+
+#[cfg(target_arch = "wasm32")]
+pub fn save_sandbox(level: &Level) {
+    match ron::ser::to_string_pretty(level, Default::default()) {
+        Ok(text) => store_set(SANDBOX_KEY, &text),
+        Err(e) => warn!("cannot serialize sandbox: {e}"),
+    }
+}
+
 /// Reads every `assets/levels/*.ron` into the catalog. Called from the
 /// `Loading` state (not at plugin build) so the on-demand load gate has real
 /// work — see [`crate::loading`]. Public for that module.
+///
+/// Desktop reads the directory at runtime (levels are editable without a
+/// rebuild — the authoring workflow). wasm has no filesystem, so the browser
+/// build embeds the directory (see the `#[cfg(target_arch = "wasm32")]` twin).
+#[cfg(not(target_arch = "wasm32"))]
 pub fn load_catalog() -> Catalog {
     let dir = PathBuf::from("assets/levels");
     let mut entries: Vec<LevelEntry> = Vec::new();
@@ -364,6 +439,46 @@ pub fn load_catalog() -> Catalog {
     // Play/display order is (chapter, order) — decoupled from the file stem so
     // levels can be inserted without renaming (the stem stays the stable
     // progress/code key). The stem breaks ties for deterministic ordering.
+    entries.sort_by(|a, b| {
+        (a.meta.chapter, a.meta.order, &a.id).cmp(&(b.meta.chapter, b.meta.order, &b.id))
+    });
+    info!("{} levels loaded", entries.len());
+    Catalog(entries)
+}
+
+/// wasm: the level directory is embedded at compile time (no filesystem in the
+/// browser). Mirrors the desktop reader — top-level `*.ron` only; the
+/// `solutions` subdir is skipped (`files()` is non-recursive, like `read_dir`'s
+/// `is_file` check).
+#[cfg(target_arch = "wasm32")]
+static LEVELS_DIR: include_dir::Dir =
+    include_dir::include_dir!("$CARGO_MANIFEST_DIR/assets/levels");
+
+#[cfg(target_arch = "wasm32")]
+pub fn load_catalog() -> Catalog {
+    let mut entries: Vec<LevelEntry> = Vec::new();
+    for file in LEVELS_DIR.files() {
+        let path = file.path();
+        if path.extension().and_then(|e| e.to_str()) != Some("ron") {
+            continue;
+        }
+        let id = path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or_default()
+            .to_string();
+        let Some(text) = file.contents_utf8() else {
+            continue;
+        };
+        match ron::from_str::<LevelDef>(text) {
+            Ok(def) => entries.push(LevelEntry {
+                id,
+                meta: def.meta,
+                level: def.sim,
+            }),
+            Err(e) => error!("embedded level {path:?} unreadable: {e}"),
+        }
+    }
     entries.sort_by(|a, b| {
         (a.meta.chapter, a.meta.order, &a.id).cmp(&(b.meta.chapter, b.meta.order, &b.id))
     });
