@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Stellwerk</title>
+    <!--
+      Browser build entry for `trunk` (plans/wasm/wasm-port.md).
+      - rel="rust": build this crate to wasm; no-default-features drops the dev
+        egui/inspector tooling (ship build); wasm-opt="z" shrinks the binary.
+      - copy-dir assets: audio is still loaded via the Bevy AssetServer at
+        runtime, so the assets/ tree must ship next to the wasm. (Font, i18n and
+        levels are embedded at compile time and do NOT need this.)
+    -->
+    <link data-trunk rel="rust" data-cargo-no-default-features data-wasm-opt="z" />
+    <link data-trunk rel="copy-dir" href="assets" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #06070a;
+        overflow: hidden;
+      }
+      /* Bevy's fit_canvas_to_parent tracks this canvas's parent (body). */
+      canvas {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+        outline: none;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="bevy"></canvas>
+  </body>
+</html>

@@ -4,4 +4,3 @@
 # trunk (wasm) build output + tool cache
 /dist
 /.trunk
-index.html
