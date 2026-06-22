@@ -8,8 +8,10 @@
 use std::collections::BTreeSet;
 use std::sync::LazyLock;
 use stellwerk_sim::grid::{Cell, Dir8, Point, pair_len};
-use stellwerk_sim::layout::{Layout, TrackPiece};
-use stellwerk_sim::level::Level;
+use stellwerk_sim::layout::{Layout, SignalDef, SwitchDef, TrackPiece};
+use stellwerk_sim::level::{Level, SinkDef, SourceDef};
+
+use super::ops::Element;
 
 /// 8 switch presets: cardinal stem, branches = straight-through + 45° turn.
 /// Fixed table — built once, not per frame (this is read in the overlay draw,
@@ -28,14 +30,116 @@ pub(super) fn switch_variants() -> &'static [(Dir8, [Dir8; 2])] {
     &VARIANTS
 }
 
-/// Buildable cell, no switch there, and both connectors still free —
-/// crossings with disjoint connectors stay legal.
-pub(super) fn can_place_piece(level: &Level, merged: &Layout, piece: &TrackPiece) -> bool {
-    level.buildable.contains(&piece.cell)
-        && !merged.switches.iter().any(|s| s.cell == piece.cell)
-        && !merged.pieces.iter().any(|p| {
-            p.cell == piece.cell && [p.a, p.b].iter().any(|d| *d == piece.a || *d == piece.b)
-        })
+/// What placing a build element does to what is already on its cell. The
+/// player may build straight over their own track/switches — the conflicting
+/// pieces are removed in the same undo step — but designer-fixed track is
+/// untouchable, so a clash with it blocks the placement outright.
+pub(super) enum Placement {
+    /// Off-board, or a clash with fixed (untouchable) track — nothing happens.
+    Blocked,
+    /// The cell is free for this element; just place it.
+    Place,
+    /// Place, but first remove these player elements occupying the cell.
+    Replace(Vec<Element>),
+}
+
+/// The player pieces/switches that must give way for `wanted` to sit on `cell`,
+/// or [`Placement::Blocked`] when a designer-fixed element clashes (those are
+/// never bulldozed). `conflict` decides which pieces clash: a whole-cell taker
+/// (a switch) conflicts with everything; a track piece only with shared
+/// connectors. A crossing with disjoint connectors is no conflict — it stays.
+fn plan(level: &Level, layout: &Layout, cell: Cell, conflict: impl Fn(&TrackPiece) -> bool) -> Placement {
+    if !level.buildable.contains(&cell) {
+        return Placement::Blocked;
+    }
+    // A fixed piece in the way (or any fixed switch on the cell) is untouchable.
+    let fixed_clash = level.fixed.pieces.iter().any(|p| p.cell == cell && conflict(p))
+        || level.fixed.switches.iter().any(|s| s.cell == cell);
+    if fixed_clash {
+        return Placement::Blocked;
+    }
+    let mut replace: Vec<Element> = layout
+        .pieces
+        .iter()
+        .filter(|p| p.cell == cell && conflict(p))
+        .map(|p| Element::Piece(*p))
+        .collect();
+    replace.extend(
+        layout
+            .switches
+            .iter()
+            .filter(|s| s.cell == cell)
+            .map(|s| Element::Switch(s.clone())),
+    );
+    if replace.is_empty() {
+        Placement::Place
+    } else {
+        Placement::Replace(replace)
+    }
+}
+
+/// Placement plan for a track piece: pieces sharing a connector clash (a
+/// crossing with disjoint connectors does not), and a switch owns the whole
+/// cell so it always clashes.
+pub(super) fn plan_piece(level: &Level, layout: &Layout, piece: &TrackPiece) -> Placement {
+    plan(level, layout, piece.cell, |p| {
+        [p.a, p.b].iter().any(|d| *d == piece.a || *d == piece.b)
+    })
+}
+
+/// Placement plan for a switch: the cell must be exclusive, so every piece and
+/// switch already on it clashes.
+pub(super) fn plan_switch(level: &Level, layout: &Layout, cell: Cell) -> Placement {
+    plan(level, layout, cell, |_| true)
+}
+
+/// The single element the erase tool would remove at `(cell, at)`, for the
+/// delete preview and the erase op to agree on. Same priority order as the
+/// erase op: (sandbox: block → source → sink at the connector) → signal at the
+/// connector (else any on the cell) → switch → piece. Only the player layout is
+/// considered, so designer-fixed track is never a target — untouchable.
+pub(super) enum EraseTarget {
+    Piece(TrackPiece),
+    Switch(SwitchDef),
+    Signal(SignalDef),
+    Block(Cell),
+    Source(SourceDef),
+    Sink(SinkDef),
+}
+
+pub(super) fn erase_target(
+    layout: &Layout,
+    level: &Level,
+    sandbox: bool,
+    cell: Cell,
+    at: Dir8,
+) -> Option<EraseTarget> {
+    if sandbox {
+        if crate::board::is_blocked(&level.buildable, cell) {
+            return Some(EraseTarget::Block(cell));
+        }
+        if let Some(source) = level.sources.iter().find(|s| s.cell == cell && s.dir == at) {
+            return Some(EraseTarget::Source(source.clone()));
+        }
+        if let Some(sink) = level.sinks.iter().find(|s| s.cell == cell && s.dir == at) {
+            return Some(EraseTarget::Sink(sink.clone()));
+        }
+    }
+    if let Some(signal) = layout
+        .signals
+        .iter()
+        .find(|s| s.cell == cell && s.at == at)
+        .or_else(|| layout.signals.iter().find(|s| s.cell == cell))
+    {
+        return Some(EraseTarget::Signal(*signal));
+    }
+    if let Some(switch) = layout.switches.iter().find(|s| s.cell == cell) {
+        return Some(EraseTarget::Switch(switch.clone()));
+    }
+    if let Some(piece) = layout.pieces.iter().find(|p| p.cell == cell) {
+        return Some(EraseTarget::Piece(*piece));
+    }
+    None
 }
 
 /// A cell may be blocked (turned non-buildable) only if it is currently
@@ -48,13 +152,6 @@ pub(super) fn can_block_cell(level: &Level, merged: &Layout, cell: Cell) -> bool
         && !merged.signals.iter().any(|s| s.cell == cell)
         && !level.sources.iter().any(|s| s.cell == cell)
         && !level.sinks.iter().any(|s| s.cell == cell)
-}
-
-/// Switch cells are exclusive: buildable and completely empty.
-pub(super) fn can_place_switch(level: &Level, merged: &Layout, cell: Cell) -> bool {
-    level.buildable.contains(&cell)
-        && !merged.pieces.iter().any(|p| p.cell == cell)
-        && !merged.switches.iter().any(|s| s.cell == cell)
 }
 
 /// The connectors of `cell` that already carry track from a NEIGHBOURING cell
@@ -365,5 +462,117 @@ mod tests {
     fn auto_orient_needs_exactly_three_connectors() {
         let l = layout(vec![piece(cell(0, 0), Dir8::W, Dir8::E)]);
         assert_eq!(auto_switch_orientation(&bare_level(), &l, cell(1, 0)), None);
+    }
+
+    fn one_cell() -> Level {
+        let mut lvl = bare_level();
+        lvl.buildable = vec![cell(0, 0)];
+        lvl
+    }
+
+    #[test]
+    fn plan_piece_places_on_empty_cell() {
+        let p = piece(cell(0, 0), Dir8::W, Dir8::E);
+        assert!(matches!(plan_piece(&one_cell(), &Layout::default(), &p), Placement::Place));
+    }
+
+    #[test]
+    fn plan_piece_replaces_player_piece_sharing_connector() {
+        let existing = layout(vec![piece(cell(0, 0), Dir8::W, Dir8::E)]);
+        // The new piece shares the W connector → the old one gives way.
+        let p = piece(cell(0, 0), Dir8::W, Dir8::N);
+        let Placement::Replace(old) = plan_piece(&one_cell(), &existing, &p) else {
+            panic!("expected replace");
+        };
+        assert!(matches!(old.as_slice(), [Element::Piece(_)]));
+    }
+
+    #[test]
+    fn plan_piece_disjoint_crossing_coexists() {
+        let existing = layout(vec![piece(cell(0, 0), Dir8::W, Dir8::E)]);
+        // N/S over W/E is a legal crossing, not a conflict.
+        let p = piece(cell(0, 0), Dir8::N, Dir8::S);
+        assert!(matches!(plan_piece(&one_cell(), &existing, &p), Placement::Place));
+    }
+
+    #[test]
+    fn plan_piece_over_fixed_is_blocked() {
+        let mut lvl = one_cell();
+        lvl.fixed.pieces.push(piece(cell(0, 0), Dir8::W, Dir8::E));
+        let p = piece(cell(0, 0), Dir8::W, Dir8::N);
+        assert!(matches!(plan_piece(&lvl, &Layout::default(), &p), Placement::Blocked));
+    }
+
+    #[test]
+    fn plan_switch_replaces_player_piece_on_cell() {
+        let existing = layout(vec![piece(cell(0, 0), Dir8::W, Dir8::E)]);
+        let Placement::Replace(old) = plan_switch(&one_cell(), &existing, cell(0, 0)) else {
+            panic!("expected replace");
+        };
+        assert!(matches!(old.as_slice(), [Element::Piece(_)]));
+    }
+
+    #[test]
+    fn plan_switch_over_fixed_switch_is_blocked() {
+        let mut lvl = one_cell();
+        lvl.fixed.switches.push(stellwerk_sim::layout::SwitchDef {
+            cell: cell(0, 0),
+            stem: Dir8::E,
+            branches: [Dir8::W, Dir8::NW],
+            default_branch: 0,
+            rules: vec![],
+        });
+        assert!(matches!(plan_switch(&lvl, &Layout::default(), cell(0, 0)), Placement::Blocked));
+    }
+
+    fn a_switch() -> SwitchDef {
+        SwitchDef {
+            cell: cell(0, 0),
+            stem: Dir8::E,
+            branches: [Dir8::W, Dir8::NW],
+            default_branch: 0,
+            rules: vec![],
+        }
+    }
+
+    fn a_signal() -> SignalDef {
+        SignalDef {
+            cell: cell(0, 0),
+            at: Dir8::E,
+            kind: stellwerk_sim::layout::SignalKind::Block,
+            priority: 0,
+        }
+    }
+
+    #[test]
+    fn erase_target_priority_signal_switch_piece() {
+        let mut lay = layout(vec![piece(cell(0, 0), Dir8::W, Dir8::E)]);
+        lay.switches.push(a_switch());
+        lay.signals.push(a_signal());
+        let lvl = bare_level();
+        assert!(matches!(erase_target(&lay, &lvl, false, cell(0, 0), Dir8::E), Some(EraseTarget::Signal(_))));
+        lay.signals.clear();
+        assert!(matches!(erase_target(&lay, &lvl, false, cell(0, 0), Dir8::E), Some(EraseTarget::Switch(_))));
+        lay.switches.clear();
+        assert!(matches!(erase_target(&lay, &lvl, false, cell(0, 0), Dir8::E), Some(EraseTarget::Piece(_))));
+        lay.pieces.clear();
+        assert!(erase_target(&lay, &lvl, false, cell(0, 0), Dir8::E).is_none());
+    }
+
+    #[test]
+    fn erase_target_sandbox_source_only_visible_in_sandbox() {
+        let mut lay = Layout::default();
+        lay.signals.push(a_signal());
+        let mut lvl = bare_level();
+        lvl.sources.push(SourceDef {
+            id: SourceId(0),
+            cell: cell(0, 0),
+            dir: Dir8::E,
+            label: String::new(),
+        });
+        // Sandbox: the source at the connector outranks the signal.
+        assert!(matches!(erase_target(&lay, &lvl, true, cell(0, 0), Dir8::E), Some(EraseTarget::Source(_))));
+        // Outside the sandbox the source is not erasable → the signal is targeted.
+        assert!(matches!(erase_target(&lay, &lvl, false, cell(0, 0), Dir8::E), Some(EraseTarget::Signal(_))));
     }
 }

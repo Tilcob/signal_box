@@ -11,9 +11,9 @@ use stellwerk_sim::units::{SinkId, SourceId};
 
 use super::ops::{EditOp, Element, do_op, redo, undo};
 use super::placement::{
-    auto_station_orientation, auto_switch_orientation, can_block_cell, can_place_piece,
-    can_place_signal, can_place_station, can_place_switch, signal_stub, station_dir,
-    switch_variants,
+    EraseTarget, Placement, auto_station_orientation, auto_switch_orientation, can_block_cell,
+    can_place_signal, can_place_station, erase_target, plan_piece, plan_switch, signal_stub,
+    station_dir, switch_variants,
 };
 use crate::board;
 use crate::camera::{MainCamera, cursor_world};
@@ -138,7 +138,7 @@ pub(super) fn pointer(
                 .drag
                 .take()
                 .unwrap_or_default();
-            if finish_track_drag(&mut editor, &mut active.level, merged, &path) {
+            if finish_track_drag(&mut editor, &mut active.level, &path) {
                 commands.trigger(crate::audio::SfxKind::BuildingSound);
             }
         }
@@ -205,7 +205,8 @@ pub(super) fn pointer(
     match editor.tool {
         Tool::Track => unreachable!("handled above"),
         Tool::Switch => {
-            if !can_place_switch(&active.level, merged, cell) {
+            let plan = plan_switch(&active.level, &editor.layout, cell);
+            if matches!(plan, Placement::Blocked) {
                 return;
             }
             // Auto-orient from the surrounding track when the junction admits
@@ -215,17 +216,14 @@ pub(super) fn pointer(
                 let variants = switch_variants();
                 variants[editor.variant.rem_euclid(variants.len() as i32) as usize]
             });
-            do_op(
-                &mut editor,
-                &mut active.level,
-                EditOp::Place(Element::Switch(SwitchDef {
-                    cell,
-                    stem,
-                    branches,
-                    default_branch: 0,
-                    rules: vec![],
-                })),
-            );
+            let switch = Element::Switch(SwitchDef {
+                cell,
+                stem,
+                branches,
+                default_branch: 0,
+                rules: vec![],
+            });
+            place_replacing(&mut editor, &mut active.level, plan, switch);
             commands.trigger(crate::audio::SfxKind::BuildingSound);
         }
         Tool::SignalBlock | Tool::SignalChain => {
@@ -333,7 +331,7 @@ fn next_id(used: impl Iterator<Item = u32>) -> u32 {
 /// piece — the anchor→anchor campaign drag is unchanged. Returns `true` when at
 /// least one piece was actually placed (so the caller plays the build sound
 /// only on a real placement, not an empty/blocked drag).
-fn finish_track_drag(editor: &mut Editor, level: &mut Level, merged: &Layout, path: &[Cell]) -> bool {
+fn finish_track_drag(editor: &mut Editor, level: &mut Level, path: &[Cell]) -> bool {
     let dir_between = |from: Cell, to: Cell| -> Option<Dir8> {
         let delta = (to.x - from.x, to.y - from.y);
         Dir8::ALL.into_iter().find(|d| d.cell_offset() == delta)
@@ -341,6 +339,7 @@ fn finish_track_drag(editor: &mut Editor, level: &mut Level, merged: &Layout, pa
 
     let mut ops = Vec::new();
     let mut placed: Vec<TrackPiece> = Vec::new();
+    let mut replaced = std::collections::BTreeSet::new();
     for window in path.windows(3) {
         let (prev, cur, next) = (window[0], window[1], window[2]);
         let (Some(entry), Some(exit)) = (dir_between(cur, prev), dir_between(cur, next)) else {
@@ -354,23 +353,16 @@ fn finish_track_drag(editor: &mut Editor, level: &mut Level, merged: &Layout, pa
         } else {
             (exit, entry)
         };
-        let piece = TrackPiece { cell: cur, a, b };
-        // Same gate as click placement, plus connector clashes against
-        // pieces from earlier in this very drag.
-        let drag_conflict = placed
-            .iter()
-            .any(|p| p.cell == cur && [p.a, p.b].iter().any(|d| *d == a || *d == b));
-        if !can_place_piece(level, merged, &piece) || drag_conflict {
-            continue;
-        }
-        placed.push(piece);
-        ops.push(EditOp::Place(Element::Piece(piece)));
+        // Interior pieces are deliberate strokes: drawing over the player's own
+        // track replaces it (`allow_replace`), which is how a misbuild is fixed.
+        emit_piece(level, &editor.layout, TrackPiece { cell: cur, a, b }, true, &mut ops, &mut placed, &mut replaced);
     }
 
     // The windows(3) pass never makes the endpoints a `cur`, so they stay empty.
-    // Give each a straight piece along its single drag direction. The same
-    // `can_place_piece` gate as above rejects it when the cell already carries
-    // track (an anchor), so anchor-started drags are unchanged.
+    // Give each a straight piece along its single drag direction — but with
+    // `allow_replace = false`: an endpoint sitting on existing track (an anchor,
+    // or the player's own line) is left intact, so a drag started from track
+    // continues it rather than bulldozing it.
     if path.len() >= 2 {
         for (cell, toward) in [
             (path[0], path[1]),
@@ -381,37 +373,100 @@ fn finish_track_drag(editor: &mut Editor, level: &mut Level, merged: &Layout, pa
             };
             let opp = dir.opposite();
             let (a, b) = if dir.index() <= opp.index() { (dir, opp) } else { (opp, dir) };
-            let piece = TrackPiece { cell, a, b };
-            let drag_conflict = placed
-                .iter()
-                .any(|p| p.cell == cell && [p.a, p.b].iter().any(|d| *d == a || *d == b));
-            if !can_place_piece(level, merged, &piece) || drag_conflict {
-                continue;
-            }
-            placed.push(piece);
-            ops.push(EditOp::Place(Element::Piece(piece)));
+            emit_piece(level, &editor.layout, TrackPiece { cell, a, b }, false, &mut ops, &mut placed, &mut replaced);
         }
     }
 
     if ops.is_empty() && path.len() == 1 {
-        // No drag: click places the current R/T-rotated form.
+        // No drag: click places the current R/T-rotated form, replacing the
+        // player's own track underneath if it clashes.
         let (a, b) = editor.track_form;
-        let piece = TrackPiece {
-            cell: path[0],
-            a,
-            b,
-        };
-        if can_place_piece(level, merged, &piece) {
-            do_op(editor, level, EditOp::Place(Element::Piece(piece)));
-            return true;
+        let piece = TrackPiece { cell: path[0], a, b };
+        let plan = plan_piece(level, &editor.layout, &piece);
+        if matches!(plan, Placement::Blocked) {
+            return false;
         }
-        return false;
+        place_replacing(editor, level, plan, Element::Piece(piece));
+        return true;
     }
     if !ops.is_empty() {
         do_op(editor, level, EditOp::Group(ops));
         return true;
     }
     false
+}
+
+/// Collects the ops for one drag piece into `ops`. Skips a self-overlap against
+/// pieces placed earlier in this same stroke (`placed`). On a clash with the
+/// player's own track it either replaces it (`allow_replace`, interior strokes)
+/// or skips (endpoints). Each replaced cell is recorded in `replaced` so a
+/// self-crossing stroke removes a given piece at most once — emitting the same
+/// removal twice would re-add a duplicate when the group is undone.
+#[allow(clippy::too_many_arguments)]
+fn emit_piece(
+    level: &Level,
+    layout: &Layout,
+    piece: TrackPiece,
+    allow_replace: bool,
+    ops: &mut Vec<EditOp>,
+    placed: &mut Vec<TrackPiece>,
+    replaced: &mut std::collections::BTreeSet<Cell>,
+) {
+    let drag_conflict = placed
+        .iter()
+        .any(|p| p.cell == piece.cell && [p.a, p.b].iter().any(|d| *d == piece.a || *d == piece.b));
+    if drag_conflict {
+        return;
+    }
+    match plan_piece(level, layout, &piece) {
+        Placement::Blocked => {}
+        Placement::Place => {
+            placed.push(piece);
+            ops.push(EditOp::Place(Element::Piece(piece)));
+        }
+        Placement::Replace(old) if allow_replace => {
+            if replaced.insert(piece.cell) {
+                ops.extend(old.into_iter().map(EditOp::Remove));
+            }
+            placed.push(piece);
+            ops.push(EditOp::Place(Element::Piece(piece)));
+        }
+        Placement::Replace(_) => {}
+    }
+}
+
+/// Commits a placement plan: a plain `Place`, or a `Replace` that first removes
+/// the player elements giving way — clearing any selection pointing at them —
+/// and places the new element in the SAME undo step. `Blocked` is filtered by
+/// the caller and is a no-op here.
+fn place_replacing(editor: &mut Editor, level: &mut Level, plan: Placement, new: Element) {
+    match plan {
+        Placement::Blocked => {}
+        Placement::Place => do_op(editor, level, EditOp::Place(new)),
+        Placement::Replace(old) => {
+            clear_selection_for(editor, &old);
+            let mut ops: Vec<EditOp> = old.into_iter().map(EditOp::Remove).collect();
+            ops.push(EditOp::Place(new));
+            do_op(editor, level, EditOp::Group(ops));
+        }
+    }
+}
+
+/// Drops a switch/signal selection pointing at an element about to be removed,
+/// so its config panel doesn't linger on something gone (mirrors the erase
+/// stroke's cleanup).
+fn clear_selection_for(editor: &mut Editor, removed: &[Element]) {
+    for e in removed {
+        match e {
+            Element::Switch(s) if editor.selected_switch == Some(s.cell) => {
+                editor.selected_switch = None;
+            }
+            Element::Signal(s) if editor.selected_signal == Some((s.cell, s.at)) => {
+                editor.selected_signal = None;
+            }
+            _ => {}
+        }
+    }
 }
 
 /// Applies a Block-tool stroke. The first cell picks the mode for the whole
@@ -451,73 +506,39 @@ fn apply_block_stroke(editor: &mut Editor, level: &mut Level, merged: &Layout, p
     }
 }
 
-/// The op that erases the topmost element at `(cell, at)`, in priority order:
-/// (sandbox: block → source → sink at the connector) → signal at the connector
-/// → switch → piece. `None` if the cell holds nothing erasable. Pure — reads
-/// state and builds the op so both a click and a drag stroke can collect ops
-/// and apply them as one undo step. Designer track lives in `level.fixed`,
-/// never in `editor.layout`, so it can never be returned here: untouchable.
+/// The op that erases the topmost element at `(cell, at)`, in the priority
+/// order encoded by [`erase_target`]. `None` if the cell holds nothing
+/// erasable. Pure — reads state and builds the op so both a click and a drag
+/// stroke can collect ops and apply them as one undo step. Designer track lives
+/// in `level.fixed`, never in `editor.layout`, so it is never a target here:
+/// untouchable.
 fn erase_op(editor: &Editor, active: &ActiveLevel, cell: Cell, at: Dir8) -> Option<EditOp> {
-    if active.sandbox {
-        // A sandbox block holds nothing else (blocking requires the cell empty),
-        // so erasing it just restores buildability. Sandbox only: a campaign
-        // level's non-buildable cells are its authored shape, not blocks.
-        if board::is_blocked(&active.level.buildable, cell) {
-            return Some(EditOp::SetBuildable { cell, on: true });
-        }
-        if let Some(source) = active
-            .level
-            .sources
-            .iter()
-            .find(|s| s.cell == cell && s.dir == at)
-            .cloned()
-        {
-            return Some(EditOp::RemoveSource(source));
-        }
-        if let Some(sink) = active
-            .level
-            .sinks
-            .iter()
-            .find(|s| s.cell == cell && s.dir == at)
-            .cloned()
-        {
-            // Schedule entries pointing at the removed sink would be a
-            // permanent validation error — drop them too. Bundle them with the
-            // sink into one Group (rows highest-first so earlier removals don't
-            // shift the later indices) so a single undo restores all of it.
+    Some(match erase_target(&editor.layout, &active.level, active.sandbox, cell, at)? {
+        // A sandbox block holds nothing else, so erasing it just restores
+        // buildability (campaign holes are authored shape, never targeted here).
+        EraseTarget::Block(cell) => EditOp::SetBuildable { cell, on: true },
+        EraseTarget::Source(source) => EditOp::RemoveSource(source),
+        EraseTarget::Sink(sink) => {
+            // Schedule entries pointing at the removed sink would be a permanent
+            // validation error — drop them too. Bundle them with the sink into
+            // one Group (rows highest-first so earlier removals don't shift the
+            // later indices) so a single undo restores all of it.
             let mut ops: Vec<EditOp> = active
                 .level
                 .schedule
                 .iter()
                 .enumerate()
                 .filter(|(_, e)| e.sink == sink.id)
-                .map(|(row, e)| EditOp::ScheduleRemove {
-                    row,
-                    entry: e.clone(),
-                })
+                .map(|(row, e)| EditOp::ScheduleRemove { row, entry: e.clone() })
                 .collect();
             ops.reverse();
             ops.push(EditOp::RemoveSink(sink));
-            return Some(EditOp::Group(ops));
+            EditOp::Group(ops)
         }
-    }
-    if let Some(signal) = editor
-        .layout
-        .signals
-        .iter()
-        .find(|s| s.cell == cell && s.at == at)
-        .or_else(|| editor.layout.signals.iter().find(|s| s.cell == cell))
-        .copied()
-    {
-        return Some(EditOp::Remove(Element::Signal(signal)));
-    }
-    if let Some(switch) = editor.layout.switches.iter().find(|s| s.cell == cell).cloned() {
-        return Some(EditOp::Remove(Element::Switch(switch)));
-    }
-    if let Some(piece) = editor.layout.pieces.iter().find(|p| p.cell == cell).copied() {
-        return Some(EditOp::Remove(Element::Piece(piece)));
-    }
-    None
+        EraseTarget::Signal(signal) => EditOp::Remove(Element::Signal(signal)),
+        EraseTarget::Switch(switch) => EditOp::Remove(Element::Switch(switch)),
+        EraseTarget::Piece(piece) => EditOp::Remove(Element::Piece(piece)),
+    })
 }
 
 /// Erase stroke shared by click and drag. A click is a one-cell stroke using
@@ -586,7 +607,7 @@ mod tests {
     fn free_drag_fills_both_endpoints() {
         let mut editor = Editor::default();
         let mut level = buildable_row(4);
-        assert!(finish_track_drag(&mut editor, &mut level, &Layout::default(), &row(&[0, 1, 2, 3])));
+        assert!(finish_track_drag(&mut editor, &mut level, &row(&[0, 1, 2, 3])));
         let mut xs: Vec<i32> = editor.layout.pieces.iter().map(|p| p.cell.x).collect();
         xs.sort();
         assert_eq!(xs, vec![0, 1, 2, 3], "start and end cells get a piece too");
@@ -600,9 +621,26 @@ mod tests {
         let mut editor = Editor::default();
         let mut level = buildable_row(4);
         level.fixed.pieces.push(TrackPiece { cell: Cell { x: 0, y: 0 }, a: Dir8::W, b: Dir8::E });
-        let merged = level.fixed.merged(&editor.layout);
-        finish_track_drag(&mut editor, &mut level, &merged, &row(&[0, 1, 2, 3]));
+        finish_track_drag(&mut editor, &mut level, &row(&[0, 1, 2, 3]));
         assert!(!editor.layout.pieces.iter().any(|p| p.cell.x == 0), "anchored start left open");
         assert!(editor.layout.pieces.iter().any(|p| p.cell.x == 3), "empty end still filled");
+    }
+
+    /// Clicking a clashing form over the player's own track replaces it in one
+    /// undo step — the old piece comes straight back on undo.
+    #[test]
+    fn click_replaces_clashing_player_track() {
+        let mut editor = Editor::default();
+        let mut level = buildable_row(2);
+        editor.layout.pieces.push(TrackPiece { cell: Cell { x: 0, y: 0 }, a: Dir8::W, b: Dir8::E });
+        editor.track_form = (Dir8::W, Dir8::N); // shares the W connector → clashes
+        assert!(finish_track_drag(&mut editor, &mut level, &row(&[0])));
+        let on_cell: Vec<_> = editor.layout.pieces.iter().filter(|p| p.cell.x == 0).collect();
+        assert_eq!(on_cell.len(), 1, "old clashing piece replaced, not stacked");
+        assert_eq!((on_cell[0].a, on_cell[0].b), (Dir8::W, Dir8::N));
+        undo(&mut editor, &mut level);
+        let restored: Vec<_> = editor.layout.pieces.iter().filter(|p| p.cell.x == 0).collect();
+        assert_eq!(restored.len(), 1, "undo restores exactly the original");
+        assert_eq!((restored[0].a, restored[0].b), (Dir8::W, Dir8::E));
     }
 }

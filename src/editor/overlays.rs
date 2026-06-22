@@ -4,11 +4,13 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use stellwerk_sim::ValidationError;
+use stellwerk_sim::grid::Cell;
 use stellwerk_sim::layout::TrackPiece;
 
 use super::placement::{
-    auto_station_orientation, can_block_cell, can_place_piece, can_place_signal, can_place_station,
-    can_place_switch, signal_stub, station_dir, switch_variants,
+    EraseTarget, Placement, auto_station_orientation, can_block_cell, can_place_signal,
+    can_place_station, erase_target, plan_piece, plan_switch, signal_stub, station_dir,
+    switch_variants,
 };
 use crate::board::{self, CELL};
 use crate::camera::{MainCamera, cursor_world};
@@ -38,10 +40,13 @@ pub(super) fn draw_overlays(
             Tool::Track if editor.radial.is_some() => {}
             Tool::Track => {
                 let (a, b) = editor.track_form;
+                // Building over the player's own clashing track is allowed (it
+                // replaces it), so only a hard block (off-board / fixed) reds out.
                 let ok = match &active {
-                    Some(active) => {
-                        can_place_piece(&active.level, merged, &TrackPiece { cell, a, b })
-                    }
+                    Some(active) => !matches!(
+                        plan_piece(&active.level, &editor.layout, &TrackPiece { cell, a, b }),
+                        Placement::Blocked
+                    ),
                     None => true,
                 };
                 let ghost = if ok {
@@ -57,7 +62,9 @@ pub(super) fn draw_overlays(
                 let (stem, branches) =
                     variants[editor.variant.rem_euclid(variants.len() as i32) as usize];
                 let ok = match &active {
-                    Some(active) => can_place_switch(&active.level, merged, cell),
+                    Some(active) => {
+                        !matches!(plan_switch(&active.level, &editor.layout, cell), Placement::Blocked)
+                    }
                     None => true,
                 };
                 let ghost = if ok {
@@ -84,10 +91,17 @@ pub(super) fn draw_overlays(
                         blocked
                     };
                     gizmos.circle_2d(Isometry2d::from_translation(connector), 10.0, ghost);
-                    // Gated travel direction (out of the cell across `at`) —
-                    // shown before placing, so a backwards signal is no surprise.
+                    // Gated travel direction (out of the cell across `at`),
+                    // capped with an arrowhead so the direction reads at a
+                    // glance (mirrors the placed signal's arrow) — shown before
+                    // placing, so a backwards signal is no surprise.
                     let outward = (connector - center).normalize_or_zero();
-                    gizmos.line_2d(connector, connector + outward * 26.0, ghost);
+                    let tip = connector + outward * 26.0;
+                    gizmos.line_2d(connector, tip, ghost);
+                    let perp = outward.perp();
+                    let back = tip - outward * 9.0;
+                    gizmos.line_2d(tip, back + perp * 7.0, ghost);
+                    gizmos.line_2d(tip, back - perp * 7.0, ghost);
                 }
             }
             Tool::Block => {
@@ -144,6 +158,19 @@ pub(super) fn draw_overlays(
                     gizmos.line_2d(end - perp * 13.0, end + perp * 13.0, ghost);
                 }
             }
+            Tool::Erase => {
+                // Outline the element the next click/drag would erase, so it is
+                // clear WHAT is about to go. Connector picked from the cursor
+                // (like the click) so the right signal is targeted on a busy cell.
+                if let Some(active) = &active {
+                    let at = board::nearest_connector(cell, cursor);
+                    if let Some(target) =
+                        erase_target(&editor.layout, &active.level, active.sandbox, cell, at)
+                    {
+                        draw_erase_outline(&mut gizmos, &target);
+                    }
+                }
+            }
             _ => {}
         }
         if let Some(path) = &editor.drag {
@@ -167,6 +194,45 @@ pub(super) fn draw_overlays(
             );
         }
     }
+}
+
+/// Red highlight of the element the erase tool is hovering. Track/switch get
+/// their bands re-stroked plus a cell box; a signal gets a ring at its precise
+/// connector (a cell box would wrongly imply the whole cell goes); blocks and
+/// stations get the cell box.
+fn draw_erase_outline(gizmos: &mut Gizmos, target: &EraseTarget) {
+    let red = Color::srgba(1.0, 0.2, 0.2, 0.9);
+    match target {
+        EraseTarget::Piece(p) => {
+            let center = board::cell_world(p.cell);
+            gizmos.line_2d(board::connector_world(p.cell, p.a), center, red);
+            gizmos.line_2d(board::connector_world(p.cell, p.b), center, red);
+            red_cell(gizmos, p.cell, red);
+        }
+        EraseTarget::Switch(s) => {
+            let center = board::cell_world(s.cell);
+            gizmos.line_2d(board::connector_world(s.cell, s.stem), center, red);
+            for b in s.branches {
+                gizmos.line_2d(board::connector_world(s.cell, b), center, red);
+            }
+            red_cell(gizmos, s.cell, red);
+        }
+        EraseTarget::Signal(s) => {
+            let connector = board::connector_world(s.cell, s.at);
+            gizmos.circle_2d(Isometry2d::from_translation(connector), 12.0, red);
+        }
+        EraseTarget::Block(cell) => red_cell(gizmos, *cell, red),
+        EraseTarget::Source(s) => red_cell(gizmos, s.cell, red),
+        EraseTarget::Sink(s) => red_cell(gizmos, s.cell, red),
+    }
+}
+
+fn red_cell(gizmos: &mut Gizmos, cell: Cell, color: Color) {
+    gizmos.rect_2d(
+        Isometry2d::from_translation(board::cell_world(cell)),
+        Vec2::splat(CELL - 2.0),
+        color,
+    );
 }
 
 fn error_pos(error: &ValidationError) -> Option<Vec2> {
