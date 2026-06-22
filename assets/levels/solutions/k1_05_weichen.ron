@@ -3,47 +3,7 @@
         (
             cell: (
                 x: -4,
-                y: 3,
-            ),
-            a: S,
-            b: N,
-        ),
-        (
-            cell: (
-                x: 2,
-                y: -4,
-            ),
-            a: W,
-            b: S,
-        ),
-        (
-            cell: (
-                x: 0,
-                y: -4,
-            ),
-            a: E,
-            b: W,
-        ),
-        (
-            cell: (
-                x: -1,
-                y: -4,
-            ),
-            a: E,
-            b: W,
-        ),
-        (
-            cell: (
-                x: -2,
-                y: -4,
-            ),
-            a: E,
-            b: W,
-        ),
-        (
-            cell: (
-                x: 1,
-                y: -4,
+                y: 0,
             ),
             a: E,
             b: W,
@@ -51,68 +11,104 @@
         (
             cell: (
                 x: -3,
-                y: -4,
+                y: 0,
             ),
             a: E,
             b: W,
         ),
         (
             cell: (
-                x: -4,
-                y: -4,
+                x: -2,
+                y: 0,
             ),
-            a: N,
+            a: E,
+            b: W,
+        ),
+        (
+            cell: (
+                x: -1,
+                y: 0,
+            ),
+            a: E,
+            b: W,
+        ),
+        (
+            cell: (
+                x: 0,
+                y: 0,
+            ),
+            a: E,
+            b: W,
+        ),
+        (
+            cell: (
+                x: -5,
+                y: 0,
+            ),
+            a: E,
+            b: W,
+        ),
+        (
+            cell: (
+                x: 1,
+                y: 0,
+            ),
+            a: E,
+            b: W,
+        ),
+        (
+            cell: (
+                x: 3,
+                y: 0,
+            ),
+            a: W,
             b: E,
         ),
         (
             cell: (
-                x: -4,
-                y: -2,
-            ),
-            a: N,
-            b: S,
-        ),
-        (
-            cell: (
-                x: -4,
-                y: -1,
-            ),
-            a: N,
-            b: S,
-        ),
-        (
-            cell: (
-                x: -4,
+                x: 4,
                 y: 0,
             ),
-            a: N,
-            b: S,
+            a: W,
+            b: E,
         ),
         (
             cell: (
-                x: -4,
+                x: 4,
                 y: 1,
             ),
-            a: N,
-            b: S,
+            a: W,
+            b: E,
         ),
         (
             cell: (
-                x: -4,
-                y: -3,
+                x: 3,
+                y: 1,
             ),
-            a: N,
-            b: S,
-        ),
-        (
-            cell: (
-                x: -4,
-                y: 2,
-            ),
-            a: N,
-            b: S,
+            a: SW,
+            b: E,
         ),
     ],
-    switches: [],
+    switches: [
+        (
+            cell: (
+                x: 2,
+                y: 0,
+            ),
+            stem: W,
+            branches: (E, NE),
+            default_branch: 0,
+            rules: [
+                (
+                    when: DestIs((0)),
+                    branch: 1,
+                ),
+                (
+                    when: DestIs((1)),
+                    branch: 0,
+                ),
+            ],
+        ),
+    ],
     signals: [],
 )

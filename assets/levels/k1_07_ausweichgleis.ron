@@ -1,0 +1,298 @@
+(
+    meta: (
+        schema_version: 1,
+        chapter: 1,
+        order: 70,
+        optional_hard: false,
+        briefing: "Die Züge müssen durch eine Engstelle. Bauen Sie ein Ausweichgleis mit Weichen, um eine Kollision zu vermeiden.",
+    ),
+    sim: (
+        name: "1.7 Ausweichgleis",
+        buildable: [
+            (
+                x: -6,
+                y: -1,
+            ),
+            (
+                x: -6,
+                y: 1,
+            ),
+            (
+                x: -5,
+                y: -1,
+            ),
+            (
+                x: -5,
+                y: 0,
+            ),
+            (
+                x: -5,
+                y: 1,
+            ),
+            (
+                x: -4,
+                y: -1,
+            ),
+            (
+                x: -4,
+                y: 0,
+            ),
+            (
+                x: -3,
+                y: -1,
+            ),
+            (
+                x: -2,
+                y: -1,
+            ),
+            (
+                x: -2,
+                y: 0,
+            ),
+            (
+                x: -1,
+                y: -1,
+            ),
+            (
+                x: -1,
+                y: 0,
+            ),
+            (
+                x: 0,
+                y: -1,
+            ),
+            (
+                x: 0,
+                y: 0,
+            ),
+            (
+                x: 1,
+                y: -1,
+            ),
+            (
+                x: 1,
+                y: 0,
+            ),
+            (
+                x: 2,
+                y: -1,
+            ),
+            (
+                x: 3,
+                y: -1,
+            ),
+            (
+                x: 3,
+                y: 0,
+            ),
+            (
+                x: 4,
+                y: -1,
+            ),
+            (
+                x: 4,
+                y: 0,
+            ),
+            (
+                x: 4,
+                y: 1,
+            ),
+            (
+                x: 5,
+                y: -1,
+            ),
+            (
+                x: 5,
+                y: 0,
+            ),
+            (
+                x: 5,
+                y: 1,
+            ),
+            (
+                x: -6,
+                y: 0,
+            ),
+        ],
+        fixed: (
+            pieces: [
+                (
+                    cell: (
+                        x: -6,
+                        y: 1,
+                    ),
+                    a: W,
+                    b: SE,
+                ),
+                (
+                    cell: (
+                        x: -5,
+                        y: 0,
+                    ),
+                    a: NW,
+                    b: SE,
+                ),
+                (
+                    cell: (
+                        x: -5,
+                        y: -1,
+                    ),
+                    a: W,
+                    b: E,
+                ),
+                (
+                    cell: (
+                        x: -6,
+                        y: -1,
+                    ),
+                    a: W,
+                    b: E,
+                ),
+                (
+                    cell: (
+                        x: 4,
+                        y: 0,
+                    ),
+                    a: SW,
+                    b: NE,
+                ),
+                (
+                    cell: (
+                        x: 4,
+                        y: -1,
+                    ),
+                    a: W,
+                    b: E,
+                ),
+                (
+                    cell: (
+                        x: 5,
+                        y: -1,
+                    ),
+                    a: W,
+                    b: E,
+                ),
+                (
+                    cell: (
+                        x: 5,
+                        y: 1,
+                    ),
+                    a: E,
+                    b: SW,
+                ),
+                (
+                    cell: (
+                        x: -3,
+                        y: -1,
+                    ),
+                    a: E,
+                    b: W,
+                ),
+                (
+                    cell: (
+                        x: 2,
+                        y: -1,
+                    ),
+                    a: E,
+                    b: W,
+                ),
+            ],
+            switches: [
+                (
+                    cell: (
+                        x: -4,
+                        y: -1,
+                    ),
+                    stem: E,
+                    branches: (W, NW),
+                    default_branch: 0,
+                    rules: [
+                        (
+                            when: DestIs((0)),
+                            branch: 1,
+                        ),
+                    ],
+                ),
+                (
+                    cell: (
+                        x: 3,
+                        y: -1,
+                    ),
+                    stem: W,
+                    branches: (E, NE),
+                    default_branch: 0,
+                    rules: [
+                        (
+                            when: DestIs((1)),
+                            branch: 0,
+                        ),
+                    ],
+                ),
+            ],
+            signals: [],
+        ),
+        sources: [
+            (
+                id: (0),
+                cell: (
+                    x: -6,
+                    y: -1,
+                ),
+                dir: W,
+                label: "Start 1",
+            ),
+            (
+                id: (1),
+                cell: (
+                    x: 5,
+                    y: 1,
+                ),
+                dir: E,
+                label: "Start 2",
+            ),
+        ],
+        sinks: [
+            (
+                id: (0),
+                cell: (
+                    x: -6,
+                    y: 1,
+                ),
+                dir: W,
+                label: "Ziel 1",
+            ),
+            (
+                id: (1),
+                cell: (
+                    x: 5,
+                    y: -1,
+                ),
+                dir: E,
+                label: "Ziel 2",
+            ),
+        ],
+        schedule: [
+            (
+                train: (0),
+                class: (0),
+                length: (800),
+                speed: (100),
+                source: (0),
+                sink: (1),
+                depart: (0),
+                due: (80),
+            ),
+            (
+                train: (1),
+                class: (0),
+                length: (800),
+                speed: (100),
+                source: (1),
+                sink: (0),
+                depart: (0),
+                due: (90),
+            ),
+        ],
+        par: (throughput: (145), material: 12, lateness: 95),
+    ),
+)

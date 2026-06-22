@@ -1,0 +1,85 @@
+(
+    pieces: [
+        (
+            cell: (
+                x: -2,
+                y: -1,
+            ),
+            a: W,
+            b: E,
+        ),
+        (
+            cell: (
+                x: 0,
+                y: -1,
+            ),
+            a: W,
+            b: E,
+        ),
+        (
+            cell: (
+                x: 1,
+                y: -1,
+            ),
+            a: W,
+            b: E,
+        ),
+        (
+            cell: (
+                x: 0,
+                y: 1,
+            ),
+            a: S,
+            b: N,
+        ),
+        (
+            cell: (
+                x: 0,
+                y: 0,
+            ),
+            a: SW,
+            b: N,
+        ),
+    ],
+    switches: [
+        (
+            cell: (
+                x: -1,
+                y: -1,
+            ),
+            stem: W,
+            branches: (E, NE),
+            default_branch: 0,
+            rules: [
+                (
+                    when: DestIs((0)),
+                    branch: 0,
+                ),
+                (
+                    when: DestIs((1)),
+                    branch: 1,
+                ),
+            ],
+        ),
+    ],
+    signals: [
+        (
+            cell: (
+                x: -3,
+                y: -1,
+            ),
+            at: E,
+            kind: Block,
+            priority: 0,
+        ),
+        (
+            cell: (
+                x: -2,
+                y: 0,
+            ),
+            at: S,
+            kind: Block,
+            priority: 0,
+        ),
+    ],
+)

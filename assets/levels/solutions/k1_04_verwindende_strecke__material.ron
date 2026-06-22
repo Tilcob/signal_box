@@ -1,0 +1,138 @@
+(
+    pieces: [
+        (
+            cell: (
+                x: 1,
+                y: 3,
+            ),
+            a: N,
+            b: S,
+        ),
+        (
+            cell: (
+                x: 1,
+                y: 4,
+            ),
+            a: N,
+            b: S,
+        ),
+        (
+            cell: (
+                x: 1,
+                y: 2,
+            ),
+            a: N,
+            b: S,
+        ),
+        (
+            cell: (
+                x: -1,
+                y: 3,
+            ),
+            a: N,
+            b: S,
+        ),
+        (
+            cell: (
+                x: -1,
+                y: 4,
+            ),
+            a: N,
+            b: S,
+        ),
+        (
+            cell: (
+                x: -1,
+                y: 2,
+            ),
+            a: N,
+            b: S,
+        ),
+        (
+            cell: (
+                x: -2,
+                y: -4,
+            ),
+            a: N,
+            b: S,
+        ),
+        (
+            cell: (
+                x: -2,
+                y: -3,
+            ),
+            a: N,
+            b: S,
+        ),
+        (
+            cell: (
+                x: -2,
+                y: -5,
+            ),
+            a: N,
+            b: S,
+        ),
+        (
+            cell: (
+                x: 1,
+                y: -4,
+            ),
+            a: N,
+            b: S,
+        ),
+        (
+            cell: (
+                x: 1,
+                y: -5,
+            ),
+            a: N,
+            b: S,
+        ),
+        (
+            cell: (
+                x: -2,
+                y: -2,
+            ),
+            a: S,
+            b: NE,
+        ),
+        (
+            cell: (
+                x: 1,
+                y: 1,
+            ),
+            a: N,
+            b: SW,
+        ),
+    ],
+    switches: [],
+    signals: [
+        (
+            cell: (
+                x: -1,
+                y: 1,
+            ),
+            at: SE,
+            kind: Block,
+            priority: 0,
+        ),
+        (
+            cell: (
+                x: 1,
+                y: 1,
+            ),
+            at: SW,
+            kind: Block,
+            priority: 0,
+        ),
+        (
+            cell: (
+                x: -2,
+                y: 0,
+            ),
+            at: SE,
+            kind: Block,
+            priority: 0,
+        ),
+    ],
+)

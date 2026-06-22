@@ -1,0 +1,242 @@
+(
+    meta: (
+        schema_version: 1,
+        chapter: 1,
+        order: 50,
+        optional_hard: false,
+        briefing: "Zwei Züge kommen vom selben Start aber wollen zu unterschiedlichen Zielen. Nutzen Sie die Weiche, um die Züge in das richtige Ziel fahren zu lassen.",
+    ),
+    sim: (
+        name: "1.5 Weichen",
+        buildable: [
+            (
+                x: -6,
+                y: -1,
+            ),
+            (
+                x: -6,
+                y: 0,
+            ),
+            (
+                x: -6,
+                y: 1,
+            ),
+            (
+                x: -5,
+                y: -1,
+            ),
+            (
+                x: -5,
+                y: 0,
+            ),
+            (
+                x: -5,
+                y: 1,
+            ),
+            (
+                x: -4,
+                y: -1,
+            ),
+            (
+                x: -4,
+                y: 0,
+            ),
+            (
+                x: -4,
+                y: 1,
+            ),
+            (
+                x: -3,
+                y: -1,
+            ),
+            (
+                x: -3,
+                y: 0,
+            ),
+            (
+                x: -3,
+                y: 1,
+            ),
+            (
+                x: -2,
+                y: -1,
+            ),
+            (
+                x: -2,
+                y: 0,
+            ),
+            (
+                x: -2,
+                y: 1,
+            ),
+            (
+                x: -1,
+                y: -1,
+            ),
+            (
+                x: -1,
+                y: 0,
+            ),
+            (
+                x: -1,
+                y: 1,
+            ),
+            (
+                x: 0,
+                y: -1,
+            ),
+            (
+                x: 0,
+                y: 0,
+            ),
+            (
+                x: 0,
+                y: 1,
+            ),
+            (
+                x: 1,
+                y: -1,
+            ),
+            (
+                x: 1,
+                y: 0,
+            ),
+            (
+                x: 1,
+                y: 1,
+            ),
+            (
+                x: 2,
+                y: -1,
+            ),
+            (
+                x: 2,
+                y: 0,
+            ),
+            (
+                x: 2,
+                y: 1,
+            ),
+            (
+                x: 3,
+                y: -1,
+            ),
+            (
+                x: 3,
+                y: 0,
+            ),
+            (
+                x: 3,
+                y: 1,
+            ),
+            (
+                x: 4,
+                y: -1,
+            ),
+            (
+                x: 4,
+                y: 0,
+            ),
+            (
+                x: 4,
+                y: 1,
+            ),
+            (
+                x: 5,
+                y: -1,
+            ),
+            (
+                x: 5,
+                y: 0,
+            ),
+            (
+                x: 5,
+                y: 1,
+            ),
+        ],
+        fixed: (
+            pieces: [
+                (
+                    cell: (
+                        x: -6,
+                        y: 0,
+                    ),
+                    a: E,
+                    b: W,
+                ),
+                (
+                    cell: (
+                        x: 5,
+                        y: 1,
+                    ),
+                    a: W,
+                    b: E,
+                ),
+                (
+                    cell: (
+                        x: 5,
+                        y: 0,
+                    ),
+                    a: W,
+                    b: E,
+                ),
+            ],
+            switches: [],
+            signals: [],
+        ),
+        sources: [
+            (
+                id: (0),
+                cell: (
+                    x: -6,
+                    y: 0,
+                ),
+                dir: W,
+                label: "Start",
+            ),
+        ],
+        sinks: [
+            (
+                id: (0),
+                cell: (
+                    x: 5,
+                    y: 1,
+                ),
+                dir: E,
+                label: "Ziel 1",
+            ),
+            (
+                id: (1),
+                cell: (
+                    x: 5,
+                    y: 0,
+                ),
+                dir: E,
+                label: "Ziel 2",
+            ),
+        ],
+        schedule: [
+            (
+                train: (0),
+                class: (0),
+                length: (800),
+                speed: (100),
+                source: (0),
+                sink: (0),
+                depart: (0),
+                due: (80),
+            ),
+            (
+                train: (1),
+                class: (0),
+                length: (800),
+                speed: (100),
+                source: (0),
+                sink: (1),
+                depart: (20),
+                due: (90),
+            ),
+        ],
+        par: (throughput: (139), material: 15, lateness: 94),
+    ),
+)

@@ -85,6 +85,11 @@ fn spawn_edit_hud(
                 left: Val::Px(10.0),
                 top: Val::Px(8.0),
                 flex_direction: FlexDirection::Column,
+                // Wrap the briefing before it reaches the top-right START button.
+                // ponytail: percent of window width; clears a ~250px button down
+                // to ~900px windows. Subtract the button's px width if narrower
+                // windows ever overlap.
+                max_width: Val::Percent(68.0),
                 ..default()
             },
             Interaction::default(),
