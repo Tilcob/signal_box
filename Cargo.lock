@@ -4906,6 +4906,7 @@ dependencies = [
  "stellwerk_codes",
  "stellwerk_sim",
  "ttf-parser",
+ "wasm-bindgen",
  "web-sys",
 ]
 

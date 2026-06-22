@@ -46,7 +46,9 @@ impl NumericField {
 
     /// Current committed text — the typed string for a `Text` field, the decimal
     /// for an `Int`. Lets a caller read a text field synchronously, like
-    /// [`value`](Self::value) does for integers.
+    /// [`value`](Self::value) does for integers. Only the dev authoring UI
+    /// (`campaign_save`) reads it, hence the feature gate.
+    #[cfg(feature = "dev")]
     pub(super) fn text(&self) -> &str {
         &self.text
     }

@@ -14,8 +14,6 @@ pub enum SfxKind {
     Switch,
     /// A signal placed on the board.
     Signal,
-    /// A train rolls into the world during a run.
-    Rail,
     TrainHorn,
     BuildingSound,
     /// Outcome stingers, fired once when a run ends (see `run::finish`). They
@@ -25,6 +23,7 @@ pub enum SfxKind {
     Success,
     Crash,
     Deadlock,
+    Rail,
 }
 
 pub(super) fn on_sfx(
@@ -39,12 +38,12 @@ pub(super) fn on_sfx(
         SfxKind::ButtonClick => &audio.button_click,
         SfxKind::Switch => &audio.switch_sound,
         SfxKind::Signal => &audio.signal_sound,
-        SfxKind::Rail => &audio.rail_sound,
         SfxKind::TrainHorn => &audio.train_horn_sound,
         SfxKind::BuildingSound => &audio.building_sound,
         SfxKind::Success => &audio.success_sound,
         SfxKind::Crash => &audio.crash_sound,
         SfxKind::Deadlock => &audio.deadlock_sound,
+        SfxKind::Rail => &audio.rail_sound,
     };
     channel.play(handle.clone());
 }

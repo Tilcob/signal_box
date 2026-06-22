@@ -73,16 +73,36 @@ pub fn paste() -> Result<String, PasteError> {
 
 // --- Browser (wasm) ---------------------------------------------------------
 
-/// Writes `text` to the Web Clipboard. Fire-and-forget: `writeText` returns a
-/// Promise we don't await — fine because `copy` is only called from a button
-/// click (the user gesture browsers require). No file fallback in the browser.
+/// Copies `text` via a hidden textarea + `document.execCommand("copy")`. This
+/// is synchronous, works inside the itch iframe (unlike the async,
+/// permission-gated Clipboard API), and — crucially — reports whether the copy
+/// actually happened, so we never claim success when the browser blocked it.
 #[cfg(target_arch = "wasm32")]
 pub fn copy(text: &str) -> CopyOutcome {
-    let Some(window) = web_sys::window() else {
-        return CopyOutcome::Failed("no window".into());
+    use wasm_bindgen::JsCast;
+    let Some(document) = web_sys::window().and_then(|w| w.document()) else {
+        return CopyOutcome::Failed("no document".into());
     };
-    let _ = window.navigator().clipboard().write_text(text);
-    CopyOutcome::Clipboard
+    let Some(body) = document.body() else {
+        return CopyOutcome::Failed("no body".into());
+    };
+    let Some(textarea) = document
+        .create_element("textarea")
+        .ok()
+        .and_then(|el| el.dyn_into::<web_sys::HtmlTextAreaElement>().ok())
+    else {
+        return CopyOutcome::Failed("no textarea".into());
+    };
+    textarea.set_value(text);
+    let _ = body.append_child(&textarea);
+    textarea.select();
+    let ok = document.exec_command("copy").unwrap_or(false);
+    let _ = body.remove_child(&textarea);
+    if ok {
+        CopyOutcome::Clipboard
+    } else {
+        CopyOutcome::Failed("clipboard blocked".into())
+    }
 }
 
 /// Reads a code via `window.prompt` — a synchronous dialog, so it avoids the

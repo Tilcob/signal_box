@@ -60,12 +60,18 @@ arboard = "3"
 # localStorage (Persistenz), Clipboard + window.prompt (Sharing-Codes). web-sys
 # ist transitiv (über bevy/wasm-bindgen) schon im Baum — kein Versionssprung.
 [target.'cfg(target_arch = "wasm32")'.dependencies]
+# localStorage (Persistenz), window.prompt (Import) und ein Textarea+execCommand
+# fürs zuverlässige Kopieren im itch-iframe. web-sys ist transitiv schon da.
 web-sys = { version = "0.3", features = [
     "Window",
-    "Navigator",
     "Storage",
-    "Clipboard",
+    "Document",
+    "Element",
+    "HtmlElement",
+    "HtmlTextAreaElement",
+    "Node",
 ] }
+wasm-bindgen = "0.2"
 # Level-Katalog ohne Dateisystem: das assets/levels-Verzeichnis wird zur
 # Compile-Zeit eingebettet (Desktop liest weiter via read_dir).
 include_dir = "0.7"

@@ -25,7 +25,6 @@ pub struct AudioAssets {
     pub level_tracks: Vec<Handle<AudioSource>>,
     pub button_click: Handle<AudioSource>,
     pub switch_sound: Handle<AudioSource>,
-    pub rail_sound: Handle<AudioSource>,
     pub signal_sound: Handle<AudioSource>,
     pub train_horn_sound: Handle<AudioSource>,
     pub building_sound: Handle<AudioSource>,
@@ -34,6 +33,7 @@ pub struct AudioAssets {
     pub success_sound: Handle<AudioSource>,
     pub crash_sound: Handle<AudioSource>,
     pub deadlock_sound: Handle<AudioSource>,
+    pub rail_sound: Handle<AudioSource>,
 }
 
 /// Builds the audio handles. Called at plugin-BUILD time (not via a `Startup`
@@ -50,12 +50,12 @@ pub(super) fn build_audio_assets(asset_server: &AssetServer) -> AudioAssets {
             .collect(),
         button_click: asset_server.load("audio/sfx/button_click.wav"),
         switch_sound: asset_server.load("audio/sfx/railway-switch-track.wav"),
-        rail_sound: asset_server.load("audio/sfx/rail.wav"),
         signal_sound: asset_server.load("audio/sfx/signal_click.wav"),
         train_horn_sound: asset_server.load("audio/sfx/train-horn.wav"),
         building_sound: asset_server.load("audio/sfx/building-sound.wav"),
         success_sound: asset_server.load("audio/sfx/success.wav"),
         crash_sound: asset_server.load("audio/sfx/crash.wav"),
         deadlock_sound: asset_server.load("audio/sfx/deadlock.wav"),
+        rail_sound: asset_server.load("audio/sfx/rail.wav"),
     }
 }
