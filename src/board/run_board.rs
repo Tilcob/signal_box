@@ -29,7 +29,30 @@ use crate::state::{ActiveLevel, GameState};
 /// Track band of one block — its colour/width is recoloured in place by
 /// [`update_run_board`] instead of being respawned each frame.
 #[derive(Component)]
-pub(super) struct BlockBand(BlockId);
+pub(super) struct BlockBand {
+    block: BlockId,
+    /// Was this block reserved last frame? The free→reserved edge fires the
+    /// route-formation glow pulse.
+    reserved_was: bool,
+    /// Seconds of glow remaining for that pulse (0 = none).
+    pulse: f32,
+}
+
+/// Route-formation glow: how long the pulse lasts and how much it brightens.
+const PULSE_SECS: f32 = 0.45;
+const PULSE_BOOST: f32 = 0.6;
+
+/// Scales a colour's linear channels up by `k` — a transient brightening for
+/// the route-formation pulse. Works with bloom on (more bloom) or off
+/// (the palette is already tonemapped into gamut).
+fn brighten(color: Color, k: f32) -> Color {
+    let c = color.to_linear();
+    Color::LinearRgba(LinearRgba::rgb(
+        c.red * (1.0 + k),
+        c.green * (1.0 + k),
+        c.blue * (1.0 + k),
+    ))
+}
 
 /// Signal lamp (and its direction tick). The block the signal protects is
 /// baked in at spawn, so the per-frame recolour needs no graph walk and no
@@ -39,6 +62,17 @@ pub(super) struct BlockBand(BlockId);
 pub(super) struct SignalLamp {
     next_block: Option<BlockId>,
 }
+
+/// The colour-blind stop bar across a red signal (see [`stop_bar_color`]). Also
+/// carries [`SignalLamp`], but is updated separately so the lamp recolour does
+/// not turn the bar green — it only ever shows red or vanishes.
+#[derive(Component)]
+pub(super) struct StopBar;
+
+/// Query filters split out to keep `update_run_board` under clippy's
+/// type-complexity threshold (same trick as `widgets::ChangedButton`).
+type LampOnly = (Without<BlockBand>, Without<StopBar>);
+type StopBarOnly = (Without<BlockBand>, With<StopBar>);
 
 /// Per-frame train body sprites (bands + head lamp) — plain quads, despawned
 /// and respawned each frame (trains are few, and the segment count changes as
@@ -109,7 +143,11 @@ pub(super) fn spawn_run_board_static(
             2.0,
             Tag::Live,
         );
-        commands.entity(entity).insert(BlockBand(block));
+        commands.entity(entity).insert(BlockBand {
+            block,
+            reserved_was: reserved.contains(&block),
+            pulse: 0.0,
+        });
     }
 
     // Signal lamps: resolve each signal's protected block ONCE, here.
@@ -132,24 +170,50 @@ pub(super) fn spawn_run_board_static(
         for arrow_e in signal_arrow(&mut commands, signal.cell, signal.at, color, Tag::Live) {
             commands.entity(arrow_e).insert(marker);
         }
+        // Stop bar across the lamp: a non-colour cue for red (GDD §9).
+        let pos = signal_pos(signal.cell, signal.at);
+        let bar = band(
+            &mut commands,
+            pos - Vec2::new(9.0, 0.0),
+            pos + Vec2::new(9.0, 0.0),
+            4.0,
+            stop_bar_color(next_block, &occupied, &reserved),
+            5.5,
+            Tag::Live,
+        );
+        commands.entity(bar).insert((marker, StopBar));
     }
 }
 
 // --- Per-frame state update (in place, no spawn/despawn) ------------------------
 
 pub(super) fn update_run_board(
+    time: Res<Time>,
     ctl: Option<Res<RunCtl>>,
     state: Res<State<GameState>>,
-    mut bands: Query<(&BlockBand, &mut Sprite), Without<SignalLamp>>,
-    mut lamps: Query<(&SignalLamp, &mut Sprite), Without<BlockBand>>,
+    mut bands: Query<(&mut BlockBand, &mut Sprite), Without<SignalLamp>>,
+    mut lamps: Query<(&SignalLamp, &mut Sprite), LampOnly>,
+    mut stopbars: Query<(&SignalLamp, &mut Sprite), StopBarOnly>,
     mut commands: Commands,
 ) {
     let Some(ctl) = ctl else {
         return;
     };
     let (occupied, reserved) = block_states(&ctl.sim);
-    for (band, mut sprite) in &mut bands {
-        let (color, width) = band_style(band.0, &occupied, &reserved);
+    let dt = time.delta_secs();
+    for (mut band, mut sprite) in &mut bands {
+        // Pulse on the free→reserved transition (route just formed).
+        let is_reserved = reserved.contains(&band.block);
+        if is_reserved && !band.reserved_was {
+            band.pulse = PULSE_SECS;
+        }
+        band.reserved_was = is_reserved;
+
+        let (mut color, width) = band_style(band.block, &occupied, &reserved);
+        if band.pulse > 0.0 {
+            band.pulse = (band.pulse - dt).max(0.0);
+            color = brighten(color, (band.pulse / PULSE_SECS) * PULSE_BOOST);
+        }
         sprite.color = color;
         if let Some(size) = sprite.custom_size.as_mut() {
             size.y = width;
@@ -169,6 +233,10 @@ pub(super) fn update_run_board(
     // outcome screen).
     if switched && *state.get() == GameState::Run {
         commands.trigger(crate::audio::SfxKind::Signal);
+    }
+    // Stop bars: show red across a red signal, vanish when it goes green.
+    for (signal, mut sprite) in &mut stopbars {
+        sprite.color = stop_bar_color(signal.next_block, &occupied, &reserved);
     }
 }
 
@@ -281,15 +349,37 @@ fn band_style(block: BlockId, occupied: &BTreeSet<BlockId>, reserved: &BTreeSet<
     }
 }
 
+/// A signal shows green iff its protected block is free.
+fn signal_lit(
+    next_block: Option<BlockId>,
+    occupied: &BTreeSet<BlockId>,
+    reserved: &BTreeSet<BlockId>,
+) -> bool {
+    next_block.is_none_or(|b| !(occupied.contains(&b) || reserved.contains(&b)))
+}
+
 /// Green unless the signal's protected block is occupied or reserved.
 fn lamp_color(
     next_block: Option<BlockId>,
     occupied: &BTreeSet<BlockId>,
     reserved: &BTreeSet<BlockId>,
 ) -> Color {
-    let lit = next_block.is_none_or(|b| !(occupied.contains(&b) || reserved.contains(&b)));
-    if lit {
+    if signal_lit(next_block, occupied, reserved) {
         col_signal_green()
+    } else {
+        col_signal_red()
+    }
+}
+
+/// Accessibility (GDD §9): a red signal also grows a stop bar — a *shape* cue,
+/// not just a hue change. Transparent (invisible) when the signal is green.
+fn stop_bar_color(
+    next_block: Option<BlockId>,
+    occupied: &BTreeSet<BlockId>,
+    reserved: &BTreeSet<BlockId>,
+) -> Color {
+    if signal_lit(next_block, occupied, reserved) {
+        Color::NONE
     } else {
         col_signal_red()
     }

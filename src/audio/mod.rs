@@ -11,8 +11,9 @@ mod sfx;
 pub use sfx::SfxKind;
 
 use bevy::prelude::*;
-use bevy_kira_audio::{AudioApp, AudioPlugin};
+use bevy_kira_audio::{AudioApp, AudioChannel, AudioControl, AudioPlugin};
 
+use crate::levels::Progress;
 use crate::state::GameState;
 
 /// Music channel marker (looping background tracks, one at a time).
@@ -58,6 +59,31 @@ impl Plugin for AudioManagerPlugin {
                         .or(in_state(GameState::Run))
                         .or(in_state(GameState::Result)),
                 ),
-            );
+            )
+            // Apply the persisted master volumes whenever they change. Progress
+            // mutates only on saves (volume change, run record) — infrequent —
+            // and is `changed` on the first run, so the loaded volume is applied
+            // at startup too.
+            // ponytail: gate on Progress change; a dedicated event would be overkill.
+            .add_systems(Update, apply_volume.run_if(resource_changed::<Progress>));
     }
+}
+
+/// Linear `0.0..=1.0` volume → decibels for kira's `set_volume`. 1.0 → 0 dB
+/// (unity), 0 → kira's silence floor (-60 dB).
+fn volume_db(fraction: f64) -> f32 {
+    if fraction <= 0.0 {
+        -60.0
+    } else {
+        (20.0 * fraction.log10()).clamp(-60.0, 0.0) as f32
+    }
+}
+
+fn apply_volume(
+    progress: Res<Progress>,
+    music: Res<AudioChannel<MusicChannel>>,
+    sfx: Res<AudioChannel<SfxChannel>>,
+) {
+    music.set_volume(volume_db(progress.music_volume));
+    sfx.set_volume(volume_db(progress.sfx_volume));
 }

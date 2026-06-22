@@ -29,6 +29,11 @@ pub struct AudioAssets {
     pub signal_sound: Handle<AudioSource>,
     pub train_horn_sound: Handle<AudioSource>,
     pub building_sound: Handle<AudioSource>,
+    /// Outcome stingers (see `SfxKind::Success`/`Crash`/`Deadlock`). A missing
+    /// file just plays nothing (kira) — drop real WAVs in to enable them.
+    pub success_sound: Handle<AudioSource>,
+    pub crash_sound: Handle<AudioSource>,
+    pub deadlock_sound: Handle<AudioSource>,
 }
 
 /// Builds the audio handles. Called at plugin-BUILD time (not via a `Startup`
@@ -49,5 +54,8 @@ pub(super) fn build_audio_assets(asset_server: &AssetServer) -> AudioAssets {
         signal_sound: asset_server.load("audio/sfx/signal_click.wav"),
         train_horn_sound: asset_server.load("audio/sfx/train-horn.wav"),
         building_sound: asset_server.load("audio/sfx/building-sound.wav"),
+        success_sound: asset_server.load("audio/sfx/success.wav"),
+        crash_sound: asset_server.load("audio/sfx/crash.wav"),
+        deadlock_sound: asset_server.load("audio/sfx/deadlock.wav"),
     }
 }

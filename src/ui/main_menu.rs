@@ -10,6 +10,7 @@ use super::widgets::{
 };
 use crate::font::UiFont;
 use crate::i18n::t;
+use crate::levels::Progress;
 use crate::state::GameState;
 
 #[derive(Component)]
@@ -34,7 +35,7 @@ impl Plugin for MainMenuPlugin {
     }
 }
 
-fn spawn_main_menu(mut commands: Commands, ui_font: Res<UiFont>) {
+fn spawn_main_menu(mut commands: Commands, ui_font: Res<UiFont>, progress: Res<Progress>) {
     let font = ui_font.0.clone();
     commands
         .spawn((
@@ -62,6 +63,14 @@ fn spawn_main_menu(mut commands: Commands, ui_font: Res<UiFont>) {
             button(root, &font, &t("menu.start"), BUTTON_BG_PRIMARY, MenuAction::Start);
             button(root, &font, &t("help.button"), BUTTON_BG, HelpButton);
             button(root, &font, &t("menu.quit"), BUTTON_BG, MenuAction::Quit);
+            root.spawn((
+                text_bundle(&font, t("options.volume"), 16.0, TEXT_BRIGHT),
+                Node {
+                    margin: UiRect::top(Val::Px(24.0)),
+                    ..default()
+                },
+            ));
+            super::options::volume_controls(root, &font, &progress);
         });
 }
 

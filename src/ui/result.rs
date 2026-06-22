@@ -98,6 +98,7 @@ fn spawn_result(
                 // Medal is a drawn dot (filled = at/under par), not a glyph —
                 // the DIN UI font has no ●/○.
                 let score_row = |root: &mut ChildSpawnerCommands,
+                                     i: usize,
                                      name: String,
                                      value: u64,
                                      par_value: u64| {
@@ -108,7 +109,9 @@ fn spawn_result(
                         ..default()
                     })
                     .with_children(|r| {
-                        dot(r, value <= par_value, MEDAL);
+                        // Staggered "pop" reveal per axis (juice).
+                        dot(r, value <= par_value, MEDAL)
+                            .insert(super::juice::Pop::new(i as f32 * 0.09, 10.0));
                         r.spawn(text_bundle(
                             &font,
                             format!("{name}: {value}   ({}: {par_value})", t("result.par")),
@@ -117,9 +120,9 @@ fn spawn_result(
                         ));
                     });
                 };
-                score_row(root, t("result.throughput"), score.throughput.0, par.throughput.0);
-                score_row(root, t("result.material"), score.material as u64, par.material as u64);
-                score_row(root, t("result.lateness"), score.lateness, par.lateness);
+                score_row(root, 0, t("result.throughput"), score.throughput.0, par.throughput.0);
+                score_row(root, 1, t("result.material"), score.material as u64, par.material as u64);
+                score_row(root, 2, t("result.lateness"), score.lateness, par.lateness);
             }
             root.spawn(Node {
                 flex_direction: FlexDirection::Row,

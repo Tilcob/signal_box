@@ -8,8 +8,11 @@ mod campaign_save;
 mod console;
 pub(crate) mod edit_hud;
 pub(crate) mod encyclopedia;
+mod hints;
+mod juice;
 mod main_menu;
 mod numeric_field;
+mod options;
 pub(crate) mod pause;
 mod result;
 mod run_hud;
@@ -46,6 +49,12 @@ impl Plugin for UiPlugin {
             encyclopedia::EncyclopediaPlugin,
             pause::PausePlugin,
             toolbar::ToolbarPlugin,
+            // Nested so the outer tuple stays within Bevy's 15-element `Plugins`.
+            (
+                options::OptionsPlugin,
+                juice::JuicePlugin,
+                hints::HintsPlugin,
+            ),
         ))
         // All states: hover/press feedback for every button.
         .add_systems(Update, widgets::button_feedback);

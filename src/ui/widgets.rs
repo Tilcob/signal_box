@@ -1,6 +1,7 @@
 //! Shared UI theme and widget helpers: colors, text/button constructors and
 //! the global hover/press feedback.
 
+use bevy::ecs::system::EntityCommands;
 use bevy::prelude::*;
 use bevy::text::Font;
 
@@ -19,7 +20,11 @@ pub(super) const SOLVED: Color = Color::srgb(0.40, 1.0, 0.55);
 /// ●/○. `filled` = solid disc in `color`, else a dim hollow
 /// ring. Used for par medals and the solved marker; PNG icons replace these
 /// before release.
-pub(super) fn dot(parent: &mut ChildSpawnerCommands, filled: bool, color: Color) {
+pub(super) fn dot<'a>(
+    parent: &'a mut ChildSpawnerCommands,
+    filled: bool,
+    color: Color,
+) -> EntityCommands<'a> {
     let (bg, border) = if filled {
         (color, color)
     } else {
@@ -36,7 +41,7 @@ pub(super) fn dot(parent: &mut ChildSpawnerCommands, filled: bool, color: Color)
         },
         BackgroundColor(bg),
         BorderColor::all(border),
-    ));
+    ))
 }
 
 /// Like [`button`] but the caller fills the inner row (text plus icon nodes

@@ -133,6 +133,7 @@ fn sync_overlay(
     paused: Res<Paused>,
     ui_font: Res<UiFont>,
     state: Res<State<GameState>>,
+    progress: Res<Progress>,
     roots: Query<Entity, With<PauseRoot>>,
 ) {
     if !paused.is_changed() {
@@ -187,6 +188,15 @@ fn sync_overlay(
                     button(panel, &font, &t("pause.editor"), BUTTON_BG, EditorButton);
                 }
                 button(panel, &font, &t("pause.leave"), BUTTON_BG, LeaveButton);
+                // Volume controls below the actions (shared with the main menu).
+                panel.spawn((
+                    text_bundle(&font, t("options.volume"), 16.0, TEXT_BRIGHT),
+                    Node {
+                        margin: UiRect::top(Val::Px(8.0)),
+                        ..default()
+                    },
+                ));
+                super::options::volume_controls(panel, &font, &progress);
             });
         });
 }

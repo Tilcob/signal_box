@@ -211,6 +211,13 @@ fn finish(
         progress.entry(&active.id).record(score);
         progress.save();
     }
+    // Outcome stinger: the player's first feedback on how the run ended.
+    // Collision/Misrouting share the crash sound; Stalled shares deadlock's.
+    commands.trigger(match outcome {
+        Outcome::Success { .. } => crate::audio::SfxKind::Success,
+        Outcome::Deadlock { .. } | Outcome::Stalled { .. } => crate::audio::SfxKind::Deadlock,
+        Outcome::Collision { .. } | Outcome::Misrouting { .. } => crate::audio::SfxKind::Crash,
+    });
     commands.insert_resource(LastOutcome(outcome.clone()));
     next.set(GameState::Result);
 }

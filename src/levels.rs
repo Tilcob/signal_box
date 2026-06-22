@@ -8,7 +8,7 @@
 use bevy::prelude::*;
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use stellwerk_sim::Score;
 use stellwerk_sim::grid::Cell;
@@ -84,12 +84,24 @@ impl LevelProgress {
     }
 }
 
-#[derive(Resource, Serialize, Deserialize, Default)]
+#[derive(Resource, Serialize, Deserialize)]
 pub struct Progress {
     pub levels: BTreeMap<String, LevelProgress>,
     /// UI language ("de"/"en"), persisted with the save.
     #[serde(default)]
     pub lang: String,
+    /// Master volume per channel, linear `0.0..=1.0`. Applied as decibels by
+    /// `crate::audio`. Defaults to full so a fresh or pre-volume save is never
+    /// silent (the derived `Default` would give 0.0 = muted).
+    #[serde(default = "full_volume")]
+    pub music_volume: f64,
+    #[serde(default = "full_volume")]
+    pub sfx_volume: f64,
+    /// Ids of one-time onboarding hints already shown. Authoring a
+    /// `hint.<level_id>` i18n string enables a hint; it shows once, then its id
+    /// lands here so it never reappears. See `crate::ui::hints`.
+    #[serde(default)]
+    pub seen_hints: BTreeSet<String>,
     /// Set when [`Progress::load`] had to fall back to defaults because an
     /// EXISTING file could not be read/parsed. The next [`Progress::save`]
     /// then preserves that original file as a `.bak` before overwriting, so a
@@ -97,6 +109,23 @@ pub struct Progress {
     /// Not persisted.
     #[serde(skip)]
     degraded: bool,
+}
+
+fn full_volume() -> f64 {
+    1.0
+}
+
+impl Default for Progress {
+    fn default() -> Self {
+        Self {
+            levels: BTreeMap::new(),
+            lang: String::new(),
+            music_volume: 1.0,
+            sfx_volume: 1.0,
+            seen_hints: BTreeSet::new(),
+            degraded: false,
+        }
+    }
 }
 
 fn config_dir() -> Option<PathBuf> {
@@ -218,7 +247,7 @@ fn parse_progress(text: &str) -> Option<Progress> {
             Progress {
                 levels,
                 lang: String::new(),
-                degraded: false,
+                ..Default::default()
             }
         })
 }

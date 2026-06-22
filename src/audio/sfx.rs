@@ -18,6 +18,13 @@ pub enum SfxKind {
     Rail,
     TrainHorn,
     BuildingSound,
+    /// Outcome stingers, fired once when a run ends (see `run::finish`). They
+    /// must be audibly distinct — they are the player's first feedback on what
+    /// happened. Collision/Misrouting share `Crash`; Stalled shares `Deadlock`
+    /// (both are a standstill).
+    Success,
+    Crash,
+    Deadlock,
 }
 
 pub(super) fn on_sfx(
@@ -35,6 +42,9 @@ pub(super) fn on_sfx(
         SfxKind::Rail => &audio.rail_sound,
         SfxKind::TrainHorn => &audio.train_horn_sound,
         SfxKind::BuildingSound => &audio.building_sound,
+        SfxKind::Success => &audio.success_sound,
+        SfxKind::Crash => &audio.crash_sound,
+        SfxKind::Deadlock => &audio.deadlock_sound,
     };
     channel.play(handle.clone());
 }
