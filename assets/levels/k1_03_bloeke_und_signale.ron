@@ -218,6 +218,6 @@
                 due: (90),
             ),
         ],
-        par: (throughput: (64), material: 4, lateness: 0),
+        par: (throughput: (64), material: 6, lateness: 0),
     ),
 )

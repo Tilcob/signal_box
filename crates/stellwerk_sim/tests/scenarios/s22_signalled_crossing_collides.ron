@@ -1,9 +1,11 @@
 #![enable(unwrap_newtypes, implicit_some)]
-// Szenario 22: dieselbe Kreuzung wie s21, aber mit BLOCKSIGNALEN an beiden
-// Zufahrten. Ohne Signal kollidieren die zwei Züge am Kreuzungspunkt (s21);
-// mit Blocksignal greift das Punkt-Interlocking: einer reserviert den Punkt
-// und fährt, der andere wartet kurz und fährt danach. Beide kommen an —
-// kein Deadlock (die Routen sind getrennte Blöcke, nur der Punkt ist geteilt).
+// Szenario 22: dieselbe Kreuzung wie s21, mit BLOCKSIGNALEN an beiden
+// Zufahrten — beide Züge treffen GLEICHZEITIG am Kreuzungspunkt ein. Ein
+// Blocksignal sichert nur seinen Block; es reserviert den Kreuzungspunkt
+// NICHT voraus, garantiert also keine Durchfahrt. Beide fahren auf den Punkt
+// → Kollision. Ein Kettensignal reserviert die Fahrstraße voraus und
+// verhindert das (s14). Bei GESTAFFELTER Ankunft nähmen Blocksignale den
+// Punkt dagegen weiter abwechselnd (s13).
 //
 //              (0,1) NORD↑
 //                │
@@ -12,7 +14,7 @@
 //              (0,-1) ↑t1
 (
     level: (
-        name: "S22 — Kreuzung mit Blocksignal: abwechselnd",
+        name: "S22 — Kreuzung mit Blocksignal: Kollision",
         buildable: [
             (x: -1, y: 0), (x: 0, y: 0), (x: 1, y: 0),
             (x: 0, y: -1), (x: 0, y: 1),
@@ -47,5 +49,5 @@
             (cell: (x: 0, y: -1), at: N, kind: Block),
         ],
     ),
-    expect: Success(last_arrival_by: 120, last_arrival_at_least: 40),
+    expect: Collision(trains: (0, 1)),
 )

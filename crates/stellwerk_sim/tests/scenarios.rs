@@ -142,8 +142,8 @@ fn s21_unsignalled_crossing_collision() {
 }
 
 #[test]
-fn s22_signalled_crossing_takes_turns() {
-    run_and_check("s22_signalled_crossing_takes_turns");
+fn s22_signalled_crossing_collides() {
+    run_and_check("s22_signalled_crossing_collides");
 }
 
 /// Scenario 20: determinism. Two fresh runs of s14 produce the

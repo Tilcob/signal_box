@@ -466,18 +466,20 @@ impl Sim {
         points
     }
 
-    /// Records a clearance grant. Blocks: a block grant claims (per-tick, the
-    /// block is entered the same tick), a chain grant reserves (persistent).
-    /// Crossing points are ALWAYS reserved persistently — a point sits INSIDE a
-    /// block, so the train still has to travel to it; a per-tick claim would
-    /// expire mid-traversal and let a perpendicular train grab the point in the
-    /// gap before the body arrives (`or_insert` keeps an existing own
-    /// reservation's `occupied` flag on an idempotent re-grant).
+    /// Records a clearance grant. A block grant only claims its single block for
+    /// this tick (rear-end protection); it reserves NO crossing points, so it
+    /// does not secure a path through a junction — two block signals at a
+    /// crossing can let trains collide. A chain grant reserves its whole route's
+    /// blocks AND crossing points persistently, which is what makes it safe
+    /// through a junction: a point sits INSIDE a block, so without a persistent
+    /// reservation a perpendicular train grabs it in the gap before the body
+    /// arrives (`or_insert` keeps an existing own reservation's `occupied` flag
+    /// on an idempotent re-grant).
     fn apply_grant(&mut self, grant: Grant, id: TrainId, tick: &mut TickState) {
         let (blocks_persist, points): (Vec<BlockId>, Vec<NodeId>) = match grant {
-            Grant::Block(block, points) => {
+            Grant::Block(block) => {
                 tick.claims.insert(block, id);
-                (Vec::new(), points)
+                (Vec::new(), Vec::new())
             }
             Grant::Chain(blocks, points) => (blocks, points),
         };
@@ -502,11 +504,16 @@ impl Sim {
         match self.graph.signals[signal_id.0 as usize].kind {
             SignalKind::Block => {
                 let block = self.graph.blocks.block_of(next_edge);
+                // Refuse to drive into a point a train is ON right now, but a
+                // block grant does not RESERVE it (see `apply_grant`): a
+                // converging perpendicular train is not held back, so they can
+                // still meet at the point. That is the junction risk a chain
+                // signal removes.
                 let points = self.route_points(train, next_edge, &[block]);
                 if self.block_free(block, train.id, tick)
                     && points.iter().all(|&p| self.point_free(p, train.id, tick))
                 {
-                    Some(Grant::Block(block, points))
+                    Some(Grant::Block(block))
                 } else {
                     None
                 }
@@ -939,9 +946,10 @@ impl Sim {
 }
 
 enum Grant {
-    /// One block plus the crossing points the train will cross inside it.
-    Block(BlockId, Vec<NodeId>),
-    /// A chain route's blocks plus its crossing points.
+    /// One block, claimed per-tick. No crossing points: a block grant does not
+    /// secure a path through a junction.
+    Block(BlockId),
+    /// A chain route's blocks plus its crossing points (reserved persistently).
     Chain(Vec<BlockId>, Vec<NodeId>),
 }
 

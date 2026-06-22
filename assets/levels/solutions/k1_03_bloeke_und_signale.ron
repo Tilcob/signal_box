@@ -8,7 +8,7 @@
                 y: 0,
             ),
             at: E,
-            kind: Block,
+            kind: Chain,
             priority: 0,
         ),
         (
@@ -17,7 +17,7 @@
                 y: 1,
             ),
             at: S,
-            kind: Block,
+            kind: Chain,
             priority: 0,
         ),
     ],

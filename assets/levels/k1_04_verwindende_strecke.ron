@@ -474,6 +474,6 @@
                 due: (200),
             ),
         ],
-        par: (throughput: (162), material: 19, lateness: 98),
+        par: (throughput: (162), material: 22, lateness: 98),
     ),
 )

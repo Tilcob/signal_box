@@ -113,7 +113,7 @@
                 y: 1,
             ),
             at: SE,
-            kind: Block,
+            kind: Chain,
             priority: 0,
         ),
         (
@@ -122,7 +122,7 @@
                 y: 1,
             ),
             at: SW,
-            kind: Block,
+            kind: Chain,
             priority: 0,
         ),
         (
@@ -131,7 +131,7 @@
                 y: 0,
             ),
             at: SE,
-            kind: Block,
+            kind: Chain,
             priority: 0,
         ),
         (
@@ -140,7 +140,7 @@
                 y: 0,
             ),
             at: SW,
-            kind: Block,
+            kind: Chain,
             priority: 0,
         ),
     ],
