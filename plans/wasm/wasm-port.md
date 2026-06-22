@@ -181,6 +181,17 @@ Phasen 1–4 im Code eingebaut, **alles `cfg`/target-gegated** (§0).
   `include_dir` unter `cfg(wasm)`.
 - **index.html** für trunk (Canvas, `assets/`-Copy, `--no-default-features`).
 
+**Browser-Runtime-Fixes (beim Testen in Edge gefunden, eingebaut):**
+- **Audio lud gar nicht:** Bevy fragt pro Asset eine `.meta`-Datei ab; der
+  Server liefert für die fehlende `<asset>.meta` die `index.html` (200), Bevy
+  scheitert am HTML-Parsen → Asset-Load bricht ab. Fix: `AssetPlugin`-Feld
+  `meta_check: AssetMetaCheck::Never` (wasm-gegated, `main.rs`).
+- **AudioContext bleibt suspended:** cpal/kira starten ihn vor jeder Geste, der
+  Browser lässt ihn schlafen. Fix: `index.html` patcht `AudioContext` und
+  resumt alle Instanzen beim ersten pointer/key/touch.
+- **Musik-Watchdog zu kurz:** 5 s (Desktop-getunt) reichen fürs Netz-Fetch nicht
+  → auf wasm 30 s (`audio/music.rs`).
+
 **Manuell offen (Browser-Runtime — hier nicht testbar):**
 - `cargo install trunk`; `trunk serve` (lokal testen) / `trunk build --release`
   → `dist/` auf itch. **Falls** trunk an `getrandom` linkt-meckert: in

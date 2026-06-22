@@ -72,6 +72,16 @@ fn main() {
                     primary_window: Some(window),
                     ..default()
                 })
+                // wasm: dev/static servers answer a missing `<asset>.meta` with
+                // index.html (200), which Bevy then fails to parse as asset meta
+                // and the whole asset load fails — that is why every audio file
+                // errored out. Skip meta lookups entirely in the browser. On
+                // desktop this is `AssetPlugin::default()`, i.e. unchanged.
+                .set(AssetPlugin {
+                    #[cfg(target_arch = "wasm32")]
+                    meta_check: bevy::asset::AssetMetaCheck::Never,
+                    ..default()
+                })
                 // Mirror our own `info!`/`warn!`/`error!` (incl. dev) into the
                 // in-level console; engine noise is filtered out by target.
                 .set(bevy::log::LogPlugin {

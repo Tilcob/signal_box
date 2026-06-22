@@ -29,7 +29,13 @@ const FADE: AudioTween = AudioTween::new(Duration::from_millis(600), AudioEasing
 /// If a chosen level track has not actually started playing within this long,
 /// its source is treated as failed/missing and skipped — otherwise a missing
 /// file retries forever in kira and the playlist hangs silently.
+#[cfg(not(target_arch = "wasm32"))]
 const WATCHDOG_SECS: f32 = 5.0;
+/// wasm fetches each track over the network and decodes it in-browser — far
+/// slower than a local file read, so a cold load needs much longer before it
+/// counts as failed, otherwise valid tracks get skipped before they can start.
+#[cfg(target_arch = "wasm32")]
+const WATCHDOG_SECS: f32 = 30.0;
 
 /// Which track is currently looping in the *menu* — avoids restarting it on
 /// re-entry. The desk uses [`LevelPlaylist`] instead, not this enum.

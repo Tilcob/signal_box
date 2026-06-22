@@ -5,6 +5,37 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Stellwerk</title>
     <!--
+      Audio unlock: cpal/kira (the audio backend) create the AudioContext at
+      startup and try to start it before any user gesture, so the browser keeps
+      it suspended and never auto-resumes it — all sound stays silent. Patch the
+      AudioContext constructor to collect instances and resume them on the first
+      pointer/key/touch. Must run BEFORE the wasm module instantiates, hence a
+      plain inline script ahead of the trunk rust link.
+    -->
+    <script>
+      (function () {
+        var Orig = window.AudioContext || window.webkitAudioContext;
+        if (!Orig) return;
+        var live = [];
+        function Wrapped() {
+          var ctx = new Orig(...arguments);
+          live.push(ctx);
+          return ctx;
+        }
+        Wrapped.prototype = Orig.prototype;
+        window.AudioContext = Wrapped;
+        window.webkitAudioContext = Wrapped;
+        function resume() {
+          live.forEach(function (c) {
+            if (c.state === "suspended") c.resume();
+          });
+        }
+        ["pointerdown", "keydown", "touchstart"].forEach(function (ev) {
+          window.addEventListener(ev, resume);
+        });
+      })();
+    </script>
+    <!--
       Browser build entry for `trunk` (plans/wasm/wasm-port.md).
       - rel="rust": build this crate to wasm; no-default-features drops the dev
         egui/inspector tooling (ship build); wasm-opt="z" shrinks the binary.

@@ -95,9 +95,9 @@ pub struct Progress {
     /// Master volume per channel, linear `0.0..=1.0`. Applied as decibels by
     /// `crate::audio`. Defaults to full so a fresh or pre-volume save is never
     /// silent (the derived `Default` would give 0.0 = muted).
-    #[serde(default = "full_volume")]
+    #[serde(default = "default_volume")]
     pub music_volume: f64,
-    #[serde(default = "full_volume")]
+    #[serde(default = "default_volume")]
     pub sfx_volume: f64,
     /// Ids of one-time onboarding hints already shown. Authoring a
     /// `hint.<level_id>` i18n string enables a hint; it shows once, then its id
@@ -115,8 +115,11 @@ pub struct Progress {
     degraded: bool,
 }
 
-fn full_volume() -> f64 {
-    1.0
+/// The single source of truth for the default master volume (linear 0..1):
+/// used both for a fresh profile (`Default`) and as the serde fallback for
+/// saves that predate the volume field. Change it HERE only.
+fn default_volume() -> f64 {
+    0.5
 }
 
 impl Default for Progress {
@@ -124,8 +127,8 @@ impl Default for Progress {
         Self {
             levels: BTreeMap::new(),
             lang: String::new(),
-            music_volume: 1.0,
-            sfx_volume: 1.0,
+            music_volume: default_volume(),
+            sfx_volume: default_volume(),
             seen_hints: BTreeSet::new(),
             degraded: false,
         }
