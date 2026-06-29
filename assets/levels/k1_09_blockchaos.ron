@@ -1,0 +1,375 @@
+(
+    meta: (
+        schema_version: 1,
+        chapter: 1,
+        order: 90,
+        optional_hard: true,
+        briefing: "Die Züge müssen kreuz über fahren. Nutze Weichen und Block- Kettensignale sinnvoll, um sicher ans Ziel zu gelangen.",
+    ),
+    sim: (
+        name: "1.9 Blockchaos",
+        buildable: [
+            (
+                x: -6,
+                y: -2,
+            ),
+            (
+                x: -6,
+                y: -1,
+            ),
+            (
+                x: -6,
+                y: 0,
+            ),
+            (
+                x: -6,
+                y: 1,
+            ),
+            (
+                x: -6,
+                y: 2,
+            ),
+            (
+                x: -5,
+                y: -2,
+            ),
+            (
+                x: -5,
+                y: -1,
+            ),
+            (
+                x: -5,
+                y: 0,
+            ),
+            (
+                x: -5,
+                y: 1,
+            ),
+            (
+                x: -5,
+                y: 2,
+            ),
+            (
+                x: -4,
+                y: -2,
+            ),
+            (
+                x: -4,
+                y: -1,
+            ),
+            (
+                x: -4,
+                y: 0,
+            ),
+            (
+                x: -4,
+                y: 1,
+            ),
+            (
+                x: -4,
+                y: 2,
+            ),
+            (
+                x: -3,
+                y: -2,
+            ),
+            (
+                x: -3,
+                y: -1,
+            ),
+            (
+                x: -3,
+                y: 0,
+            ),
+            (
+                x: -3,
+                y: 1,
+            ),
+            (
+                x: -3,
+                y: 2,
+            ),
+            (
+                x: -2,
+                y: -2,
+            ),
+            (
+                x: -2,
+                y: -1,
+            ),
+            (
+                x: -2,
+                y: 0,
+            ),
+            (
+                x: -2,
+                y: 1,
+            ),
+            (
+                x: -2,
+                y: 2,
+            ),
+            (
+                x: -1,
+                y: -2,
+            ),
+            (
+                x: -1,
+                y: -1,
+            ),
+            (
+                x: -1,
+                y: 0,
+            ),
+            (
+                x: -1,
+                y: 1,
+            ),
+            (
+                x: -1,
+                y: 2,
+            ),
+            (
+                x: 0,
+                y: -2,
+            ),
+            (
+                x: 0,
+                y: -1,
+            ),
+            (
+                x: 0,
+                y: 0,
+            ),
+            (
+                x: 0,
+                y: 1,
+            ),
+            (
+                x: 0,
+                y: 2,
+            ),
+            (
+                x: 1,
+                y: -2,
+            ),
+            (
+                x: 1,
+                y: -1,
+            ),
+            (
+                x: 1,
+                y: 0,
+            ),
+            (
+                x: 1,
+                y: 1,
+            ),
+            (
+                x: 1,
+                y: 2,
+            ),
+            (
+                x: 2,
+                y: -2,
+            ),
+            (
+                x: 2,
+                y: -1,
+            ),
+            (
+                x: 2,
+                y: 0,
+            ),
+            (
+                x: 2,
+                y: 1,
+            ),
+            (
+                x: 2,
+                y: 2,
+            ),
+            (
+                x: 3,
+                y: -2,
+            ),
+            (
+                x: 3,
+                y: -1,
+            ),
+            (
+                x: 3,
+                y: 0,
+            ),
+            (
+                x: 3,
+                y: 1,
+            ),
+            (
+                x: 3,
+                y: 2,
+            ),
+            (
+                x: 4,
+                y: -2,
+            ),
+            (
+                x: 4,
+                y: -1,
+            ),
+            (
+                x: 4,
+                y: 0,
+            ),
+            (
+                x: 4,
+                y: 1,
+            ),
+            (
+                x: 4,
+                y: 2,
+            ),
+            (
+                x: 5,
+                y: -2,
+            ),
+            (
+                x: 5,
+                y: -1,
+            ),
+            (
+                x: 5,
+                y: 0,
+            ),
+            (
+                x: 5,
+                y: 1,
+            ),
+            (
+                x: 5,
+                y: 2,
+            ),
+        ],
+        fixed: (
+            pieces: [
+                (
+                    cell: (
+                        x: -6,
+                        y: 1,
+                    ),
+                    a: W,
+                    b: E,
+                ),
+                (
+                    cell: (
+                        x: -6,
+                        y: -1,
+                    ),
+                    a: W,
+                    b: E,
+                ),
+                (
+                    cell: (
+                        x: 5,
+                        y: -1,
+                    ),
+                    a: W,
+                    b: E,
+                ),
+                (
+                    cell: (
+                        x: 5,
+                        y: 1,
+                    ),
+                    a: W,
+                    b: E,
+                ),
+            ],
+            switches: [],
+            signals: [],
+        ),
+        sources: [
+            (
+                id: (0),
+                cell: (
+                    x: -6,
+                    y: 1,
+                ),
+                dir: W,
+                label: "Start 1",
+            ),
+            (
+                id: (1),
+                cell: (
+                    x: -6,
+                    y: -1,
+                ),
+                dir: W,
+                label: "Start 2",
+            ),
+        ],
+        sinks: [
+            (
+                id: (0),
+                cell: (
+                    x: 5,
+                    y: 1,
+                ),
+                dir: E,
+                label: "Ziel 1",
+            ),
+            (
+                id: (1),
+                cell: (
+                    x: 5,
+                    y: -1,
+                ),
+                dir: E,
+                label: "Ziel 2",
+            ),
+        ],
+        schedule: [
+            (
+                train: (0),
+                class: (1),
+                length: (900),
+                speed: (120),
+                source: (0),
+                sink: (0),
+                depart: (10),
+                due: (119),
+            ),
+            (
+                train: (1),
+                class: (0),
+                length: (800),
+                speed: (120),
+                source: (0),
+                sink: (1),
+                depart: (45),
+                due: (250),
+            ),
+            (
+                train: (2),
+                class: (1),
+                length: (1500),
+                speed: (80),
+                source: (1),
+                sink: (1),
+                depart: (10),
+                due: (202),
+            ),
+            (
+                train: (3),
+                class: (0),
+                length: (800),
+                speed: (120),
+                source: (1),
+                sink: (0),
+                depart: (45),
+                due: (313),
+            ),
+        ],
+        par: (throughput: (288), material: 49, lateness: 0),
+    ),
+)

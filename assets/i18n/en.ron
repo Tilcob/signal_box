@@ -193,4 +193,8 @@
     "station.Ziel 5": "[TODO] Ziel 5",
     "station.Start 4": "[TODO] Start 4",
     "station.Start 5": "[TODO] Start 5",
+    "level.k1_09_blockchaos.name": "[TODO] 1.9 Blockchaos",
+    "level.k1_09_blockchaos.briefing": "[TODO] Die Züge müssen kreuz über fahren. Nutze Weichen und Block- Kettensignale sinnvoll, um sicher ans Ziel zu gelangen.",
+    "level.k1_10_durch_das_tal.name": "[TODO] 1.10 Durch Das Tal",
+    "level.k1_10_durch_das_tal.briefing": "[TODO] 4 Züge müssen durch die Engstelle des Tals. Sollte man auf die Durchfahrtszeit oder den Materialverbrauch ein Augenmerk legen?",
 }

@@ -7,7 +7,7 @@
         briefing: "2 Züge wollen die Kreuzung überqueren. Sichern Sie die Kreuzung mit Signalen ab, dass die Züge nicht kollidieren.",
     ),
     sim: (
-        name: "1.3 Bloeke Und Signale",
+        name: "1.3 Blöcke Und Signale",
         buildable: [
             (
                 x: -3,

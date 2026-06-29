@@ -175,7 +175,7 @@
     "station.Ziel 2": "Ziel 2",
     "station.Start 1": "Start 1",
     "station.Start 2": "Start 2",
-    "level.k1_03_bloeke_und_signale.name": "1.3 Bloeke Und Signale",
+    "level.k1_03_bloeke_und_signale.name": "1.3 Blöcke Und Signale",
     "level.k1_03_bloeke_und_signale.briefing": "2 Züge wollen die Kreuzung überqueren. Sichern Sie die Kreuzung mit Signalen ab, dass die Züge nicht kollidieren.",
     "level.k1_04_verwindende_strecke.name": "1.4 Verwindende Strecke",
     "level.k1_04_verwindende_strecke.briefing": "Lassen Sie die Züge nicht kollidieren. Nutzen Sie die Gleise und Signale sparsam.",
@@ -193,4 +193,8 @@
     "station.Ziel 5": "Ziel 5",
     "station.Start 4": "Start 4",
     "station.Start 5": "Start 5",
+    "level.k1_09_blockchaos.name": "1.9 Blockchaos",
+    "level.k1_09_blockchaos.briefing": "Die Züge müssen kreuz über fahren. Nutze Weichen und Block- Kettensignale sinnvoll, um sicher ans Ziel zu gelangen.",
+    "level.k1_10_durch_das_tal.name": "1.10 Durch Das Tal",
+    "level.k1_10_durch_das_tal.briefing": "4 Züge müssen durch die Engstelle des Tals. Sollte man auf die Durchfahrtszeit oder den Materialverbrauch ein Augenmerk legen?",
 }

@@ -1,0 +1,352 @@
+(
+    meta: (
+        schema_version: 1,
+        chapter: 1,
+        order: 100,
+        optional_hard: true,
+        briefing: "4 Züge müssen durch die Engstelle des Tals. Sollte man auf die Durchfahrtszeit oder den Materialverbrauch ein Augenmerk legen?",
+    ),
+    sim: (
+        name: "1.10 Durch Das Tal",
+        buildable: [
+            (
+                x: -2,
+                y: 2,
+            ),
+            (
+                x: -2,
+                y: 3,
+            ),
+            (
+                x: -2,
+                y: 4,
+            ),
+            (
+                x: -2,
+                y: 5,
+            ),
+            (
+                x: -2,
+                y: 6,
+            ),
+            (
+                x: -2,
+                y: 7,
+            ),
+            (
+                x: -1,
+                y: -7,
+            ),
+            (
+                x: -1,
+                y: -6,
+            ),
+            (
+                x: -1,
+                y: -5,
+            ),
+            (
+                x: -1,
+                y: -4,
+            ),
+            (
+                x: -1,
+                y: 1,
+            ),
+            (
+                x: -1,
+                y: 2,
+            ),
+            (
+                x: -1,
+                y: 3,
+            ),
+            (
+                x: -1,
+                y: 4,
+            ),
+            (
+                x: -1,
+                y: 5,
+            ),
+            (
+                x: -1,
+                y: 6,
+            ),
+            (
+                x: -1,
+                y: 7,
+            ),
+            (
+                x: 0,
+                y: -7,
+            ),
+            (
+                x: 0,
+                y: -6,
+            ),
+            (
+                x: 0,
+                y: -5,
+            ),
+            (
+                x: 0,
+                y: -4,
+            ),
+            (
+                x: 0,
+                y: -3,
+            ),
+            (
+                x: 0,
+                y: -2,
+            ),
+            (
+                x: 0,
+                y: -1,
+            ),
+            (
+                x: 0,
+                y: 0,
+            ),
+            (
+                x: 0,
+                y: 1,
+            ),
+            (
+                x: 0,
+                y: 2,
+            ),
+            (
+                x: 0,
+                y: 3,
+            ),
+            (
+                x: 0,
+                y: 4,
+            ),
+            (
+                x: 0,
+                y: 5,
+            ),
+            (
+                x: 0,
+                y: 6,
+            ),
+            (
+                x: 0,
+                y: 7,
+            ),
+            (
+                x: 1,
+                y: -7,
+            ),
+            (
+                x: 1,
+                y: -6,
+            ),
+            (
+                x: 1,
+                y: -5,
+            ),
+            (
+                x: 1,
+                y: -4,
+            ),
+            (
+                x: 1,
+                y: 3,
+            ),
+            (
+                x: 1,
+                y: 4,
+            ),
+            (
+                x: 1,
+                y: 5,
+            ),
+            (
+                x: 1,
+                y: 6,
+            ),
+            (
+                x: 1,
+                y: 7,
+            ),
+            (
+                x: 2,
+                y: 4,
+            ),
+            (
+                x: 2,
+                y: 5,
+            ),
+            (
+                x: 2,
+                y: 6,
+            ),
+            (
+                x: 2,
+                y: 7,
+            ),
+            (
+                x: -1,
+                y: -1,
+            ),
+            (
+                x: -1,
+                y: -2,
+            ),
+            (
+                x: -1,
+                y: 0,
+            ),
+            (
+                x: -1,
+                y: -3,
+            ),
+        ],
+        fixed: (
+            pieces: [
+                (
+                    cell: (
+                        x: -2,
+                        y: 3,
+                    ),
+                    a: W,
+                    b: E,
+                ),
+                (
+                    cell: (
+                        x: -1,
+                        y: 7,
+                    ),
+                    a: S,
+                    b: N,
+                ),
+                (
+                    cell: (
+                        x: 1,
+                        y: 7,
+                    ),
+                    a: S,
+                    b: N,
+                ),
+                (
+                    cell: (
+                        x: -1,
+                        y: -7,
+                    ),
+                    a: S,
+                    b: N,
+                ),
+                (
+                    cell: (
+                        x: 1,
+                        y: -7,
+                    ),
+                    a: S,
+                    b: N,
+                ),
+            ],
+            switches: [],
+            signals: [],
+        ),
+        sources: [
+            (
+                id: (0),
+                cell: (
+                    x: -1,
+                    y: -7,
+                ),
+                dir: S,
+                label: "Start 1",
+            ),
+            (
+                id: (1),
+                cell: (
+                    x: 1,
+                    y: -7,
+                ),
+                dir: S,
+                label: "Start 2",
+            ),
+        ],
+        sinks: [
+            (
+                id: (0),
+                cell: (
+                    x: -2,
+                    y: 3,
+                ),
+                dir: W,
+                label: "Ziel 1",
+            ),
+            (
+                id: (1),
+                cell: (
+                    x: -1,
+                    y: 7,
+                ),
+                dir: N,
+                label: "Ziel 2",
+            ),
+            (
+                id: (2),
+                cell: (
+                    x: 1,
+                    y: 7,
+                ),
+                dir: N,
+                label: "Ziel 3",
+            ),
+        ],
+        schedule: [
+            (
+                train: (0),
+                class: (1),
+                length: (800),
+                speed: (100),
+                source: (0),
+                sink: (0),
+                depart: (0),
+                due: (80),
+            ),
+            (
+                train: (1),
+                class: (0),
+                length: (800),
+                speed: (120),
+                source: (0),
+                sink: (1),
+                depart: (40),
+                due: (90),
+            ),
+            (
+                train: (2),
+                class: (1),
+                length: (800),
+                speed: (100),
+                source: (1),
+                sink: (1),
+                depart: (0),
+                due: (100),
+            ),
+            (
+                train: (3),
+                class: (0),
+                length: (800),
+                speed: (120),
+                source: (1),
+                sink: (2),
+                depart: (40),
+                due: (150),
+            ),
+        ],
+        par: (
+            throughput: (0),
+            material: 0,
+            lateness: 0,
+        ),
+    ),
+)

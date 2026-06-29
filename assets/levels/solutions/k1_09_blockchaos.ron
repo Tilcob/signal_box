@@ -1,0 +1,276 @@
+(
+    pieces: [
+        (
+            cell: (
+                x: 1,
+                y: 1,
+            ),
+            a: E,
+            b: W,
+        ),
+        (
+            cell: (
+                x: 3,
+                y: 1,
+            ),
+            a: E,
+            b: W,
+        ),
+        (
+            cell: (
+                x: 4,
+                y: 1,
+            ),
+            a: E,
+            b: W,
+        ),
+        (
+            cell: (
+                x: 3,
+                y: -1,
+            ),
+            a: E,
+            b: W,
+        ),
+        (
+            cell: (
+                x: 4,
+                y: -1,
+            ),
+            a: E,
+            b: W,
+        ),
+        (
+            cell: (
+                x: -3,
+                y: 1,
+            ),
+            a: E,
+            b: W,
+        ),
+        (
+            cell: (
+                x: -4,
+                y: 1,
+            ),
+            a: E,
+            b: W,
+        ),
+        (
+            cell: (
+                x: -2,
+                y: 1,
+            ),
+            a: E,
+            b: W,
+        ),
+        (
+            cell: (
+                x: -5,
+                y: 1,
+            ),
+            a: E,
+            b: W,
+        ),
+        (
+            cell: (
+                x: -2,
+                y: -1,
+            ),
+            a: W,
+            b: E,
+        ),
+        (
+            cell: (
+                x: 1,
+                y: -1,
+            ),
+            a: E,
+            b: W,
+        ),
+        (
+            cell: (
+                x: 1,
+                y: 0,
+            ),
+            a: SW,
+            b: NE,
+        ),
+        (
+            cell: (
+                x: 1,
+                y: 0,
+            ),
+            a: SE,
+            b: NW,
+        ),
+        (
+            cell: (
+                x: -1,
+                y: 1,
+            ),
+            a: E,
+            b: W,
+        ),
+        (
+            cell: (
+                x: -1,
+                y: -1,
+            ),
+            a: E,
+            b: W,
+        ),
+        (
+            cell: (
+                x: -4,
+                y: -2,
+            ),
+            a: NE,
+            b: NW,
+        ),
+        (
+            cell: (
+                x: -4,
+                y: -1,
+            ),
+            a: W,
+            b: E,
+        ),
+    ],
+    switches: [
+        (
+            cell: (
+                x: 2,
+                y: 1,
+            ),
+            stem: E,
+            branches: (W, SW),
+            default_branch: 0,
+            rules: [],
+        ),
+        (
+            cell: (
+                x: 2,
+                y: -1,
+            ),
+            stem: E,
+            branches: (W, NW),
+            default_branch: 0,
+            rules: [],
+        ),
+        (
+            cell: (
+                x: 0,
+                y: -1,
+            ),
+            stem: W,
+            branches: (E, NE),
+            default_branch: 0,
+            rules: [
+                (
+                    when: DestIs((0)),
+                    branch: 1,
+                ),
+                (
+                    when: DestIs((1)),
+                    branch: 0,
+                ),
+            ],
+        ),
+        (
+            cell: (
+                x: 0,
+                y: 1,
+            ),
+            stem: W,
+            branches: (E, SE),
+            default_branch: 0,
+            rules: [
+                (
+                    when: DestIs((0)),
+                    branch: 0,
+                ),
+                (
+                    when: DestIs((1)),
+                    branch: 1,
+                ),
+            ],
+        ),
+        (
+            cell: (
+                x: -5,
+                y: -1,
+            ),
+            stem: W,
+            branches: (E, SE),
+            default_branch: 0,
+            rules: [
+                (
+                    when: ClassIs((0)),
+                    branch: 0,
+                ),
+                (
+                    when: ClassIs((1)),
+                    branch: 1,
+                ),
+            ],
+        ),
+        (
+            cell: (
+                x: -3,
+                y: -1,
+            ),
+            stem: E,
+            branches: (W, SW),
+            default_branch: 0,
+            rules: [],
+        ),
+    ],
+    signals: [
+        (
+            cell: (
+                x: -4,
+                y: -2,
+            ),
+            at: NE,
+            kind: Block,
+            priority: 0,
+        ),
+        (
+            cell: (
+                x: -1,
+                y: -1,
+            ),
+            at: E,
+            kind: Block,
+            priority: 0,
+        ),
+        (
+            cell: (
+                x: 0,
+                y: 1,
+            ),
+            at: SE,
+            kind: Chain,
+            priority: 0,
+        ),
+        (
+            cell: (
+                x: -5,
+                y: -1,
+            ),
+            at: E,
+            kind: Block,
+            priority: 0,
+        ),
+        (
+            cell: (
+                x: 1,
+                y: 1,
+            ),
+            at: E,
+            kind: Block,
+            priority: 0,
+        ),
+    ],
+)
