@@ -134,6 +134,9 @@ pub(super) fn rebuild_schedule_panel(
                 .spawn(Node {
                     flex_direction: FlexDirection::Row,
                     align_items: AlignItems::Center,
+                    // Wrap the row's controls within the capped panel width
+                    // instead of overflowing toward the console.
+                    flex_wrap: FlexWrap::Wrap,
                     ..default()
                 })
                 .with_children(|r| {

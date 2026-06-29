@@ -59,6 +59,7 @@ pub(super) fn build_overview(
         button(root, font, &label, BUTTON_BG, ChapterButton(ch));
     }
 
+    // Three stacked rows: sandbox pair / import / language + help.
     root.spawn(Node {
         flex_direction: FlexDirection::Row,
         margin: UiRect::top(Val::Px(10.0)),
@@ -67,7 +68,21 @@ pub(super) fn build_overview(
     .with_children(|row| {
         button(row, font, &t("select.sandbox"), BUTTON_BG_PRIMARY, SandboxButton);
         button(row, font, &t("select.new_sandbox"), BUTTON_BG, NewSandboxButton);
+    });
+    root.spawn(Node {
+        flex_direction: FlexDirection::Row,
+        margin: UiRect::top(Val::Px(4.0)),
+        ..default()
+    })
+    .with_children(|row| {
         button(row, font, &t("select.import"), BUTTON_BG, ImportButton);
+    });
+    root.spawn(Node {
+        flex_direction: FlexDirection::Row,
+        margin: UiRect::top(Val::Px(4.0)),
+        ..default()
+    })
+    .with_children(|row| {
         button(row, font, &t("select.lang"), BUTTON_BG, LangButton);
         button(row, font, &t("help.button"), BUTTON_BG, HelpButton);
     });

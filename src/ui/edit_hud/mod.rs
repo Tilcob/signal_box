@@ -171,6 +171,9 @@ fn spawn_edit_hud(
                 Node {
                     flex_direction: FlexDirection::Column,
                     padding: UiRect::all(Val::Px(8.0)),
+                    // Cap to the left half so the wide sandbox rows can't run
+                    // under the bottom-right console; long rows wrap instead.
+                    max_width: Val::Vw(55.0),
                     ..default()
                 },
                 BackgroundColor(PANEL_BG),

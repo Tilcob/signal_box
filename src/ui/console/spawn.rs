@@ -38,9 +38,10 @@ pub(super) fn ensure_console(
             Node {
                 position_type: PositionType::Absolute,
                 bottom: Val::Px(10.0),
-                // Compact panel shifted toward the bottom-right (30 % wide, right
-                // edge 30 % from the right), clear of the dev save panel.
-                right: Val::Percent(30.0),
+                // Bottom-right corner, 30 % wide. The timetable is capped to the
+                // left half (max-width), so the two no longer overlap; the dev
+                // save button moved up to the top-right.
+                right: Val::Px(10.0),
                 width: Val::Percent(30.0),
                 height: Val::Px(PANEL_H),
                 flex_direction: FlexDirection::Row,

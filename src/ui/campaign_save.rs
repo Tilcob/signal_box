@@ -140,7 +140,9 @@ fn spawn_trigger(
             Node {
                 position_type: PositionType::Absolute,
                 right: Val::Px(10.0),
-                bottom: Val::Px(10.0),
+                // Below the Start button (top: 8) — frees the bottom-right for
+                // the console.
+                top: Val::Px(48.0),
                 ..default()
             },
             Interaction::default(),

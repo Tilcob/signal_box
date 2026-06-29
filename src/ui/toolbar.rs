@@ -45,7 +45,6 @@ const SIGGREEN: Color = Color::srgb(0.35, 0.85, 0.50);
 const RED: Color = Color::srgb(0.85, 0.35, 0.30);
 const AMBER: Color = Color::srgb(0.80, 0.60, 0.30);
 const SLATE: Color = Color::srgb(0.32, 0.30, 0.36);
-const DARK: Color = Color::srgb(0.06, 0.07, 0.09);
 
 pub(super) struct ToolbarPlugin;
 
@@ -180,13 +179,34 @@ fn glyph(g: &mut ChildSpawnerCommands, tool: Tool) {
     match tool {
         Tool::Track => bar(g, 2.0, 9.0, 18.0, 4.0, STEEL),
         Tool::Switch => {
-            bar(g, 2.0, 11.0, 13.0, 4.0, STEEL);
-            bar(g, 11.0, 3.0, 4.0, 12.0, STEEL);
+            // A sideways fork: one track splits into two — reads as a turnout,
+            // not a corner.
+            bar(g, 2.0, 10.0, 9.0, 3.0, STEEL); // stem
+            bar(g, 9.0, 5.0, 3.0, 12.0, STEEL); // junction riser
+            bar(g, 11.0, 5.0, 7.0, 3.0, STEEL); // upper branch
+            bar(g, 11.0, 14.0, 7.0, 3.0, STEEL); // lower branch
         }
-        Tool::SignalBlock => bar(g, 7.0, 7.0, 8.0, 8.0, SIGGREEN),
+        // The two signals must NOT look alike: square lamp on a post (block) vs.
+        // round lamp on a post (chain). UI nodes can't rotate, so the chain's
+        // board diamond becomes a circle here.
+        Tool::SignalBlock => {
+            bar(g, 7.0, 3.0, 8.0, 8.0, SIGGREEN); // square lamp
+            bar(g, 10.0, 11.0, 2.0, 7.0, STEEL); // post
+        }
         Tool::SignalChain => {
-            bar(g, 6.0, 6.0, 10.0, 10.0, SIGGREEN);
-            bar(g, 9.0, 9.0, 4.0, 4.0, DARK);
+            g.spawn((
+                Node {
+                    position_type: PositionType::Absolute,
+                    left: Val::Px(7.0),
+                    top: Val::Px(3.0),
+                    width: Val::Px(8.0),
+                    height: Val::Px(8.0),
+                    border_radius: BorderRadius::MAX,
+                    ..default()
+                },
+                BackgroundColor(SIGGREEN), // round lamp
+            ));
+            bar(g, 10.0, 11.0, 2.0, 7.0, STEEL); // post
         }
         Tool::Erase => bar(g, 3.0, 9.0, 16.0, 4.0, RED),
         Tool::Source => {
