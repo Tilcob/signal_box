@@ -343,10 +343,6 @@
                 due: (150),
             ),
         ],
-        par: (
-            throughput: (0),
-            material: 0,
-            lateness: 0,
-        ),
+        par: (throughput: (239), material: 35, lateness: 306),
     ),
 )
