@@ -13,7 +13,7 @@ use super::widgets::{BUTTON_BG, BUTTON_BG_PRIMARY, PANEL_BG, TEXT_BRIGHT, button
 use crate::font::UiFont;
 use crate::i18n::t;
 use crate::levels::{Progress, save_sandbox};
-use crate::state::{ActiveLevel, Editor, GameState, Paused};
+use crate::state::{ActiveLevel, Editor, FocusedField, GameState, Paused};
 
 #[derive(Component)]
 struct PauseRoot;
@@ -23,12 +23,20 @@ struct ResumeButton;
 struct LeaveButton;
 #[derive(Component)]
 struct EditorButton;
+/// The always-on, top-centre on-screen pause button (opens the menu without the
+/// keyboard — the only way in on web, where the browser eats Esc to leave its
+/// own fullscreen). Its own root marker, separate from [`PauseRoot`], so the
+/// overlay's despawn-on-change in `sync_overlay` doesn't sweep it away.
+#[derive(Component)]
+struct PauseButton;
+#[derive(Component)]
+struct PauseButtonRoot;
 
 /// Pause-menu i18n keys, asserted present in both language tables by the
 /// `crate::i18n` coverage test.
 #[cfg(test)]
 pub(crate) const PAUSE_KEYS: &[&str] =
-    &["pause.title", "pause.resume", "pause.editor", "pause.leave"];
+    &["pause.title", "pause.resume", "pause.editor", "pause.leave", "pause.button"];
 
 pub(super) struct PausePlugin;
 
@@ -36,11 +44,13 @@ impl Plugin for PausePlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,
-            (resume_click, leave_click, back_editor_click, sync_overlay)
+            (resume_click, leave_click, back_editor_click, pause_button_click, sync_overlay)
                 .run_if(in_state(GameState::Edit).or(in_state(GameState::Run))),
         )
+        .add_systems(OnEnter(GameState::Edit), spawn_pause_button)
+        .add_systems(OnEnter(GameState::Run), spawn_pause_button)
         // Leaving a level (via Leave below, a started run, or a finished run)
-        // resets the flag and tears the overlay down with the screen.
+        // resets the flag and tears the overlay (and the on-screen button) down.
         .add_systems(OnExit(GameState::Edit), teardown)
         .add_systems(OnExit(GameState::Run), teardown);
     }
@@ -56,15 +66,51 @@ impl Plugin for PausePlugin {
 pub(crate) fn toggle_pause(
     keys: Res<ButtonInput<KeyCode>>,
     editor: Res<Editor>,
+    focus: Res<FocusedField>,
     mut paused: ResMut<Paused>,
 ) {
-    if !keys.just_pressed(KeyCode::Escape) {
+    // P is the web fallback: browsers reserve Esc to leave their own fullscreen,
+    // so the keydown never reaches the canvas there. Gated on focus so typing a
+    // station name containing 'p' doesn't pause; Esc stays ungated.
+    let toggle = keys.just_pressed(KeyCode::Escape)
+        || (keys.just_pressed(KeyCode::KeyP) && focus.0.is_none());
+    if !toggle {
         return;
     }
     if editor.radial.is_some() {
         return;
     }
     paused.0 = !paused.0;
+}
+
+/// Top-centre overlay button that opens the pause menu — keyboard-free, so the
+/// menu is reachable on web. Sits in a full-width, click-through row (only the
+/// button itself carries an `Interaction`) so it never blocks the board.
+fn spawn_pause_button(mut commands: Commands, ui_font: Res<UiFont>) {
+    let font = ui_font.0.clone();
+    commands
+        .spawn((
+            Node {
+                position_type: PositionType::Absolute,
+                top: Val::Px(8.0),
+                width: Val::Percent(100.0),
+                justify_content: JustifyContent::Center,
+                ..default()
+            },
+            PauseButtonRoot,
+        ))
+        .with_children(|row| {
+            button(row, &font, &t("pause.button"), BUTTON_BG, PauseButton);
+        });
+}
+
+fn pause_button_click(
+    interactions: Query<&Interaction, (Changed<Interaction>, With<PauseButton>)>,
+    mut paused: ResMut<Paused>,
+) {
+    if interactions.iter().any(|i| *i == Interaction::Pressed) {
+        paused.0 = true;
+    }
 }
 
 fn resume_click(
@@ -115,10 +161,11 @@ fn leave_click(
     next.set(GameState::LevelSelect);
 }
 
+#[allow(clippy::type_complexity)]
 fn teardown(
     mut commands: Commands,
     mut paused: ResMut<Paused>,
-    roots: Query<Entity, With<PauseRoot>>,
+    roots: Query<Entity, Or<(With<PauseRoot>, With<PauseButtonRoot>)>>,
 ) {
     paused.0 = false;
     for e in &roots {

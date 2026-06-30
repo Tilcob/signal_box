@@ -4,7 +4,7 @@
 use bevy::app::AppExit;
 use bevy::prelude::*;
 
-use super::encyclopedia::{HelpButton, HelpOpen};
+use super::encyclopedia::{ControlsButton, HelpButton, HelpOpen};
 use super::widgets::{
     BUTTON_BG, BUTTON_BG_PRIMARY, TEXT_BRIGHT, TEXT_DIM, button, despawn_all, text_bundle,
 };
@@ -62,6 +62,7 @@ fn spawn_main_menu(mut commands: Commands, ui_font: Res<UiFont>, progress: Res<P
             ));
             button(root, &font, &t("menu.start"), BUTTON_BG_PRIMARY, MenuAction::Start);
             button(root, &font, &t("help.button"), BUTTON_BG, HelpButton);
+            button(root, &font, &t("controls.button"), BUTTON_BG, ControlsButton);
             button(root, &font, &t("menu.quit"), BUTTON_BG, MenuAction::Quit);
             root.spawn((
                 text_bundle(&font, t("options.volume"), 16.0, TEXT_BRIGHT),
@@ -100,7 +101,7 @@ fn menu_keys(
     mut exit: MessageWriter<AppExit>,
 ) {
     // The help overlay owns Esc/Enter while it is open.
-    if help.0 {
+    if help.0.is_some() {
         return;
     }
     if keys.just_pressed(KeyCode::Enter) || keys.just_pressed(KeyCode::Space) {

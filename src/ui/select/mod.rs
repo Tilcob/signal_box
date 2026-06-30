@@ -43,6 +43,10 @@ struct NewSandboxButton;
 struct ImportButton;
 #[derive(Component)]
 struct LangButton;
+/// Leaves the level select for the main menu (same target as Esc on the
+/// overview), shown only on the chapter overview.
+#[derive(Component)]
+struct MainMenuButton;
 
 /// Status line content (import results etc.).
 #[derive(Resource, Default)]
@@ -137,7 +141,7 @@ fn leave_to_menu(
     mut commands: Commands,
     mut next: ResMut<NextState<GameState>>,
 ) {
-    if help.0 || !keys.just_pressed(KeyCode::Escape) {
+    if help.0.is_some() || !keys.just_pressed(KeyCode::Escape) {
         return;
     }
     if open.0.is_some() {

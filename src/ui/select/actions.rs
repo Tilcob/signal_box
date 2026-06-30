@@ -10,7 +10,7 @@ use crate::levels::{Catalog, Progress, SANDBOX_ID, load_sandbox, save_sandbox};
 use crate::state::{Editor, GameState};
 use crate::ui::enter_level;
 
-use super::{ImportButton, LangButton, NewSandboxButton, SandboxButton, UiStatus};
+use super::{ImportButton, LangButton, MainMenuButton, NewSandboxButton, SandboxButton, UiStatus};
 
 #[allow(clippy::too_many_arguments)]
 pub(super) fn select_buttons(
@@ -18,6 +18,7 @@ pub(super) fn select_buttons(
     new_sandbox: Query<&Interaction, (Changed<Interaction>, With<NewSandboxButton>)>,
     import: Query<&Interaction, (Changed<Interaction>, With<ImportButton>)>,
     lang: Query<&Interaction, (Changed<Interaction>, With<LangButton>)>,
+    main_menu: Query<&Interaction, (Changed<Interaction>, With<MainMenuButton>)>,
     catalog: Res<Catalog>,
     mut progress: ResMut<Progress>,
     mut status: ResMut<UiStatus>,
@@ -42,6 +43,10 @@ pub(super) fn select_buttons(
     }
     if new_sandbox.iter().any(|i| *i == Interaction::Pressed) {
         next.set(GameState::SandboxSetup);
+        return;
+    }
+    if main_menu.iter().any(|i| *i == Interaction::Pressed) {
+        next.set(GameState::MainMenu);
         return;
     }
     if lang.iter().any(|i| *i == Interaction::Pressed) {
@@ -96,7 +101,8 @@ pub(crate) const DECODE_ERROR_KEYS: &[&str] = &[
 /// Static chapter-navigation keys (the chapter names themselves use `t_or`
 /// with an authored fallback, like level names, so they are not required here).
 #[cfg(test)]
-pub(crate) const SELECT_CHAPTER_KEYS: &[&str] = &["select.chapter_hint", "select.chapter_back"];
+pub(crate) const SELECT_CHAPTER_KEYS: &[&str] =
+    &["select.chapter_hint", "select.chapter_back", "select.main_menu", "select.sandbox_hint"];
 
 /// Localized import-failure text. `DecodeError`'s own `Display` stays English
 /// (logs); the player-facing message is translated here — same split as

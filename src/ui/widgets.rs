@@ -159,6 +159,35 @@ pub(super) fn button<M: Component>(
         });
 }
 
+/// Like [`button`] but with a fixed width and centred label — for tidy,
+/// column-aligned rows (the level-select action grid).
+pub(super) fn button_sized<M: Component>(
+    parent: &mut ChildSpawnerCommands,
+    font: &Handle<Font>,
+    label: &str,
+    bg: Color,
+    width: f32,
+    marker: M,
+) {
+    parent
+        .spawn((
+            Button,
+            Node {
+                width: Val::Px(width),
+                padding: UiRect::axes(Val::Px(8.0), Val::Px(7.0)),
+                margin: UiRect::vertical(Val::Px(3.0)),
+                justify_content: JustifyContent::Center,
+                ..default()
+            },
+            BackgroundColor(bg),
+            ButtonBase(bg),
+            marker,
+        ))
+        .with_children(|b| {
+            b.spawn(text_bundle(font, label.to_string(), 16.0, TEXT_BRIGHT));
+        });
+}
+
 pub(super) fn small_button<M: Component>(
     parent: &mut ChildSpawnerCommands,
     font: &Handle<Font>,

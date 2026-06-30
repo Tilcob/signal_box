@@ -2,7 +2,7 @@
 //! for both the wheel and `camera::zoom`), the mouse wheel, and the draggable
 //! scrollbar (drag mapping + thumb sizing).
 
-use bevy::input::mouse::MouseWheel;
+use bevy::input::mouse::{MouseScrollUnit, MouseWheel};
 use bevy::prelude::*;
 use bevy::ui::{ComputedNode, UiGlobalTransform};
 use bevy::window::PrimaryWindow;
@@ -37,8 +37,16 @@ pub(super) fn console_scroll(
     mut view: ResMut<ConsoleView>,
 ) {
     // Always drain our reader so events never backlog into a late jump; only act
-    // when the pointer is actually over the console.
-    let delta: f32 = wheel.read().map(|e| e.y).sum();
+    // when the pointer is actually over the console. Browsers report Pixel units
+    // (~100 per notch) where native reports Line units (±1) — normalize so the web
+    // build doesn't scroll ~100× per notch (same fix as `camera::zoom`).
+    let delta: f32 = wheel
+        .read()
+        .map(|e| match e.unit {
+            MouseScrollUnit::Line => e.y,
+            MouseScrollUnit::Pixel => e.y / 100.0,
+        })
+        .sum();
     if !hovered.0 || delta == 0.0 {
         return;
     }

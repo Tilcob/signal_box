@@ -1,0 +1,6 @@
+# itch.io serves the game from a sub-path inside an iframe, so the wasm/js must
+# be referenced RELATIVELY ("./foo.js"), not from the server root ("/foo.js").
+# Without this, trunk emits absolute paths and the assets 404 on itch (the game
+# loads locally but stays blank there). `./` makes index.html self-relative.
+[build]
+public_url = "./"

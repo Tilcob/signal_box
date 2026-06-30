@@ -5,7 +5,7 @@
 //! Note: plain Bevy input for now; the `bevy_enhanced_input` action maps
 //! come with the rebinding UI.
 
-use bevy::input::mouse::{MouseMotion, MouseWheel};
+use bevy::input::mouse::{MouseMotion, MouseScrollUnit, MouseWheel};
 use bevy::post_process::bloom::Bloom;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
@@ -115,7 +115,13 @@ fn zoom(
     }
     let mut steps = 0.0;
     for event in wheel.read() {
-        steps += event.y;
+        // Native reports Line units (±1 per notch); browsers report Pixel units
+        // (~100 per notch), which would send `1.15^steps` straight to the clamp —
+        // i.e. one notch zooming the whole range. Normalize pixels back to notches.
+        steps += match event.unit {
+            MouseScrollUnit::Line => event.y,
+            MouseScrollUnit::Pixel => event.y / 100.0,
+        };
     }
     // Drained above; skip zooming while a field is focused (same input-leak
     // class as the WASD pan).

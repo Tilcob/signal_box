@@ -291,9 +291,13 @@ pub(super) fn redraw_trains(
         labels.iter().map(|(e, l, _)| (l.0, e)).collect();
     for train in sim.trains() {
         let pos = ctl.interpolated_head(train.id) + Vec2::new(0.0, 20.0);
+        // z above the body bands (10) and head lamp (11) so the number is always
+        // on top of the train — a downward train's +20 offset lands on its own
+        // trailing body, which at the label's old z (6) hid the number behind it.
+        const LABEL_Z: f32 = 12.0;
         if let Some(e) = existing.remove(&train.id) {
             if let Ok((_, _, mut tf)) = labels.get_mut(e) {
-                tf.translation = pos.extend(6.0);
+                tf.translation = pos.extend(LABEL_Z);
             }
         } else {
             let label_e = label(
@@ -305,7 +309,9 @@ pub(super) fn redraw_trains(
                 col_label(),
                 Tag::Live,
             );
-            commands.entity(label_e).insert(TrainLabel(train.id));
+            commands
+                .entity(label_e)
+                .insert((TrainLabel(train.id), Transform::from_translation(pos.extend(LABEL_Z))));
         }
     }
     // Trains that left the world: drop their labels.

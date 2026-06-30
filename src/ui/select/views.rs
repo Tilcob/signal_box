@@ -6,21 +6,21 @@ use bevy::prelude::*;
 #[cfg(feature = "dev")]
 use crate::ui::widgets::small_button;
 use crate::ui::widgets::{
-    BUTTON_BG, BUTTON_BG_PRIMARY, MEDAL, SOLVED, TEXT_BRIGHT, TEXT_DIM, button, button_row, dot,
-    text_bundle,
+    BUTTON_BG, BUTTON_BG_PRIMARY, MEDAL, SOLVED, TEXT_BRIGHT, TEXT_DIM, button, button_row,
+    button_sized, dot, text_bundle,
 };
 use crate::font::UiFont;
 use crate::i18n::{level_name, t, t_or};
 use crate::levels::{Catalog, LevelEntry, Progress};
 use crate::state::{Editor, GameState};
 use crate::ui::enter_level;
-use crate::ui::encyclopedia::HelpButton;
+use crate::ui::encyclopedia::{ControlsButton, HelpButton};
 
 #[cfg(feature = "dev")]
 use super::{DevDeleteAll, DevDeleteLevel, DevOpenSandbox, DevResetProgress};
 use super::{
-    BackButton, ChapterButton, ImportButton, LangButton, LevelButton, NewSandboxButton, OpenChapter,
-    SandboxButton, UiSelect, UiStatus, rebuild_select,
+    BackButton, ChapterButton, ImportButton, LangButton, LevelButton, MainMenuButton,
+    NewSandboxButton, OpenChapter, SandboxButton, UiSelect, UiStatus, rebuild_select,
 };
 
 /// Localized chapter name (authored, fallback "Kapitel N" — like level names,
@@ -59,32 +59,52 @@ pub(super) fn build_overview(
         button(root, font, &label, BUTTON_BG, ChapterButton(ch));
     }
 
-    // Three stacked rows: sandbox pair / import / language + help.
-    root.spawn(Node {
+    // Sandbox / codes section — its own small heading (like the chapter hint),
+    // set off from the chapters above with extra space.
+    root.spawn((
+        text_bundle(font, t("select.sandbox_hint"), 14.0, TEXT_DIM),
+        Node {
+            margin: UiRect::top(Val::Px(20.0)),
+            ..default()
+        },
+    ));
+    // Uniform action-button width so the two rows below form aligned columns.
+    const BW: f32 = 190.0;
+    // Row layout shared by both action rows: equal column gaps, centred by the
+    // column root.
+    let action_row = || Node {
         flex_direction: FlexDirection::Row,
-        margin: UiRect::top(Val::Px(10.0)),
-        ..default()
-    })
-    .with_children(|row| {
-        button(row, font, &t("select.sandbox"), BUTTON_BG_PRIMARY, SandboxButton);
-        button(row, font, &t("select.new_sandbox"), BUTTON_BG, NewSandboxButton);
-    });
-    root.spawn(Node {
-        flex_direction: FlexDirection::Row,
+        column_gap: Val::Px(8.0),
         margin: UiRect::top(Val::Px(4.0)),
         ..default()
-    })
-    .with_children(|row| {
-        button(row, font, &t("select.import"), BUTTON_BG, ImportButton);
+    };
+    // Sandbox & codes: three equal-width buttons in one even row.
+    root.spawn(action_row()).with_children(|row| {
+        button_sized(row, font, &t("select.sandbox"), BUTTON_BG_PRIMARY, BW, SandboxButton);
+        button_sized(row, font, &t("select.new_sandbox"), BUTTON_BG, BW, NewSandboxButton);
+        button_sized(row, font, &t("select.import"), BUTTON_BG, BW, ImportButton);
     });
+    // Settings & help: its own heading, then a matching three-column row.
+    root.spawn((
+        text_bundle(font, t("select.settings_hint"), 14.0, TEXT_DIM),
+        Node {
+            margin: UiRect::top(Val::Px(16.0)),
+            ..default()
+        },
+    ));
+    root.spawn(action_row()).with_children(|row| {
+        button_sized(row, font, &t("select.lang"), BUTTON_BG, BW, LangButton);
+        button_sized(row, font, &t("help.button"), BUTTON_BG, BW, HelpButton);
+        button_sized(row, font, &t("controls.button"), BUTTON_BG, BW, ControlsButton);
+    });
+    // Back to main menu, on its own line below.
     root.spawn(Node {
         flex_direction: FlexDirection::Row,
-        margin: UiRect::top(Val::Px(4.0)),
+        margin: UiRect::top(Val::Px(16.0)),
         ..default()
     })
     .with_children(|row| {
-        button(row, font, &t("select.lang"), BUTTON_BG, LangButton);
-        button(row, font, &t("help.button"), BUTTON_BG, HelpButton);
+        button(row, font, &t("select.main_menu"), BUTTON_BG, MainMenuButton);
     });
     // Dev authoring controls (never in a ship build).
     #[cfg(feature = "dev")]
