@@ -54,8 +54,8 @@ pub(super) fn build_audio_assets(asset_server: &AssetServer) -> AudioAssets {
         train_horn_sound: asset_server.load("audio/sfx/train-horn.wav"),
         building_sound: asset_server.load("audio/sfx/building-sound.wav"),
         success_sound: asset_server.load("audio/sfx/success.wav"),
-        crash_sound: asset_server.load("audio/sfx/crash.wav"),
-        deadlock_sound: asset_server.load("audio/sfx/deadlock.wav"),
-        rail_sound: asset_server.load("audio/sfx/rail.wav"),
+        crash_sound: asset_server.load("audio/sfx/fail.wav"),
+        deadlock_sound: asset_server.load("audio/sfx/fail.wav"),
+        rail_sound: asset_server.load("audio/sfx/train-horn.wav"),
     }
 }
