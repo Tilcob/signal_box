@@ -96,7 +96,12 @@ pub fn copy(text: &str) -> CopyOutcome {
     textarea.set_value(text);
     let _ = body.append_child(&textarea);
     textarea.select();
-    let ok = document.exec_command("copy").unwrap_or(false);
+    // `exec_command` lives on `HtmlDocument`, not the base `Document`.
+    let ok = document
+        .dyn_into::<web_sys::HtmlDocument>()
+        .ok()
+        .and_then(|doc| doc.exec_command("copy").ok())
+        .unwrap_or(false);
     let _ = body.remove_child(&textarea);
     if ok {
         CopyOutcome::Clipboard
