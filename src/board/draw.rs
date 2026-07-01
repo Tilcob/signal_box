@@ -321,13 +321,22 @@ pub(super) fn draw_stations(commands: &mut Commands, font: &Handle<Font>, level:
         // Buffer-stop bar across the stub end: the track terminates here.
         let perp = outward.perp();
         band(commands, end - perp * 13.0, end + perp * 13.0, 6.0, col_sink(), 2.5, tag);
-        // Place the label BEYOND the buffer-stop along the travel direction
-        // (like the source label), not at a fixed screen offset — otherwise a
-        // downward sink lands the label back on top of itself.
+        // The label must never overlap the sink — for ANY orientation and ANY
+        // label length. A wide horizontal label pushed further along a
+        // horizontal track still spills back over it, so branch on orientation:
+        //  - horizontal sink → drop the label BELOW the buffer (its width then
+        //    runs parallel to the track and can't cover it),
+        //  - vertical sink   → push it BEYOND the buffer along travel (already
+        //    clear of the vertical track, above or below the dead end).
+        let label_pos = if outward.x.abs() > outward.y.abs() {
+            connector + outward * 22.0 + Vec2::new(0.0, -22.0)
+        } else {
+            connector + outward * 44.0
+        };
         label(
             commands,
             font,
-            connector + outward * 44.0,
+            label_pos,
             sink_label(sink.id.0, &sink.label),
             14.0,
             col_label(),
