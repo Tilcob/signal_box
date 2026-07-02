@@ -34,7 +34,7 @@
     "select.lang": "Language: English",
     "select.main_menu": "BACK TO MAIN MENU",
     "select.sandbox_hint": "Sandbox & codes",
-    "select.settings_hint": "Settings & help",
+    "select.settings_hint": "Help",
     "select.optional_hard": "(hard)",
     "edit.start": "»  START SIMULATION",
     "edit.start_blocked": "×  FIX BUILD ERRORS",

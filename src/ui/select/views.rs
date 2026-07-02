@@ -19,8 +19,8 @@ use crate::ui::encyclopedia::{ControlsButton, HelpButton};
 #[cfg(feature = "dev")]
 use super::{DevDeleteAll, DevDeleteLevel, DevOpenSandbox, DevResetProgress};
 use super::{
-    BackButton, ChapterButton, ImportButton, LangButton, LevelButton, MainMenuButton,
-    NewSandboxButton, OpenChapter, SandboxButton, UiSelect, UiStatus, rebuild_select,
+    BackButton, ChapterButton, ImportButton, LevelButton, MainMenuButton, NewSandboxButton,
+    OpenChapter, SandboxButton, UiSelect, UiStatus, rebuild_select,
 };
 
 /// Localized chapter name (authored, fallback "Kapitel N" — like level names,
@@ -93,7 +93,6 @@ pub(super) fn build_overview(
         },
     ));
     root.spawn(action_row()).with_children(|row| {
-        button_sized(row, font, &t("select.lang"), BUTTON_BG, BW, LangButton);
         button_sized(row, font, &t("help.button"), BUTTON_BG, BW, HelpButton);
         button_sized(row, font, &t("controls.button"), BUTTON_BG, BW, ControlsButton);
     });

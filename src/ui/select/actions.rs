@@ -5,19 +5,18 @@ use bevy::prelude::*;
 use stellwerk_codes::{DecodeError, Payload};
 
 use crate::clipboard::PasteError;
-use crate::i18n::{set_lang, t};
+use crate::i18n::t;
 use crate::levels::{Catalog, Progress, SANDBOX_ID, load_sandbox, save_sandbox};
 use crate::state::{Editor, GameState};
 use crate::ui::enter_level;
 
-use super::{ImportButton, LangButton, MainMenuButton, NewSandboxButton, SandboxButton, UiStatus};
+use super::{ImportButton, MainMenuButton, NewSandboxButton, SandboxButton, UiStatus};
 
 #[allow(clippy::too_many_arguments)]
 pub(super) fn select_buttons(
     sandbox: Query<&Interaction, (Changed<Interaction>, With<SandboxButton>)>,
     new_sandbox: Query<&Interaction, (Changed<Interaction>, With<NewSandboxButton>)>,
     import: Query<&Interaction, (Changed<Interaction>, With<ImportButton>)>,
-    lang: Query<&Interaction, (Changed<Interaction>, With<LangButton>)>,
     main_menu: Query<&Interaction, (Changed<Interaction>, With<MainMenuButton>)>,
     catalog: Res<Catalog>,
     mut progress: ResMut<Progress>,
@@ -47,16 +46,6 @@ pub(super) fn select_buttons(
     }
     if main_menu.iter().any(|i| *i == Interaction::Pressed) {
         next.set(GameState::MainMenu);
-        return;
-    }
-    if lang.iter().any(|i| *i == Interaction::Pressed) {
-        let new_lang = if progress.lang == "en" { "de" } else { "en" };
-        progress.lang = new_lang.to_string();
-        progress.save();
-        set_lang(new_lang);
-        // Rebuild the screen with the new language.
-        next.set(GameState::LevelSelect);
-        status.0 = t("select.lang");
         return;
     }
     if import.iter().any(|i| *i == Interaction::Pressed) {

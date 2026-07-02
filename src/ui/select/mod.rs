@@ -41,8 +41,6 @@ struct SandboxButton;
 struct NewSandboxButton;
 #[derive(Component)]
 struct ImportButton;
-#[derive(Component)]
-struct LangButton;
 /// Leaves the level select for the main menu (same target as Esc on the
 /// overview), shown only on the chapter overview.
 #[derive(Component)]
