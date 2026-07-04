@@ -5,8 +5,8 @@
 
 use stellwerk_sim::{Unreachable, ValidationError};
 
+use crate::editor::BuildIssue;
 use crate::i18n::t;
-use crate::state::BuildIssue;
 
 /// Keys [`build_issue_text`] can emit — kept in sync with the match below for
 /// the i18n coverage checker (see `crate::i18n` tests).

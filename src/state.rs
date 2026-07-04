@@ -155,33 +155,6 @@ pub fn save_modal_closed(modal: Res<SaveModalOpen>) -> bool {
     !modal.0
 }
 
-/// A sandbox build problem the sim's `ValidationError` cannot express: a
-/// runnable level needs at least one source AND one sink. Checked only in the
-/// sandbox (campaign levels are authored with both) and blocks START like a
-/// validation error. Computed in `crate::editor::validation`, localized in
-/// `crate::ui::valerr`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum BuildIssue {
-    NothingPlaced,
-    MissingSource,
-    MissingSink,
-}
-
-/// Live validation + reachability results for the current build.
-#[derive(Resource, Default)]
-pub struct Diagnostics {
-    pub errors: Vec<stellwerk_sim::ValidationError>,
-    pub unreachable: Vec<stellwerk_sim::Unreachable>,
-    /// Sandbox-only build blocks (missing source/sink); empty for campaign levels.
-    pub build_issues: Vec<BuildIssue>,
-}
-
-impl Diagnostics {
-    pub fn start_allowed(&self) -> bool {
-        self.errors.is_empty() && self.build_issues.is_empty()
-    }
-}
-
 pub struct StatePlugin;
 
 impl Plugin for StatePlugin {
@@ -190,7 +163,6 @@ impl Plugin for StatePlugin {
             .init_resource::<Editor>()
             .init_resource::<Paused>()
             .init_resource::<FocusedField>()
-            .init_resource::<SaveModalOpen>()
-            .init_resource::<Diagnostics>();
+            .init_resource::<SaveModalOpen>();
     }
 }

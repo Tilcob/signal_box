@@ -7,6 +7,7 @@ use stellwerk_sim::ValidationError;
 use stellwerk_sim::grid::Cell;
 use stellwerk_sim::layout::TrackPiece;
 
+use super::Diagnostics;
 use super::placement::{
     EraseTarget, Placement, auto_station_orientation, can_block_cell, can_place_signal,
     can_place_station, erase_target, plan_piece, plan_switch, signal_stub, station_dir,
@@ -14,7 +15,7 @@ use super::placement::{
 };
 use crate::board::{self, CELL};
 use crate::camera::{MainCamera, cursor_world};
-use crate::state::{ActiveLevel, Diagnostics, Editor, Tool};
+use crate::state::{ActiveLevel, Editor, Tool};
 
 pub(super) fn draw_overlays(
     mut gizmos: Gizmos,

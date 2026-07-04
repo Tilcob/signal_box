@@ -7,8 +7,9 @@ use bevy::prelude::*;
 use std::collections::HashSet;
 
 use crate::console::{ConsoleLog, Severity};
+use crate::editor::Diagnostics;
 use crate::i18n::t;
-use crate::state::{ActiveLevel, Diagnostics, Editor, GameState};
+use crate::state::{ActiveLevel, Editor, GameState};
 use crate::ui::valerr::{build_issue_text, unreachable_text, valerr_text};
 
 pub(super) struct DiagPlugin;

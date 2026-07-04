@@ -18,6 +18,7 @@ mod tools;
 mod validation;
 
 pub use ops::{EditOp, do_op};
+pub use validation::{BuildIssue, Diagnostics};
 
 use bevy::prelude::*;
 use stellwerk_sim::Layout;
@@ -35,7 +36,9 @@ pub struct EditorPlugin;
 
 impl Plugin for EditorPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<MergedLayout>().add_systems(
+        app.init_resource::<MergedLayout>()
+            .init_resource::<Diagnostics>()
+            .add_systems(
             Update,
             (
                 sync_merged_layout,

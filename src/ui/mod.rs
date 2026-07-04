@@ -2,6 +2,20 @@
 //! import, language toggle), edit HUD (solution slots, start button), switch
 //! config panel, schedule panel, run HUD and the result overlay with code
 //! export. Shared theme + widget helpers live in [`widgets`].
+//!
+//! Screen module convention — so one change stays in one place:
+//! - A screen owns its own state. Screen-local resources/components/markers
+//!   live in the screen module, not in `crate::state` (which holds only what
+//!   several screens share). Cross-cutting state read by gameplay systems
+//!   (`Paused`, `FocusedField`, `SaveModalOpen`) is the exception and stays in
+//!   `crate::state`.
+//! - Each screen tags its root entity with its own marker (`UiMainMenu`,
+//!   `UiEdit`, …) and despawns it on `OnExit(state)` via
+//!   [`widgets::despawn_all`]. Screens that own a toggle resource
+//!   (`Paused`, `HelpOpen`) reset it in a hand-written `teardown` instead, so
+//!   the resource and its entities clear together (see `pause`, `encyclopedia`).
+//! - One file until a screen grows past one concern, then a folder module with
+//!   `mod`/`view`/`logic` (see `console`, `edit_hud`, `select`).
 
 #[cfg(feature = "dev")]
 mod campaign_save;

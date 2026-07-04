@@ -7,9 +7,10 @@ use bevy::prelude::*;
 
 use super::UiEdit;
 use crate::console::ConsoleLog;
+use crate::editor::Diagnostics;
 use crate::font::UiFont;
 use crate::i18n::t;
-use crate::state::{Diagnostics, GameState, no_field_focused, not_paused, save_modal_closed};
+use crate::state::{GameState, no_field_focused, not_paused, save_modal_closed};
 use crate::ui::valerr::{build_issue_text, valerr_text};
 use crate::ui::widgets::{BUTTON_BG_BLOCKED, BUTTON_BG_PRIMARY, ButtonBase, button, set_text};
 
