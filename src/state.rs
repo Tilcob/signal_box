@@ -76,8 +76,6 @@ pub struct Editor {
     /// Signal (cell, connector) whose config panel is open. Mutually exclusive
     /// with `selected_switch` — the Select tool sets one and clears the other.
     pub selected_signal: Option<(Cell, Dir8)>,
-    /// Cell whose radial track menu is open (RMB on the Track tool).
-    pub radial: Option<Cell>,
 }
 
 impl Default for Editor {
@@ -92,7 +90,6 @@ impl Default for Editor {
             drag: None,
             selected_switch: None,
             selected_signal: None,
-            radial: None,
         }
     }
 }

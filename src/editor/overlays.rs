@@ -4,7 +4,7 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use stellwerk_sim::ValidationError;
-use stellwerk_sim::grid::Cell;
+use stellwerk_sim::grid::{Cell, Dir8, pair_len};
 use stellwerk_sim::layout::TrackPiece;
 
 use super::Diagnostics;
@@ -37,8 +37,6 @@ pub(super) fn draw_overlays(
         let merged = &merged.0;
         let blocked = Color::srgba(1.0, 0.35, 0.3, 0.6);
         match editor.tool {
-            // The radial menu owns the Track preview while open.
-            Tool::Track if editor.radial.is_some() => {}
             Tool::Track => {
                 let (a, b) = editor.track_form;
                 // Building over the player's own clashing track is allowed (it
@@ -57,6 +55,21 @@ pub(super) fn draw_overlays(
                 };
                 gizmos.line_2d(board::connector_world(cell, a), center, ghost);
                 gizmos.line_2d(board::connector_world(cell, b), center, ghost);
+                // Curve ring: a faint fan to every OTHER legal exit from the
+                // entry `a`, so the available curve forms are always visible
+                // (Ctrl+wheel cycles through them). Only the alternatives — the
+                // current form is the bright ghost above. Hidden mid-drag, where
+                // the free-draw owns the board.
+                if editor.drag.is_none() {
+                    let hint = Color::srgba(0.7, 0.8, 1.0, 0.22);
+                    for d in Dir8::ALL {
+                        if d != a && d != b && pair_len(a, d).is_some() {
+                            let end = board::connector_world(cell, d);
+                            gizmos.line_2d(center, end, hint);
+                            gizmos.circle_2d(Isometry2d::from_translation(end), 3.0, hint);
+                        }
+                    }
+                }
             }
             Tool::Switch => {
                 let variants = switch_variants();

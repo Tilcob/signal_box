@@ -13,7 +13,6 @@
 mod ops;
 mod overlays;
 mod placement;
-mod radial;
 mod tools;
 mod validation;
 
@@ -49,18 +48,19 @@ impl Plugin for EditorPlugin {
                     .run_if(not_paused)
                     .run_if(no_field_focused)
                     .run_if(save_modal_closed),
+                tools::cycle_track_form
+                    .run_if(not_paused)
+                    .run_if(no_field_focused)
+                    .run_if(save_modal_closed),
                 tools::pointer
                     .run_if(not_paused)
                     .run_if(no_field_focused)
                     .run_if(save_modal_closed),
                 overlays::draw_overlays.run_if(not_paused),
                 validation::revalidate,
-                // Esc opens/closes the pause menu in place of leaving the
-                // level. It yields to an open radial menu, so it must run
-                // before `radial_menu` (which closes the radial after). Frozen
-                // while the save modal is open — there Esc closes the modal.
+                // Esc opens/closes the pause menu in place of leaving the level.
+                // Frozen while the save modal is open — there Esc closes the modal.
                 crate::ui::pause::toggle_pause.run_if(save_modal_closed),
-                radial::radial_menu.run_if(not_paused),
             )
                 .chain()
                 .run_if(in_state(GameState::Edit)),

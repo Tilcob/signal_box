@@ -2,6 +2,7 @@
 //! with placement/erase, track drags and leaving back to the level select.
 
 use bevy::input::keyboard::Key;
+use bevy::input::mouse::{MouseScrollUnit, MouseWheel};
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use stellwerk_sim::grid::{Cell, Dir8, pair_len};
@@ -89,6 +90,55 @@ pub(super) fn hotkeys(
     }
 }
 
+/// Ctrl + mouse wheel cycles the track ghost's exit connector through the legal
+/// curve forms (entry fixed) — the always-visible ring in `overlays` shows the
+/// options. Without Ctrl the wheel is the camera zoom (`camera::zoom` yields
+/// while Ctrl is held). Bypasses change detection like the other tool inputs so
+/// a notch never rebuilds the board.
+pub(super) fn cycle_track_form(
+    keys: Res<ButtonInput<KeyCode>>,
+    mut wheel: MessageReader<MouseWheel>,
+    mut editor: ResMut<Editor>,
+) {
+    let ctrl = keys.pressed(KeyCode::ControlLeft) || keys.pressed(KeyCode::ControlRight);
+    let act = ctrl && editor.tool == Tool::Track;
+    // Always drain the wheel, so a notch scrolled while inactive can't fire late.
+    let mut notches = 0i32;
+    for event in wheel.read() {
+        if act {
+            // Native reports Line units (±1/notch), browsers Pixel (~100/notch).
+            notches += match event.unit {
+                MouseScrollUnit::Line => event.y.round() as i32,
+                MouseScrollUnit::Pixel => (event.y / 100.0).round() as i32,
+            };
+        }
+    }
+    if notches == 0 {
+        return;
+    }
+    let step = if notches > 0 { 1 } else { -1 };
+    let bypass = editor.bypass_change_detection();
+    let (entry, mut exit) = bypass.track_form;
+    for _ in 0..notches.unsigned_abs() {
+        exit = next_exit(entry, exit, step);
+    }
+    bypass.track_form = (entry, exit);
+}
+
+/// The next legal exit connector from `entry`, walking `step` (±1) around the
+/// compass and skipping the entry itself and kinks (`pair_len` rejects). Wraps;
+/// returns `exit` unchanged when the cell admits no other legal form.
+fn next_exit(entry: Dir8, exit: Dir8, step: i32) -> Dir8 {
+    let mut d = exit;
+    for _ in 0..8 {
+        d = d.rotate(step);
+        if d != entry && pair_len(entry, d).is_some() {
+            return d;
+        }
+    }
+    exit
+}
+
 #[allow(clippy::too_many_arguments)]
 pub(super) fn pointer(
     buttons: Res<ButtonInput<MouseButton>>,
@@ -111,13 +161,6 @@ pub(super) fn pointer(
     let over_ui = ui.iter().any(|i| *i != Interaction::None);
     let cell = board::world_cell(cursor);
     let merged = &merged.0;
-
-    // While the radial track menu is open it owns the mouse — placement and
-    // drag are suppressed (handled by `radial::radial_menu`, which runs after
-    // this so it sees the menu still open on the click frame).
-    if editor.radial.is_some() {
-        return;
-    }
 
     // Track drag: collect cells while held.
     if editor.tool == Tool::Track {
@@ -624,6 +667,26 @@ mod tests {
         finish_track_drag(&mut editor, &mut level, &row(&[0, 1, 2, 3]));
         assert!(!editor.layout.pieces.iter().any(|p| p.cell.x == 0), "anchored start left open");
         assert!(editor.layout.pieces.iter().any(|p| p.cell.x == 3), "empty end still filled");
+    }
+
+    /// The Ctrl+wheel cycle never lands on an illegal exit: not the entry, not a
+    /// kink, and it actually moves (so it can reach curves, not just spin in
+    /// place).
+    #[test]
+    fn next_exit_stays_legal_and_moves() {
+        let entry = Dir8::W;
+        let mut d = Dir8::E;
+        for step in [1, -1] {
+            for _ in 0..16 {
+                let n = next_exit(entry, d, step);
+                assert_ne!(n, entry, "exit never equals the entry");
+                assert!(pair_len(entry, n).is_some(), "exit is never a kink");
+                d = n;
+            }
+        }
+        let a = next_exit(Dir8::W, Dir8::E, 1);
+        let b = next_exit(Dir8::W, a, 1);
+        assert_ne!(a, b, "consecutive steps advance through the legal set");
     }
 
     /// Clicking a clashing form over the player's own track replaces it in one

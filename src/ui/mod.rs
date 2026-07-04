@@ -103,7 +103,6 @@ fn enter_level(
     editor.track_form = (stellwerk_sim::grid::Dir8::W, stellwerk_sim::grid::Dir8::E);
     editor.selected_switch = None;
     editor.drag = None;
-    editor.radial = None;
     commands.insert_resource(ActiveLevel {
         id,
         index,

@@ -57,15 +57,11 @@ impl Plugin for PausePlugin {
 }
 
 /// Esc toggles the pause menu — it opens in place of the old "leave the level"
-/// behaviour and closes again when already open. Yields to an open radial track
-/// menu (which owns Esc to close itself first); in Run the radial is never open.
-///
-/// Registered inside the edit chain (before `radial::radial_menu`) and in the
-/// run update set so the ordering against the radial holds; it stays ungated by
-/// [`crate::state::not_paused`] because it is also the only way back out.
+/// behaviour and closes again when already open. Registered in the edit chain
+/// and the run update set; it stays ungated by [`crate::state::not_paused`]
+/// because it is also the only way back out.
 pub(crate) fn toggle_pause(
     keys: Res<ButtonInput<KeyCode>>,
-    editor: Res<Editor>,
     focus: Res<FocusedField>,
     mut paused: ResMut<Paused>,
 ) {
@@ -75,9 +71,6 @@ pub(crate) fn toggle_pause(
     let toggle = keys.just_pressed(KeyCode::Escape)
         || (keys.just_pressed(KeyCode::KeyP) && focus.0.is_none());
     if !toggle {
-        return;
-    }
-    if editor.radial.is_some() {
         return;
     }
     paused.0 = !paused.0;

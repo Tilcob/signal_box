@@ -101,15 +101,18 @@ fn pan(
 
 fn zoom(
     mut wheel: MessageReader<MouseWheel>,
+    keys: Res<ButtonInput<KeyCode>>,
     hovered: Res<crate::console::ConsoleHovered>,
     focus: Res<FocusedField>,
     mut zoom: ResMut<Zoom>,
     mut cameras: Query<&mut Projection, With<MainCamera>>,
 ) {
     // The console scrolls on the same wheel events; while the pointer is over it
-    // the board must not zoom. Consume the events so they don't backlog into a
-    // late zoom once the pointer leaves the console.
-    if hovered.0 {
+    // the board must not zoom. Ctrl+wheel is reserved for cycling the track curve
+    // form (`editor::tools::cycle_track_form`). In both cases consume the events
+    // so they don't backlog into a late zoom.
+    let ctrl = keys.pressed(KeyCode::ControlLeft) || keys.pressed(KeyCode::ControlRight);
+    if hovered.0 || ctrl {
         wheel.read().count();
         return;
     }
