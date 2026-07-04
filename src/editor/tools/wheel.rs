@@ -33,7 +33,10 @@ pub(crate) fn cycle_track_form(
     if notches == 0 {
         return;
     }
-    let step = if notches > 0 { 1 } else { -1 };
+    // Wheel up walks toward the "up" curves first (gentle-up, sharp-up, then
+    // sharp-down, gentle-down): negative rotation around the compass. Wheel down
+    // reverses.
+    let step = if notches > 0 { -1 } else { 1 };
     let bypass = editor.bypass_change_detection();
     let (entry, mut exit) = bypass.track_form;
     for _ in 0..notches.unsigned_abs() {

@@ -64,7 +64,7 @@
     "options.music": "Music",
     "options.sfx": "Sound",
     "hint.dismiss": "GOT IT",
-    "hint.k1_01_erste_gleise": "Click and drag on the grid to lay track, from the source to the destination. Wrong spot? Remove a piece with B (the eraser).",
+    "hint.k1_01_erste_gleise": "Click and drag on the grid to lay track, from the source to the destination. Ctrl+mouse wheel switches the curve shape. Wrong spot? Remove a piece with B (the eraser).",
     "hint.k1_02_um_das_hindernis": "R and T rotate the track piece, Ctrl+mouse wheel switches the curve shape. Every segment costs material, so find the short way around the obstacle.",
     "hint.k1_03_bloeke_und_signale": "A block signal (3) holds a train while the section behind it is occupied. Place one before the crossing so two trains never enter it at once.",
     "hint.k1_04_verwindende_strecke": "The trick is the loop: build, press start, watch where it jams, back to the editor, fix it. A crash shows you exactly where and why.",

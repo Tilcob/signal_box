@@ -64,7 +64,7 @@
     "options.music": "Musik",
     "options.sfx": "Geräusche",
     "hint.dismiss": "VERSTANDEN",
-    "hint.k1_01_erste_gleise": "Klick und zieh auf dem Gitter, um Gleise zu legen, von der Quelle bis zum Ziel. Falsch gelegt? Mit B (Radiergummi) entfernst du ein Stück wieder.",
+    "hint.k1_01_erste_gleise": "Klick und zieh auf dem Gitter, um Gleise zu legen, von der Quelle bis zum Ziel. Mit Strg+Mausrad wechselst du die Kurvenform. Falsch gelegt? Mit B (Radiergummi) entfernst du ein Stück wieder.",
     "hint.k1_02_um_das_hindernis": "Mit R und T drehst du das Gleisstück, mit Strg+Mausrad wechselst du die Kurvenform. Jedes Segment kostet Material, such den kurzen Weg ums Hindernis.",
     "hint.k1_03_bloeke_und_signale": "Ein Blocksignal (3) hält einen Zug, solange der Abschnitt dahinter besetzt ist. Setz eins vor die Kreuzung, dann fährt nie zweimal jemand gleichzeitig hinein.",
     "hint.k1_04_verwindende_strecke": "Der Trick ist der Kreislauf: bauen, Start drücken, zusehen wo es klemmt, zurück in den Editor, nachbessern. Ein Crash zeigt dir genau, wo und warum.",
