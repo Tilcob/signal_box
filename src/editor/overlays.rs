@@ -48,8 +48,10 @@ pub(super) fn draw_overlays(
                     ),
                     None => true,
                 };
+                // The selected form glows yellow so it reads clearly against the
+                // faint blue ring of alternatives below; red only on a hard block.
                 let ghost = if ok {
-                    Color::srgba(0.7, 0.8, 1.0, 0.5)
+                    Color::srgba(1.0, 0.85, 0.2, 0.9)
                 } else {
                     blocked
                 };

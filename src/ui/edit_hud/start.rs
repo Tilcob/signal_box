@@ -10,9 +10,12 @@ use crate::console::ConsoleLog;
 use crate::editor::Diagnostics;
 use crate::font::UiFont;
 use crate::i18n::t;
-use crate::state::{GameState, no_field_focused, not_paused, save_modal_closed};
+use crate::state::{ActiveLevel, GameState, no_field_focused, not_paused, save_modal_closed};
+use crate::ui::hints::{HintRecall, has_hint};
 use crate::ui::valerr::{build_issue_text, valerr_text};
-use crate::ui::widgets::{BUTTON_BG_BLOCKED, BUTTON_BG_PRIMARY, ButtonBase, button, set_text};
+use crate::ui::widgets::{
+    BUTTON_BG, BUTTON_BG_BLOCKED, BUTTON_BG_PRIMARY, ButtonBase, button, set_text,
+};
 
 #[derive(Component)]
 struct StartButton;
@@ -36,20 +39,33 @@ impl Plugin for StartPlugin {
     }
 }
 
-fn spawn_start_button(mut commands: Commands, ui_font: Res<UiFont>) {
+fn spawn_start_button(
+    mut commands: Commands,
+    ui_font: Res<UiFont>,
+    active: Option<Res<ActiveLevel>>,
+) {
     let font = ui_font.0.clone();
+    // A "?" recall button sits left of START on campaign levels that have an
+    // authored hint (both in one right-anchored row so START's width is handled
+    // by flex, not a guessed offset).
+    let show_recall = active.as_deref().is_some_and(has_hint);
     commands
         .spawn((
             Node {
                 position_type: PositionType::Absolute,
                 right: Val::Px(10.0),
                 top: Val::Px(8.0),
+                align_items: AlignItems::Center,
+                column_gap: Val::Px(6.0),
                 ..default()
             },
             Interaction::default(),
             UiEdit,
         ))
         .with_children(|c| {
+            if show_recall {
+                button(c, &font, "?", BUTTON_BG, HintRecall);
+            }
             button(c, &font, &t("edit.start"), BUTTON_BG_PRIMARY, StartButton);
         });
 }
