@@ -17,6 +17,61 @@ pub fn connector_world(c: Cell, d: Dir8) -> Vec2 {
     point_world(c.connector_point(d))
 }
 
+/// Ready-to-draw geometry of a freight platform dock, so the board renderer
+/// ([`super::draw`]) and the placement ghost ([`crate::editor`]) stay pixel-
+/// identical (preview = result). The dock sits on ONE side of the track: a
+/// platform-edge slab with a bright lip facing the rail, and a plain block
+/// behind it (away from the rail).
+pub struct Dock {
+    /// Track axis (unit, toward the anchor connector).
+    pub axis: Vec2,
+    /// Platform-edge slab, a band along the track.
+    pub slab_a: Vec2,
+    pub slab_b: Vec2,
+    pub slab_w: f32,
+    /// Bright lip on the slab's rail-facing side.
+    pub edge_a: Vec2,
+    pub edge_b: Vec2,
+    pub edge_w: f32,
+    /// Plain block behind the slab: centre + full length/width (band for the
+    /// board, `rect_2d` for the ghost).
+    pub block_center: Vec2,
+    pub block_len: f32,
+    pub block_w: f32,
+    /// Id-label anchor, kept clear of the dock (opposite side of the track).
+    pub label: Vec2,
+}
+
+/// Build a [`Dock`] centred on `center` with the track running along `axis` (a
+/// unit vector from the cell centre toward the anchor connector).
+pub fn platform_dock(center: Vec2, axis: Vec2) -> Dock {
+    // All offsets in board px (CELL = 96); the dock stays within the cell.
+    // The slab (and its bright lip) span the FULL tile width; the block behind
+    // stays short and centred.
+    const SLAB_HALF: f32 = CELL / 2.0;
+    const SLAB_OFF: f32 = 11.0;
+    const SLAB_W: f32 = 8.0;
+    const BLOCK_HALF: f32 = 10.0;
+    const BLOCK_OFF: f32 = 21.0; // front touches the slab's back
+    const BLOCK_W: f32 = 12.0;
+    let perp = axis.perp();
+    let slab_c = center + perp * SLAB_OFF;
+    let edge_c = center + perp * (SLAB_OFF - SLAB_W / 2.0); // rail-facing surface
+    Dock {
+        axis,
+        slab_a: slab_c - axis * SLAB_HALF,
+        slab_b: slab_c + axis * SLAB_HALF,
+        slab_w: SLAB_W,
+        edge_a: edge_c - axis * SLAB_HALF,
+        edge_b: edge_c + axis * SLAB_HALF,
+        edge_w: 2.5,
+        block_center: center + perp * BLOCK_OFF,
+        block_len: BLOCK_HALF * 2.0,
+        block_w: BLOCK_W,
+        label: center - perp * 22.0,
+    }
+}
+
 /// World position → cell under the cursor.
 pub fn world_cell(pos: Vec2) -> Cell {
     Cell {

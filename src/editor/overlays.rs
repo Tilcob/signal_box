@@ -178,7 +178,6 @@ pub(super) fn draw_overlays(
                 // Anchor snaps to a track stub (like a signal): the ghost only
                 // appears on a rail and auto-orients to it; R/T cycles the stubs.
                 if let Some(at) = signal_stub(merged, cell, editor.variant) {
-                    let connector = board::connector_world(cell, at);
                     let ok = active
                         .as_ref()
                         .is_none_or(|a| can_place_platform(&a.level, cell, at));
@@ -187,14 +186,17 @@ pub(super) fn draw_overlays(
                     } else {
                         blocked
                     };
-                    // Drawn centered on the cell (not at the rim), straddling the
-                    // track — matches `draw_stations`.
-                    let axis = (connector - center).normalize_or_zero();
-                    let perp = axis.perp();
-                    for side in [-1.0_f32, 1.0] {
-                        let base = center + perp * side * 15.0;
-                        gizmos.line_2d(base - axis * 9.0, base + axis * 9.0, ghost);
-                    }
+                    // Same dock geometry as the board renderer (preview = result):
+                    // platform-edge slab + lip, and the block behind.
+                    let axis = (board::connector_world(cell, at) - center).normalize_or_zero();
+                    let dock = board::platform_dock(center, axis);
+                    gizmos.line_2d(dock.slab_a, dock.slab_b, ghost);
+                    gizmos.line_2d(dock.edge_a, dock.edge_b, ghost);
+                    gizmos.rect_2d(
+                        Isometry2d::new(dock.block_center, Rot2::radians(dock.axis.to_angle())),
+                        Vec2::new(dock.block_len, dock.block_w),
+                        ghost,
+                    );
                 }
             }
             Tool::Erase => {

@@ -111,6 +111,15 @@ pub fn col_sink() -> Color {
 pub fn col_platform() -> Color {
     Color::srgb(0.34, 0.62, 0.45)
 }
+/// Bright lip along the platform edge facing the track (the "Bahnsteigkante").
+pub fn col_platform_edge() -> Color {
+    Color::srgb(0.62, 0.90, 0.72)
+}
+/// The plain block behind the platform — a shade darker so it reads as a
+/// separate structure, not part of the edge.
+pub fn col_platform_back() -> Color {
+    Color::srgb(0.27, 0.50, 0.37)
+}
 /// Cell index in buildable tiles: readable on the dark desk, but clearly
 /// quieter than tracks and labels.
 pub fn col_cell_index() -> Color {

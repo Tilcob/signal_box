@@ -14,7 +14,7 @@ use stellwerk_sim::units::BlockId;
 /// validate, in which case bands fall back to their flat colour.
 pub(super) type BlockColors = BTreeMap<(Cell, Dir8), BlockId>;
 
-use super::geometry::{CELL, blocked_cells, cell_world, connector_world};
+use super::geometry::{CELL, blocked_cells, cell_world, connector_world, platform_dock};
 use super::palette::*;
 use crate::i18n::{dir_label, sink_label, source_label};
 
@@ -343,33 +343,32 @@ pub(super) fn draw_stations(commands: &mut Commands, font: &Handle<Font>, level:
             tag,
         );
     }
-    // Freight platforms: a drive-through dock — two gate posts flanking the
-    // track in the CENTRE of the cell (not at the rim), so the train passes
-    // BETWEEN them (never a dead end like a sink's buffer stop). The anchor
-    // `dir` still names the through-connector for the sim; only the drawing is
-    // centred. Its own palette colour, no text on the dock itself.
+    // Freight platforms: a drive-through dock on ONE side of the track — a
+    // platform-edge slab with a bright lip facing the rail, and a plain block
+    // behind it (the "entrance"). Centred in the cell; the anchor `dir` still
+    // names the through-connector for the sim, only the drawing is cosmetic.
     for platform in &level.platforms {
         let center = cell_world(platform.cell);
-        // Track axis through the cell = centre → anchor connector.
         let axis = (connector_world(platform.cell, platform.dir) - center).normalize_or_zero();
-        let perp = axis.perp();
-        for side in [-1.0_f32, 1.0] {
-            let base = center + perp * side * 15.0;
-            band(
-                commands,
-                base - axis * 9.0,
-                base + axis * 9.0,
-                6.0,
-                col_platform(),
-                2.0,
-                tag,
-            );
-        }
+        let dock = platform_dock(center, axis);
+        // Block behind, then slab, then the bright edge lip on top.
+        let half = dock.axis * (dock.block_len / 2.0);
+        band(
+            commands,
+            dock.block_center - half,
+            dock.block_center + half,
+            dock.block_w,
+            col_platform_back(),
+            1.9,
+            tag,
+        );
+        band(commands, dock.slab_a, dock.slab_b, dock.slab_w, col_platform(), 2.0, tag);
+        band(commands, dock.edge_a, dock.edge_b, dock.edge_w, col_platform_edge(), 2.1, tag);
         let name = if platform.label.is_empty() {
             format!("B{}", platform.id.0)
         } else {
             platform.label.clone()
         };
-        label(commands, font, center + perp * 26.0, name, 13.0, col_label(), tag);
+        label(commands, font, dock.label, name, 13.0, col_label(), tag);
     }
 }
