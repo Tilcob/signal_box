@@ -1,11 +1,17 @@
-//! Ctrl + mouse wheel: cycles the track ghost's exit connector through the legal
-//! curve forms.
+//! Curve selection: steps the track ghost's exit connector through the legal
+//! curve forms — via Ctrl + mouse wheel, or (for Macs, where Ctrl+wheel is the
+//! OS screen-zoom gesture) a right-click as an alternative.
 
 use bevy::input::mouse::{MouseScrollUnit, MouseWheel};
 use bevy::prelude::*;
+use bevy::window::PrimaryWindow;
 use stellwerk_sim::grid::{Dir8, pair_len};
 
 use crate::state::{Editor, Tool};
+
+/// Max cursor travel (px) for an RMB press+release to count as a click rather
+/// than a pan drag.
+const CLICK_SLOP: f32 = 6.0;
 
 /// Ctrl + mouse wheel cycles the track ghost's exit connector through the legal
 /// curve forms (entry fixed) — the always-visible ring in `overlays` shows the
@@ -43,6 +49,41 @@ pub(crate) fn cycle_track_form(
         exit = next_exit(entry, exit, step);
     }
     bypass.track_form = (entry, exit);
+}
+
+/// Right-click (a click, not a pan drag) steps to the next curve — the same
+/// direction as one wheel notch up. A Mac-safe alternative to Ctrl+wheel, which
+/// macOS reserves for screen zoom. RMB *drag* still pans the camera, so cycle
+/// only on a release that barely moved. Bypasses change detection like the wheel.
+pub(crate) fn rmb_cycle_curve(
+    buttons: Res<ButtonInput<MouseButton>>,
+    windows: Query<&Window, With<PrimaryWindow>>,
+    ui: Query<&Interaction>,
+    mut editor: ResMut<Editor>,
+    mut press: Local<Option<Vec2>>,
+) {
+    if editor.tool != Tool::Track {
+        return;
+    }
+    let cursor = windows.single().ok().and_then(|w| w.cursor_position());
+    if buttons.just_pressed(MouseButton::Right) {
+        *press = cursor;
+    }
+    if !buttons.just_released(MouseButton::Right) {
+        return;
+    }
+    let is_click = match (*press, cursor) {
+        (Some(a), Some(b)) => a.distance(b) <= CLICK_SLOP,
+        // cursor left the window mid-gesture → treat as a pan, not a click
+        _ => false,
+    };
+    *press = None;
+    let over_ui = ui.iter().any(|i| *i != Interaction::None);
+    if is_click && !over_ui {
+        let bypass = editor.bypass_change_detection();
+        let (entry, exit) = bypass.track_form;
+        bypass.track_form = (entry, next_exit(entry, exit, -1));
+    }
 }
 
 /// The next legal exit connector from `entry`, walking `step` (±1) around the

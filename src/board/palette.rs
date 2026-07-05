@@ -28,8 +28,12 @@ fn lit(r: f32, g: f32, b: f32) -> Color {
     }
 }
 
+/// Buildable-cell tile. Kept well above the near-black desk
+/// (`ClearColor` ≈ 0.015) so the build area reads at a glance — new players
+/// were missing where they could draw. Still below fixed/player track
+/// (0.16/0.30) and the cell-index text (0.21), so tiles never outshout content.
 pub fn col_grid() -> Color {
-    Color::srgb(0.030, 0.035, 0.045)
+    Color::srgb(0.065, 0.075, 0.095)
 }
 /// Sandbox block (non-buildable cell): a solid slate tile, clearly heavier
 /// than the faint grid square and the near-black desk so it reads as a wall.

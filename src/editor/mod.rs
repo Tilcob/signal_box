@@ -52,6 +52,10 @@ impl Plugin for EditorPlugin {
                     .run_if(not_paused)
                     .run_if(no_field_focused)
                     .run_if(save_modal_closed),
+                tools::rmb_cycle_curve
+                    .run_if(not_paused)
+                    .run_if(no_field_focused)
+                    .run_if(save_modal_closed),
                 tools::pointer
                     .run_if(not_paused)
                     .run_if(no_field_focused)

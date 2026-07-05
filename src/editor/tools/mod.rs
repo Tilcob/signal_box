@@ -13,4 +13,4 @@ mod wheel;
 
 pub(super) use keys::hotkeys;
 pub(super) use pointer::pointer;
-pub(super) use wheel::cycle_track_form;
+pub(super) use wheel::{cycle_track_form, rmb_cycle_curve};
