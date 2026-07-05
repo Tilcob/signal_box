@@ -36,6 +36,6 @@ pub mod units;
 pub use graph::{TrackGraph, build};
 pub use layout::{Layout, ValidationError, validate};
 pub use level::Level;
-pub use routing::{RouteEnd, Unreachable, check_reachability};
+pub use routing::{RouteEnd, Unreachable, Unreached, check_reachability};
 pub use score::Score;
 pub use sim::{DUE_SLACK_PCT, Outcome, Sim, SimEvent, suggest_dues};

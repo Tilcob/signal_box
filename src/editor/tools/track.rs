@@ -137,6 +137,7 @@ mod tests {
             fixed: Layout::default(),
             sources: Vec::new(),
             sinks: Vec::new(),
+            platforms: Vec::new(),
             schedule: Vec::new(),
             par: Par { throughput: Tick(0), material: 0, lateness: 0 },
         }

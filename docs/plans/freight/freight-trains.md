@@ -1,6 +1,6 @@
 # Güterzüge & Frachtbahnsteige — Implementierungsplan
 
-Status: Design abgestimmt, noch nicht begonnen.
+Status: Implementiert (M1–M5). Level `k4_01_erste_fracht` geblesst.
 
 ## Ziel
 

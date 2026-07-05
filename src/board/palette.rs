@@ -79,6 +79,19 @@ pub fn col_train() -> Color {
 pub fn col_head() -> Color {
     lit(4.0, 3.2, 1.8)
 }
+/// Freight train body: a cool teal, clearly not the warm-white passenger train
+/// ([`col_train`]) — the class read is by colour, no text (anti-text principle).
+pub fn col_freight() -> Color {
+    lit(0.9, 1.7, 2.2)
+}
+/// Freight train head lamp — the brighter tip of [`col_freight`].
+pub fn col_freight_head() -> Color {
+    lit(1.6, 3.0, 3.8)
+}
+/// Shrinking dwell ring drawn at a freight train halted at its platform.
+pub fn col_dwell() -> Color {
+    lit(2.6, 2.0, 0.4)
+}
 pub fn col_label() -> Color {
     Color::srgb(0.55, 0.58, 0.65)
 }
@@ -92,6 +105,11 @@ pub fn col_source() -> Color {
 /// [`col_source`]. Purely visual.
 pub fn col_sink() -> Color {
     Color::srgb(0.80, 0.47, 0.30)
+}
+/// Freight platform (a drive-through unload stop): a distinct dock green, kept
+/// apart from source-blue and sink-orange. Purely visual.
+pub fn col_platform() -> Color {
+    Color::srgb(0.34, 0.62, 0.45)
 }
 /// Cell index in buildable tiles: readable on the dark desk, but clearly
 /// quieter than tracks and labels.

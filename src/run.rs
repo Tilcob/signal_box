@@ -216,7 +216,9 @@ fn finish(
     commands.trigger(match outcome {
         Outcome::Success { .. } => crate::audio::SfxKind::Success,
         Outcome::Deadlock { .. } | Outcome::Stalled { .. } => crate::audio::SfxKind::Deadlock,
-        Outcome::Collision { .. } | Outcome::Misrouting { .. } => crate::audio::SfxKind::Crash,
+        Outcome::Collision { .. }
+        | Outcome::Misrouting { .. }
+        | Outcome::FreightNotDelivered { .. } => crate::audio::SfxKind::Crash,
     });
     commands.insert_resource(LastOutcome(outcome.clone()));
     next.set(GameState::Result);

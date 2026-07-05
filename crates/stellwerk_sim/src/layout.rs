@@ -14,7 +14,7 @@ use crate::grid::{Cell, Dir8, Point, pair_len};
 use crate::level::Level;
 use crate::units::TrainClass;
 use crate::units::segment_lengths::MAX_SPEED_EXCLUSIVE;
-use crate::units::{SinkId, SourceId, TrainId};
+use crate::units::{PlatformId, SinkId, SourceId, TrainId};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
@@ -199,6 +199,18 @@ pub enum ValidationError {
     SinkOffTrack {
         id: SinkId,
     },
+    DuplicatePlatformId {
+        id: PlatformId,
+    },
+    /// Freight platform connector has no track anchoring it.
+    PlatformOffTrack {
+        id: PlatformId,
+    },
+    /// A schedule stop references a platform id the level does not define.
+    UnknownPlatform {
+        train: TrainId,
+        platform: PlatformId,
+    },
     DuplicateTrainId {
         train: TrainId,
     },
@@ -304,6 +316,15 @@ impl fmt::Display for ValidationError {
                 write!(f, "source {} has no track anchoring its connector", id.0)
             }
             SinkOffTrack { id } => write!(f, "sink {} has no track anchoring its connector", id.0),
+            DuplicatePlatformId { id } => write!(f, "duplicate platform id {}", id.0),
+            PlatformOffTrack { id } => {
+                write!(f, "platform {} has no track anchoring its connector", id.0)
+            }
+            UnknownPlatform { train, platform } => write!(
+                f,
+                "train {} stops at unknown platform {}",
+                train.0, platform.0
+            ),
             DuplicateTrainId { train } => {
                 write!(f, "duplicate train id {}", train.0)
             }
@@ -477,6 +498,15 @@ pub fn validate(level: &Level, player: &Layout) -> Vec<ValidationError> {
             errors.push(ValidationError::SinkOffTrack { id: sink.id });
         }
     }
+    let mut platform_ids: BTreeSet<PlatformId> = BTreeSet::new();
+    for platform in &level.platforms {
+        if !platform_ids.insert(platform.id) {
+            errors.push(ValidationError::DuplicatePlatformId { id: platform.id });
+        }
+        if !merged.has_stub(platform.cell, platform.dir) {
+            errors.push(ValidationError::PlatformOffTrack { id: platform.id });
+        }
+    }
 
     // --- Schedule ---------------------------------------------------------------
     let mut train_ids: BTreeSet<TrainId> = BTreeSet::new();
@@ -494,6 +524,14 @@ pub fn validate(level: &Level, player: &Layout) -> Vec<ValidationError> {
             errors.push(ValidationError::UnknownSink {
                 train: entry.train,
                 sink: entry.sink,
+            });
+        }
+        if let Some(stop) = entry.stop
+            && !platform_ids.contains(&stop.platform)
+        {
+            errors.push(ValidationError::UnknownPlatform {
+                train: entry.train,
+                platform: stop.platform,
             });
         }
         if entry.length.0 <= 0 {
@@ -551,6 +589,7 @@ mod tests {
                 dir: Dir8::E,
                 label: "OST".into(),
             }],
+            platforms: vec![],
             schedule: vec![ScheduleEntry {
                 train: TrainId(0),
                 class: TrainClass(0),
@@ -560,6 +599,7 @@ mod tests {
                 sink: SinkId(0),
                 depart: Tick(0),
                 due: Tick(200),
+                stop: None,
             }],
             par: Par {
                 throughput: Tick(200),

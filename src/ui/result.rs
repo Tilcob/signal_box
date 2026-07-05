@@ -228,6 +228,17 @@ fn describe(outcome: &Outcome) -> (String, String, Color) {
                 Color::srgb(1.0, 0.7, 0.25),
             )
         }
+        Outcome::FreightNotDelivered { train, platform } => (
+            t("result.freight_undelivered"),
+            format!(
+                "{} {}: {} {}.",
+                t("common.train"),
+                train.0,
+                t("result.freight_undelivered_detail"),
+                platform.0
+            ),
+            Color::srgb(1.0, 0.7, 0.25),
+        ),
         Outcome::Stalled { .. } => (
             t("result.stalled"),
             t("result.stalled_detail"),

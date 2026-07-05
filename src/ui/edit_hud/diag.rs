@@ -66,8 +66,11 @@ fn error_world(
         JunctionWithoutSwitch { point } => return Some(crate::board::point_world(*point)),
         SourceOffTrack { id } => level?.sources.iter().find(|s| s.id == *id)?.cell,
         SinkOffTrack { id } => level?.sinks.iter().find(|s| s.id == *id)?.cell,
+        PlatformOffTrack { id } => level?.platforms.iter().find(|p| p.id == *id)?.cell,
         DuplicateSourceId { .. }
         | DuplicateSinkId { .. }
+        | DuplicatePlatformId { .. }
+        | UnknownPlatform { .. }
         | DuplicateTrainId { .. }
         | UnknownSource { .. }
         | UnknownSink { .. }

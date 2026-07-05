@@ -31,8 +31,10 @@ use crate::layout::{Layout, SignalKind, ValidationError};
 use crate::level::{Level, ScheduleEntry};
 use crate::routing::{RouteEnd, resolve, walk_route};
 use crate::score::{Score, material_cost};
-use crate::train::Train;
-use crate::units::{BlockId, EdgeId, Len, NodeId, STALL_TICKS, SinkId, SourceId, Tick, TrainId};
+use crate::train::{PendingStop, Train};
+use crate::units::{
+    BlockId, EdgeId, Len, NodeId, PlatformId, STALL_TICKS, SinkId, SourceId, Tick, TrainId,
+};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -51,6 +53,12 @@ pub enum Outcome {
         reached: Option<SinkId>,
         /// Last switch whose *other* branch would have led to the target.
         blame: Option<Cell>,
+    },
+    /// Freight: a train reached its correct sink without completing its
+    /// mandatory unload stop — its route never crossed the assigned platform.
+    FreightNotDelivered {
+        train: TrainId,
+        platform: PlatformId,
     },
     /// Trains wait on each other in a cycle; rotated to start at the
     /// smallest involved id.
@@ -89,6 +97,9 @@ pub struct Sim {
     /// claim instead, so they never appear here.
     point_reservations: BTreeMap<NodeId, (TrainId, bool)>,
     sink_by_arrival: BTreeMap<EdgeId, SinkId>,
+    /// Freight platform → its arrival edge (center → connector). Used at spawn
+    /// to seed a train's [`PendingStop::arrival_edge`] from its schedule entry.
+    platform_arrival: BTreeMap<PlatformId, EdgeId>,
     entry_by_source: BTreeMap<SourceId, EdgeId>,
     material: u32,
     stall_ticks: u64,
@@ -118,6 +129,7 @@ impl Sim {
         let mut schedule = level.schedule.clone();
         schedule.sort_by_key(|e| (e.depart, e.train));
         let sink_by_arrival = graph.sinks.iter().map(|s| (s.arrival, s.id)).collect();
+        let platform_arrival = graph.platforms.iter().map(|p| (p.id, p.arrival)).collect();
         let entry_by_source = graph.sources.iter().map(|s| (s.id, s.entry)).collect();
         Ok(Sim {
             graph,
@@ -131,6 +143,7 @@ impl Sim {
             reservations: BTreeMap::new(),
             point_reservations: BTreeMap::new(),
             sink_by_arrival,
+            platform_arrival,
             entry_by_source,
             material: material_cost(player),
             stall_ticks: 0,
@@ -310,6 +323,14 @@ impl Sim {
             // body length yet, so a second physical check would wrongly pass.
             self.queues.get_mut(&source).expect("exists").pop_front();
             let e = &self.schedule[index as usize];
+            // Freight: seed the dwell state. The platform id is validated, so the
+            // arrival edge always resolves.
+            let stop = e.stop.map(|s| PendingStop {
+                platform: s.platform,
+                arrival_edge: self.platform_arrival[&s.platform],
+                dwell_remaining: s.dwell,
+                done: false,
+            });
             let train = Train {
                 id: e.train,
                 class: e.class,
@@ -321,6 +342,7 @@ impl Sim {
                 head_dist: Len(0),
                 passed_switches: Vec::new(),
                 waiting_since: None,
+                stop,
             };
             tick.occupancy
                 .entry(self.graph.blocks.block_of(entry_edge))
@@ -647,6 +669,15 @@ impl Sim {
                 return;
             }
 
+            // Freight dwell: the first time the head rests on the assigned
+            // platform anchor, hold on free track (occupying the block) for the
+            // dwell duration, then resume. A held tick counts as progress so the
+            // stall fallback never mistakes a legitimate dwell for a jam.
+            if self.dwell_tick(id, head) {
+                tick.progressed = true;
+                return;
+            }
+
             let Some(next_edge) = self.continuation(self.train(id), head) else {
                 let blame = self.blame(self.train(id));
                 self.finish(Outcome::Misrouting {
@@ -710,6 +741,30 @@ impl Sim {
         self.trains[index].trim_path(&self.graph);
     }
 
+    /// Freight dwell tick. `head` is the train's head edge, known to be at its
+    /// end (no sink). If the train has an unfinished stop anchored here, count
+    /// down one tick and return `true` while it must keep holding; the tick the
+    /// dwell reaches zero it flips `done` and returns `false` so the train
+    /// crosses this same tick. Deliberately never touches `waiting_since`: a
+    /// dwell is a stop on free track, not a signal wait, and must not gain
+    /// first-come priority or forge a wait-for edge (plan §4).
+    fn dwell_tick(&mut self, id: TrainId, head: EdgeId) -> bool {
+        let Some(stop) = self.train(id).stop else {
+            return false;
+        };
+        if stop.done || stop.arrival_edge != head {
+            return false;
+        }
+        let s = self.train_mut(id).stop.as_mut().expect("checked above");
+        if s.dwell_remaining.0 > 0 {
+            s.dwell_remaining.0 -= 1;
+            true
+        } else {
+            s.done = true;
+            false
+        }
+    }
+
     /// The blocks whose state caused a red signal (for wait-for edges).
     fn needed_blocks(&self, train: &Train, signal_edge: EdgeId, next_edge: EdgeId) -> Vec<BlockId> {
         let signal_id = self.graph.edge(signal_edge).signal.expect("caller checked");
@@ -726,6 +781,18 @@ impl Sim {
                 train: id,
                 reached: Some(sink),
                 blame,
+            });
+            return;
+        }
+        // Freight gating: the correct sink only accepts the train once its
+        // mandatory unload stop is done. Reaching the sink first means the
+        // route bypassed the platform.
+        if let Some(stop) = self.train(id).stop
+            && !stop.done
+        {
+            self.finish(Outcome::FreightNotDelivered {
+                train: id,
+                platform: stop.platform,
             });
             return;
         }
@@ -897,6 +964,16 @@ impl Sim {
             h.write_u64(t.due.0);
             h.write_i64(t.head_dist.0);
             h.write_u64(t.waiting_since.map_or(u64::MAX, |w| w.0));
+            // Freight dwell state is real mutable state (a savegame stores it),
+            // so it must commit to the hash or replays/codes drift. Written only
+            // for freight trains: a train's stop is fixed at spawn and never
+            // becomes/unbecomes `None` mid-run, so passenger trains contribute no
+            // bytes and every pre-freight replay hash stays byte-identical.
+            if let Some(s) = t.stop {
+                h.write_u32(s.arrival_edge.0);
+                h.write_u64(s.dwell_remaining.0);
+                h.write_u32(u32::from(s.done));
+            }
             h.write_u32(t.path.len() as u32);
             for e in &t.path {
                 h.write_u32(e.0);
@@ -1001,8 +1078,8 @@ mod tests {
     use super::*;
     use crate::grid::Dir8;
     use crate::layout::{SignalDef, SwitchDef, TrackPiece};
-    use crate::level::{Par, ScheduleEntry, SinkDef, SourceDef};
-    use crate::units::{Speed, TrainClass};
+    use crate::level::{Par, PlatformDef, PlatformStop, ScheduleEntry, SinkDef, SourceDef};
+    use crate::units::{PlatformId, Speed, TrainClass};
 
     fn cell(x: i32, y: i32) -> Cell {
         Cell { x, y }
@@ -1075,6 +1152,7 @@ mod tests {
                 dir: Dir8::E,
                 label: "OST".into(),
             }],
+            platforms: vec![],
             schedule: vec![
                 ScheduleEntry {
                     train: TrainId(0),
@@ -1085,6 +1163,7 @@ mod tests {
                     sink: SinkId(0),
                     depart: Tick(0),
                     due: Tick(200),
+                    stop: None,
                 },
                 ScheduleEntry {
                     train: TrainId(1),
@@ -1095,6 +1174,7 @@ mod tests {
                     sink: SinkId(0),
                     depart: Tick(0),
                     due: Tick(200),
+                    stop: None,
                 },
             ],
             par: Par {
@@ -1181,5 +1261,153 @@ mod tests {
 
         let outcome = sim.run(Tick(10_000));
         assert!(matches!(outcome, Outcome::Success { .. }), "got {outcome:?}");
+    }
+
+    /// Straight W–E line of `n` cells: source (0,0)W, sink (n-1,0)E, no
+    /// platforms/schedule (the caller adds them).
+    fn straight(n: i32) -> (Level, Layout) {
+        let layout = Layout {
+            pieces: (0..n)
+                .map(|x| TrackPiece {
+                    cell: cell(x, 0),
+                    a: Dir8::W,
+                    b: Dir8::E,
+                })
+                .collect(),
+            switches: vec![],
+            signals: vec![],
+        };
+        let level = Level {
+            name: "line".into(),
+            buildable: (0..n).map(|x| cell(x, 0)).collect(),
+            fixed: Layout::default(),
+            sources: vec![SourceDef {
+                id: SourceId(0),
+                cell: cell(0, 0),
+                dir: Dir8::W,
+                label: String::new(),
+            }],
+            sinks: vec![SinkDef {
+                id: SinkId(0),
+                cell: cell(n - 1, 0),
+                dir: Dir8::E,
+                label: "OST".into(),
+            }],
+            platforms: vec![],
+            schedule: vec![],
+            par: Par {
+                throughput: Tick(0),
+                material: 0,
+                lateness: 0,
+            },
+        };
+        (level, layout)
+    }
+
+    fn freight_entry(dwell: u64, platform: PlatformId) -> ScheduleEntry {
+        ScheduleEntry {
+            train: TrainId(0),
+            class: TrainClass(0),
+            length: Len(400),
+            speed: Speed(100),
+            source: SourceId(0),
+            sink: SinkId(0),
+            depart: Tick(0),
+            due: Tick(10_000),
+            stop: Some(PlatformStop {
+                platform,
+                dwell: Tick(dwell),
+            }),
+        }
+    }
+
+    /// A freight train that crosses its platform dwells there, then arrives.
+    /// The dwell lengthens the run by (at least) the dwell duration — the same
+    /// line without a stop finishes earlier.
+    #[test]
+    fn freight_dwells_then_arrives() {
+        let (mut level, layout) = straight(5);
+        // Platform on the eastbound walk: (2,0)'s E connector.
+        level.platforms = vec![PlatformDef {
+            id: PlatformId(0),
+            cell: cell(2, 0),
+            dir: Dir8::E,
+            label: "RAMPE".into(),
+        }];
+        level.schedule = vec![freight_entry(30, PlatformId(0))];
+
+        let mut sim = Sim::new(&level, &layout).expect("valid");
+        let outcome = sim.run(Tick(10_000));
+        assert!(matches!(outcome, Outcome::Success { .. }), "got {outcome:?}");
+        let freight_arrival = sim.arrivals()[0].1;
+
+        // Baseline: same line, same train, but no stop.
+        let (mut base_level, base_layout) = straight(5);
+        base_level.schedule = vec![{
+            let mut e = freight_entry(30, PlatformId(0));
+            e.stop = None;
+            e
+        }];
+        let mut base = Sim::new(&base_level, &base_layout).expect("valid");
+        assert!(matches!(base.run(Tick(10_000)), Outcome::Success { .. }));
+        let base_arrival = base.arrivals()[0].1;
+
+        // The stop delays arrival by ~dwell ticks (a one-tick partial-movement
+        // artifact at the platform edge makes it dwell-1 here — deterministic).
+        assert!(
+            freight_arrival.0 >= base_arrival.0 + 29,
+            "dwell (30) must delay arrival by ~30: freight {} vs baseline {}",
+            freight_arrival.0,
+            base_arrival.0
+        );
+    }
+
+    /// A freight train whose route never crosses its assigned platform reaches
+    /// the sink undelivered — a distinct failure, not a silent success.
+    #[test]
+    fn freight_bypassing_platform_is_not_delivered() {
+        let (mut level, layout) = straight(5);
+        // Platform anchored at the entry connector (0,0)W: on track, but an
+        // eastbound run never traverses center→W, so the dwell never triggers.
+        level.platforms = vec![PlatformDef {
+            id: PlatformId(0),
+            cell: cell(0, 0),
+            dir: Dir8::W,
+            label: "GEGEN".into(),
+        }];
+        level.schedule = vec![freight_entry(30, PlatformId(0))];
+
+        let mut sim = Sim::new(&level, &layout).expect("valid");
+        let outcome = sim.run(Tick(10_000));
+        assert_eq!(
+            outcome,
+            Outcome::FreightNotDelivered {
+                train: TrainId(0),
+                platform: PlatformId(0),
+            },
+            "reached the sink without dwelling at the platform"
+        );
+    }
+
+    /// A lone dwelling train must not trip the stall fallback: the dwell counts
+    /// as progress. With dwell ≫ STALL_TICKS the run would end `Stalled` if the
+    /// exemption were missing.
+    #[test]
+    fn long_dwell_does_not_stall() {
+        let (mut level, layout) = straight(5);
+        level.platforms = vec![PlatformDef {
+            id: PlatformId(0),
+            cell: cell(2, 0),
+            dir: Dir8::E,
+            label: "RAMPE".into(),
+        }];
+        level.schedule = vec![freight_entry(STALL_TICKS + 50, PlatformId(0))];
+
+        let mut sim = Sim::new(&level, &layout).expect("valid");
+        let outcome = sim.run(Tick(STALL_TICKS * 3));
+        assert!(
+            matches!(outcome, Outcome::Success { .. }),
+            "a legitimate dwell is not a stall: {outcome:?}"
+        );
     }
 }

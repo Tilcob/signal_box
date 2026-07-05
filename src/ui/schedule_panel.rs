@@ -258,6 +258,7 @@ fn schedule_clicks(
                     sink: sink.id,
                     depart,
                     due: Tick(depart.0 + 80),
+                    stop: None,
                 };
                 Some(EditOp::ScheduleInsert {
                     row: active.level.schedule.len(),

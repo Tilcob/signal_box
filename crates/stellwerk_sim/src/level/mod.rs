@@ -16,5 +16,5 @@
 mod core;
 mod meta;
 
-pub use core::{Level, Par, ScheduleEntry, SinkDef, SourceDef};
+pub use core::{Level, Par, PlatformDef, PlatformStop, ScheduleEntry, SinkDef, SourceDef};
 pub use meta::{LEVEL_SCHEMA_VERSION, LevelDef, LevelMeta};

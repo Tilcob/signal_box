@@ -283,6 +283,7 @@ mod tests {
             fixed: Layout::default(),
             sources: Vec::new(),
             sinks: Vec::new(),
+            platforms: Vec::new(),
             schedule: Vec::new(),
             par: Par {
                 throughput: Tick(0),
@@ -302,6 +303,7 @@ mod tests {
             sink: SinkId(sink),
             depart: Tick(0),
             due: Tick(80),
+            stop: None,
         }
     }
 

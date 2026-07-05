@@ -343,4 +343,31 @@ pub(super) fn draw_stations(commands: &mut Commands, font: &Handle<Font>, level:
             tag,
         );
     }
+    // Freight platforms: a drive-through dock — two gate posts flanking the
+    // track at the connector, so the train passes BETWEEN them (never a dead
+    // end like a sink's buffer stop). Its own palette colour, no text on the
+    // dock itself.
+    for platform in &level.platforms {
+        let connector = connector_world(platform.cell, platform.dir);
+        let outward = (connector - cell_world(platform.cell)).normalize_or_zero();
+        let perp = outward.perp();
+        for side in [-1.0_f32, 1.0] {
+            let base = connector + perp * side * 15.0;
+            band(
+                commands,
+                base - outward * 9.0,
+                base + outward * 9.0,
+                6.0,
+                col_platform(),
+                2.0,
+                tag,
+            );
+        }
+        let name = if platform.label.is_empty() {
+            format!("B{}", platform.id.0)
+        } else {
+            platform.label.clone()
+        };
+        label(commands, font, connector + outward * 30.0, name, 13.0, col_label(), tag);
+    }
 }

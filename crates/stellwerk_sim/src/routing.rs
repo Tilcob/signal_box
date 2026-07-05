@@ -5,7 +5,7 @@ use crate::graph::{Next, SwitchData, TrackGraph};
 use crate::grid::Cell;
 use crate::layout::{Layout, RuleWhen, ValidationError};
 use crate::level::Level;
-use crate::units::{EdgeId, SinkId, TrainClass, TrainId};
+use crate::units::{EdgeId, PlatformId, SinkId, TrainClass, TrainId};
 use std::collections::{BTreeMap, BTreeSet};
 
 /// Switch decision for a train: first matching rule wins (list order =
@@ -38,10 +38,43 @@ pub enum RouteEnd {
 /// the path a train with these properties would drive. No search, no
 /// backtracking: routing is deterministic, a route is a walk.
 pub fn walk_route(graph: &TrackGraph, start: EdgeId, class: TrainClass, sink: SinkId) -> RouteEnd {
+    walk(graph, start, class, sink, &mut Vec::new())
+}
+
+/// Like [`walk_route`], but also records — in pass order — every freight
+/// platform anchor the walk crosses *before* it ends. Because the walk stops at
+/// the first sink it reaches, a platform only appears here if it lies on the
+/// route ahead of that sink (exactly the "platform before the destination"
+/// question the freight pre-check needs).
+pub fn walk_route_platforms(
+    graph: &TrackGraph,
+    start: EdgeId,
+    class: TrainClass,
+    sink: SinkId,
+) -> (RouteEnd, Vec<PlatformId>) {
+    let mut passed = Vec::new();
+    let end = walk(graph, start, class, sink, &mut passed);
+    (end, passed)
+}
+
+fn walk(
+    graph: &TrackGraph,
+    start: EdgeId,
+    class: TrainClass,
+    sink: SinkId,
+    passed: &mut Vec<PlatformId>,
+) -> RouteEnd {
     let arrival: BTreeMap<EdgeId, SinkId> = graph.sinks.iter().map(|s| (s.arrival, s.id)).collect();
+    let platform_arrival: BTreeMap<EdgeId, PlatformId> =
+        graph.platforms.iter().map(|p| (p.arrival, p.id)).collect();
 
     let mut current = start;
     for _ in 0..=graph.edges.len() {
+        if let Some(&pid) = platform_arrival.get(&current)
+            && !passed.contains(&pid)
+        {
+            passed.push(pid);
+        }
         if let Some(&reached) = arrival.get(&current) {
             return RouteEnd::Sink(reached);
         }
@@ -54,12 +87,23 @@ pub fn walk_route(graph: &TrackGraph, start: EdgeId, class: TrainClass, sink: Si
     RouteEnd::Loops
 }
 
-/// A scheduled train that cannot reach its sink with the current switch
+/// Why a scheduled train fails the editor's pre-flight walk.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Unreached {
+    /// The walk never reaches the scheduled sink (dead end, loop, or a
+    /// different sink — see the [`RouteEnd`]).
+    Sink(RouteEnd),
+    /// Freight: the walk reaches the sink, but never crosses the assigned
+    /// platform first (missed entirely, or the platform lies past the sink).
+    Platform(PlatformId),
+}
+
+/// A scheduled train that cannot complete its trip with the current switch
 /// configuration — the editor's pre-flight warning.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Unreachable {
     pub train: TrainId,
-    pub end: RouteEnd,
+    pub reason: Unreached,
 }
 
 /// Editor pre-check: walks every scheduled train's route from its source.
@@ -75,11 +119,23 @@ pub fn check_reachability(
     let mut out = Vec::new();
     for e in &level.schedule {
         let start = entry[&e.source];
-        match walk_route(&graph, start, e.class, e.sink) {
-            RouteEnd::Sink(reached) if reached == e.sink => {}
+        let (end, passed) = walk_route_platforms(&graph, start, e.class, e.sink);
+        match end {
+            RouteEnd::Sink(reached) if reached == e.sink => {
+                // Freight: the sink is reachable, but the mandatory unload
+                // platform must lie on the route *before* it.
+                if let Some(stop) = e.stop
+                    && !passed.contains(&stop.platform)
+                {
+                    out.push(Unreachable {
+                        train: e.train,
+                        reason: Unreached::Platform(stop.platform),
+                    });
+                }
+            }
             end => out.push(Unreachable {
                 train: e.train,
-                end,
+                reason: Unreached::Sink(end),
             }),
         }
     }
@@ -273,6 +329,7 @@ mod tests {
                     label: "WEST".into(),
                 },
             ],
+            platforms: vec![],
             schedule: vec![ScheduleEntry {
                 train: TrainId(0),
                 class: TrainClass(0),
@@ -282,6 +339,7 @@ mod tests {
                 sink: SinkId(0),
                 depart: Tick(0),
                 due: Tick(200),
+                stop: None,
             }],
             par: Par {
                 throughput: Tick(0),
@@ -301,5 +359,112 @@ mod tests {
 
         // No switch on an empty cell → None, not an error.
         assert_eq!(reachable_sinks(&level, &layout, cell(2, 0)), Ok(None));
+    }
+
+    /// Freight reachability: a straight source→sink line with two platforms.
+    /// A train assigned the platform on its path passes the pre-check; one
+    /// assigned a platform its walk never crosses is flagged `Platform`.
+    #[test]
+    fn freight_check_needs_platform_before_sink() {
+        use crate::grid::Dir8;
+        use crate::layout::TrackPiece;
+        use crate::level::{Par, PlatformDef, PlatformStop, ScheduleEntry, SinkDef, SourceDef};
+        use crate::units::{Len, PlatformId, SourceId, Speed, Tick};
+
+        let cell = |x, y| Cell { x, y };
+        let line = |x| TrackPiece {
+            cell: cell(x, 0),
+            a: Dir8::W,
+            b: Dir8::E,
+        };
+        let layout = Layout {
+            pieces: vec![line(0), line(1), line(2)],
+            switches: vec![],
+            signals: vec![],
+        };
+        let mut level = Level {
+            name: "freight".into(),
+            buildable: vec![cell(0, 0), cell(1, 0), cell(2, 0)],
+            fixed: Layout::default(),
+            sources: vec![SourceDef {
+                id: SourceId(0),
+                cell: cell(0, 0),
+                dir: Dir8::W,
+                label: String::new(),
+            }],
+            sinks: vec![SinkDef {
+                id: SinkId(0),
+                cell: cell(2, 0),
+                dir: Dir8::E,
+                label: "OST".into(),
+            }],
+            platforms: vec![
+                // On the walk: the head crosses (1,0)'s E connector heading east.
+                PlatformDef {
+                    id: PlatformId(0),
+                    cell: cell(1, 0),
+                    dir: Dir8::E,
+                    label: "RAMPE".into(),
+                },
+                // Off the walk: (0,0)'s W connector is the entry, never a
+                // center→connector crossing on an eastbound run.
+                PlatformDef {
+                    id: PlatformId(1),
+                    cell: cell(0, 0),
+                    dir: Dir8::W,
+                    label: "GEGEN".into(),
+                },
+            ],
+            schedule: vec![
+                ScheduleEntry {
+                    train: TrainId(0),
+                    class: TrainClass(0),
+                    length: Len(400),
+                    speed: Speed(100),
+                    source: SourceId(0),
+                    sink: SinkId(0),
+                    depart: Tick(0),
+                    due: Tick(200),
+                    stop: Some(PlatformStop {
+                        platform: PlatformId(0),
+                        dwell: Tick(30),
+                    }),
+                },
+                ScheduleEntry {
+                    train: TrainId(1),
+                    class: TrainClass(0),
+                    length: Len(400),
+                    speed: Speed(100),
+                    source: SourceId(0),
+                    sink: SinkId(0),
+                    depart: Tick(0),
+                    due: Tick(200),
+                    stop: Some(PlatformStop {
+                        platform: PlatformId(1),
+                        dwell: Tick(30),
+                    }),
+                },
+            ],
+            par: Par {
+                throughput: Tick(0),
+                material: 0,
+                lateness: 0,
+            },
+        };
+
+        let out = check_reachability(&level, &layout).expect("valid");
+        assert_eq!(
+            out,
+            vec![Unreachable {
+                train: TrainId(1),
+                reason: Unreached::Platform(PlatformId(1)),
+            }],
+            "train 0 passes its platform; train 1's platform is off its walk"
+        );
+
+        // A passenger train (no stop) on the same line is never flagged.
+        level.schedule[1].stop = None;
+        let out = check_reachability(&level, &layout).expect("valid");
+        assert!(out.is_empty(), "no stop ⇒ no platform requirement");
     }
 }

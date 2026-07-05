@@ -318,6 +318,7 @@ mod tests {
                 dir: Dir8::E,
                 label: "OST".into(),
             }],
+            platforms: vec![],
             schedule: vec![],
             par: Par {
                 throughput: Tick(0),
@@ -399,6 +400,7 @@ mod tests {
             fixed: Layout::default(),
             sources: vec![],
             sinks: vec![],
+            platforms: vec![],
             schedule: vec![],
             par: Par {
                 throughput: Tick(0),

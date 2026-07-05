@@ -129,6 +129,10 @@ id_type!(
     SinkId
 );
 id_type!(
+    /// A freight platform defined by the level (freight trains must dwell here).
+    PlatformId
+);
+id_type!(
     /// Train class (e.g. freight, commuter) — criterion for switch rules.
     /// Deliberately an open id, not an enum: classes are level data.
     TrainClass

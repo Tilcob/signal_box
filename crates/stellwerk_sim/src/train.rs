@@ -3,8 +3,25 @@
 
 use crate::graph::TrackGraph;
 use crate::grid::Cell;
-use crate::units::{EdgeId, Len, SinkId, Speed, Tick, TrainClass, TrainId};
+use crate::units::{EdgeId, Len, PlatformId, SinkId, Speed, Tick, TrainClass, TrainId};
 use std::collections::VecDeque;
+
+/// A freight train's live unload state, seeded from its `ScheduleEntry.stop`.
+/// The dwell is a stop on *free* track (a new halt cause, distinct from a
+/// signal wait): while `dwell_remaining > 0` and `!done` the head rests at
+/// `arrival_edge`'s end, occupying its block. It must never set
+/// `Train::waiting_since` — a dwell earns no first-come signal priority.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PendingStop {
+    /// The assigned platform (for arrival gating / failure reporting).
+    pub platform: PlatformId,
+    /// Platform arrival edge (center → connector) whose end triggers the dwell.
+    pub arrival_edge: EdgeId,
+    /// Ticks still to hold before the stop is done.
+    pub dwell_remaining: Tick,
+    /// Set once the dwell has elapsed; the sink then accepts the train.
+    pub done: bool,
+}
 
 #[derive(Debug, Clone)]
 pub struct Train {
@@ -27,6 +44,8 @@ pub struct Train {
     /// Tick since when the train waits at its current red signal (first-come
     /// priority). Cleared on every crossing.
     pub waiting_since: Option<Tick>,
+    /// Freight: the mandatory unload stop, or `None` for a passenger train.
+    pub stop: Option<PendingStop>,
 }
 
 impl Train {
@@ -133,6 +152,7 @@ mod tests {
                 dir: Dir8::E,
                 label: "E".into(),
             }],
+            platforms: vec![],
             schedule: vec![ScheduleEntry {
                 train: TrainId(0),
                 class: TrainClass(0),
@@ -142,6 +162,7 @@ mod tests {
                 sink: SinkId(0),
                 depart: Tick(0),
                 due: Tick(100),
+                stop: None,
             }],
             par: Par {
                 throughput: Tick(100),
@@ -167,6 +188,7 @@ mod tests {
             head_dist: Len(0),
             passed_switches: vec![],
             waiting_since: None,
+            stop: None,
         };
         assert!(train.occupied(&graph).is_empty(), "not yet in the world");
 
@@ -193,6 +215,7 @@ mod tests {
             head_dist: Len(400), // on e1 (500 long)
             passed_switches: vec![],
             waiting_since: None,
+            stop: None,
         };
         // 400 on e1 + 400 of the entry stub [100..500].
         assert_eq!(

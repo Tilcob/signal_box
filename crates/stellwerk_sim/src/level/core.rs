@@ -7,7 +7,7 @@
 
 use crate::grid::{Cell, Dir8};
 use crate::layout::Layout;
-use crate::units::{Len, SinkId, SourceId, Speed, Tick, TrainClass, TrainId};
+use crate::units::{Len, PlatformId, SinkId, SourceId, Speed, Tick, TrainClass, TrainId};
 use serde::{Deserialize, Serialize};
 
 /// Trains enter the world here: they appear crossing into `cell` through the
@@ -37,6 +37,26 @@ pub struct SinkDef {
     pub label: String,
 }
 
+/// Trains leave freight here: a freight train must reach this platform's `dir`
+/// connector of `cell` and dwell before its sink counts as a valid arrival.
+/// Anchored like a [`SinkDef`], but the train passes *through* (no reverse).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PlatformDef {
+    pub id: PlatformId,
+    pub cell: Cell,
+    pub dir: Dir8,
+    /// Display name (platform label on the board).
+    pub label: String,
+}
+
+/// A freight train's mandatory unload stop: it must dwell `dwell` ticks the
+/// first time its head crosses `platform`'s anchor, before the sink accepts it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PlatformStop {
+    pub platform: PlatformId,
+    pub dwell: Tick,
+}
+
 /// One timetable entry. `due` is the target arrival tick — lateness beyond
 /// it feeds the punctuality score axis.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -49,6 +69,11 @@ pub struct ScheduleEntry {
     pub sink: SinkId,
     pub depart: Tick,
     pub due: Tick,
+    /// Freight: a mandatory unload stop before the sink. `None` = passenger
+    /// train (no stop). `serde(default)` keeps pre-freight level files parseable;
+    /// sharing codes carry it positionally, gated by `stellwerk_codes::VERSION`.
+    #[serde(default)]
+    pub stop: Option<PlatformStop>,
 }
 
 /// Designer reference values per score axis.
@@ -68,6 +93,10 @@ pub struct Level {
     pub fixed: Layout,
     pub sources: Vec<SourceDef>,
     pub sinks: Vec<SinkDef>,
+    /// Freight platforms. `serde(default)` keeps pre-freight RON level files
+    /// parseable; sharing codes carry it positionally (see `stellwerk_codes`).
+    #[serde(default)]
+    pub platforms: Vec<PlatformDef>,
     pub schedule: Vec<ScheduleEntry>,
     pub par: Par,
 }

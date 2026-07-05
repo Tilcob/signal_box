@@ -16,7 +16,7 @@ use crate::blocks::{self, BlockSet};
 use crate::grid::{Cell, Point};
 use crate::layout::{self, Layout, SignalKind, SwitchRule, ValidationError};
 use crate::level::Level;
-use crate::units::{EdgeId, Len, NodeId, SignalId, SinkId, SourceId};
+use crate::units::{EdgeId, Len, NodeId, PlatformId, SignalId, SinkId, SourceId};
 use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -95,6 +95,15 @@ pub struct SinkData {
     pub arrival: EdgeId,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct PlatformData {
+    pub id: PlatformId,
+    /// Arrival edge: cell center → connector point — same geometry as a sink,
+    /// but the freight train passes *through* it (the end is the dwell trigger,
+    /// not a despawn).
+    pub arrival: EdgeId,
+}
+
 #[derive(Debug, Clone)]
 pub struct TrackGraph {
     pub nodes: Vec<NodeData>,
@@ -104,6 +113,7 @@ pub struct TrackGraph {
     pub blocks: BlockSet,
     pub sources: Vec<SourceData>,
     pub sinks: Vec<SinkData>,
+    pub platforms: Vec<PlatformData>,
     /// Centre nodes of flat crossings (two pieces in one cell). The two routes
     /// are separate blocks but conflict at this point — the sim reserves it.
     pub crossing_nodes: BTreeSet<NodeId>,
@@ -321,6 +331,21 @@ pub fn build(level: &Level, player: &Layout) -> Result<TrackGraph, Vec<Validatio
             ),
         })
         .collect();
+    // Platform anchors: same center → connector edge as a sink. Anchoring is
+    // validated by layout::validate (the connector must carry track).
+    let platforms = level
+        .platforms
+        .iter()
+        .map(|platform| PlatformData {
+            id: platform.id,
+            arrival: EdgeId(
+                edge_by_pair[&(
+                    node_id[&platform.cell.center_point()],
+                    node_id[&platform.cell.connector_point(platform.dir)],
+                )],
+            ),
+        })
+        .collect();
 
     Ok(TrackGraph {
         nodes,
@@ -330,6 +355,7 @@ pub fn build(level: &Level, player: &Layout) -> Result<TrackGraph, Vec<Validatio
         blocks,
         sources,
         sinks,
+        platforms,
         crossing_nodes,
     })
 }
@@ -375,6 +401,7 @@ mod tests {
                 dir: Dir8::E,
                 label: "OST".into(),
             }],
+            platforms: vec![],
             schedule: vec![ScheduleEntry {
                 train: TrainId(0),
                 class: TrainClass(0),
@@ -384,6 +411,7 @@ mod tests {
                 sink: SinkId(0),
                 depart: Tick(0),
                 due: Tick(200),
+                stop: None,
             }],
             par: Par {
                 throughput: Tick(200),

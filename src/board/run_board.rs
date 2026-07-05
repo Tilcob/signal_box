@@ -261,6 +261,13 @@ pub(super) fn redraw_trains(
     }
     let mut buf = Vec::new();
     for train in sim.trains() {
+        // Freight reads by colour (teal), passenger stays warm white — no text.
+        let freight = train.stop.is_some();
+        let (body_col, head_col) = if freight {
+            (col_freight(), col_freight_head())
+        } else {
+            (col_train(), col_head())
+        };
         train.occupied_into(graph, &mut buf);
         for &(edge, lo, hi) in &buf {
             let data = graph.edge(edge);
@@ -272,15 +279,27 @@ pub(super) fn redraw_trains(
                 a.lerp(b, lo.0 as f32 / len),
                 a.lerp(b, hi.0 as f32 / len),
                 9.0,
-                col_train(),
+                body_col,
                 10.0,
                 Tag::Live,
             );
             commands.entity(entity).insert(TrainGfx);
         }
         let head = ctl.interpolated_head(train.id);
-        let lamp_e = lamp(&mut commands, head, 13.0, col_head(), false, 11.0, Tag::Live);
+        let lamp_e = lamp(&mut commands, head, 13.0, head_col, false, 11.0, Tag::Live);
         commands.entity(lamp_e).insert(TrainGfx);
+
+        // Dwell indicator: while a freight train is held at its platform, a ring
+        // that shrinks as the stop counts down (visual, anti-text).
+        if let Some(stop) = train.stop
+            && !stop.done
+            && train.head_edge() == stop.arrival_edge
+            && train.head_dist == graph.edge(stop.arrival_edge).len
+        {
+            let r = 16.0 + (stop.dwell_remaining.0 as f32).min(40.0) * 0.6;
+            let ring = lamp(&mut commands, head, r, col_dwell(), false, 10.5, Tag::Live);
+            commands.entity(ring).insert(TrainGfx);
+        }
     }
 
     // Number labels: retained Text2d, only moved (never respawned per frame).
