@@ -14,9 +14,9 @@ Arbeitsverzeichnis fischen, bevor er etwas teilen kann. Das ist kein
 M3-Polish, das ist der Kern-UX-Pfad des Features — und er fehlt.
 
 Drei Aufrufstellen schreiben/lesen heute Dateien:
-- [result.rs:249](../../../src/ui/result.rs) — Lösungs-Code (Ergebnisbildschirm)
+- [result.rs:249](../../../../src/ui/result.rs) — Lösungs-Code (Ergebnisbildschirm)
 - [edit_hud.rs:361](../../../src/ui/edit_hud.rs) — Level-Code (Sandbox-Export)
-- [actions.rs:57](../../../src/ui/select/actions.rs) — Import (Level-Select)
+- [actions.rs:57](../../../../src/ui/select/actions.rs) — Import (Level-Select)
 
 ## 2. Scope
 

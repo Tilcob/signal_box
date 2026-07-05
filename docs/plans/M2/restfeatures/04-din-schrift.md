@@ -8,7 +8,7 @@
 ## 1. Problem
 
 Ausgeliefert wird `assets/fonts/DejaVuSansMono.ttf`
-([font.rs:8](../../../src/font.rs)) — eine generische Monospace, die zufällig
+([font.rs:8](../../../../src/font.rs)) — eine generische Monospace, die zufällig
 Umlaute hat. **DIN-artig ist sie nicht**, und die im DoD versprochene
 „Schriftprüfung" existiert nirgends. Das Häkchen bei M2-Plan §3 (Schrift) ist
 also unbelegt: Coverage ist nicht getestet, und die Ästhetik (technische
@@ -51,7 +51,7 @@ ob die Korruption wirklich wegbleibt.
 
 ### 3.3 Mono vs. proportional — die Fahrplan-Spalten
 Der read-only Kampagnen-Fahrplan
-([schedule_panel.rs:73-88](../../../src/ui/schedule_panel.rs)) richtet Spalten
+([schedule_panel.rs:73-88](../../../../src/ui/schedule_panel.rs)) richtet Spalten
 heute über Monospace + `·`-Trenner aus. Eine proportionale DIN-Schrift bricht
 das. Zwei Wege:
 - **A (bevorzugt):** Display-Schrift mit Tabular-Ziffern + Spaltenlayout über

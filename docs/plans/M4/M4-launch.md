@@ -1,6 +1,6 @@
 # M4 — Implementierungsplan Launch
 
-> Abgeleitet aus [GDD](../../GDD.md) §12, §13, §15. GDD bleibt Single Source
+> Abgeleitet aus [GDD](../../../GDD.md) §12, §13, §15. GDD bleibt Single Source
 > of Truth.
 >
 > **Rolling-Wave:** Gröbster Plan der Reihe — er wird bei M4-Start mit den

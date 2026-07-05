@@ -6,12 +6,12 @@
 
 ## 1. Problem
 
-Undo/Redo (`Editor.undo`/`redo`, [ops.rs](../../../src/editor/ops.rs)) deckt
+Undo/Redo (`Editor.undo`/`redo`, [ops.rs](../../../../src/editor/ops.rs)) deckt
 **nur Layout-Bauaktionen** ab: Gleis, Weiche, Signal. Die sandbox-eigenen
 Mutationen am **Level** stehen daneben und sind **nicht rückgängig zu machen**:
 - Quelle/Senke setzen — [tools.rs:194-219](../../../src/editor/tools.rs)
   (`active.level.sources/sinks.push`, direkt am Level, ohne Op)
-- Fahrplan-Zeilen add/remove/edit — [schedule_panel.rs](../../../src/ui/schedule_panel.rs)
+- Fahrplan-Zeilen add/remove/edit — [schedule_panel.rs](../../../../src/ui/schedule_panel.rs)
   (`active.level.schedule…`, direkt)
 
 Ein Autorenwerkzeug ohne Undo für genau die Aktionen, die man beim
@@ -92,7 +92,7 @@ Reihenfolge: **02 vor 03**.
 - [x] Roundtrip-Tests in `ops.rs`: `invert∘apply == identity` für Schedule-,
       Station- und die Sink-Kaskaden-`Group`-Ops
 - [x] `clippy -D warnings` + Test-Suite grün (`cargo test --workspace`)
-- [x] M2-Plan §8 Notiz 2 + Modul-Doku in [editor/mod.rs](../../../src/editor/mod.rs)
+- [x] M2-Plan §8 Notiz 2 + Modul-Doku in [editor/mod.rs](../../../../src/editor/mod.rs)
       aktualisiert
 
 ## 6. Umsetzungsnotizen (Abweichungen)

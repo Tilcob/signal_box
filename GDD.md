@@ -379,9 +379,9 @@ signal_box/
 ## 13. Meilensteine (Zielrahmen 5–8 Monate)
 
 > Detaillierte Implementierungspläne pro Meilenstein liegen in `plans/`:
-> [M0](plans/M0/M0-sim-kern.md) · [M1](plans/M1/M1-vertical-slice.md) ·
-> [M2](plans/M2/M2-content-maschine.md) · [M3](plans/M3/M3-demo.md) ·
-> [M4](plans/M4/M4-launch.md). Sie konkretisieren dieses GDD, ändern es aber
+> [M0](docs/plans/M0/M0-sim-kern.md) · [M1](docs/plans/M1/M1-vertical-slice.md) ·
+> [M2](docs/plans/M2/M2-content-maschine.md) · [M3](docs/plans/M3/M3-demo.md) ·
+> [M4](docs/plans/M4/M4-launch.md). Sie konkretisieren dieses GDD, ändern es aber
 > nie — Design-Änderungen laufen immer zuerst hier durch (§18). M1–M4 sind
 > Rolling-Wave-Pläne: Sie werden beim jeweiligen Meilenstein-Start gegen den
 > realen Stand geschärft; die zugehörigen Wochen-Angaben entstehen erst dann.

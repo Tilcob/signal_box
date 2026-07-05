@@ -1,6 +1,6 @@
 # M1 — Implementierungsplan Vertical Slice
 
-> Abgeleitet aus [GDD](../../GDD.md) §5, §9, §10, §12, §13. GDD bleibt Single
+> Abgeleitet aus [GDD](../../../GDD.md) §5, §9, §10, §12, §13. GDD bleibt Single
 > Source of Truth; Design-Konflikte fließen zuerst dorthin zurück.
 >
 > **Rolling-Wave:** Dieser Plan wird bei M1-Start gegen den realen

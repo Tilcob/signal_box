@@ -1,6 +1,6 @@
 # M0 — Implementierungsplan Sim-Kern (`stellwerk_sim`)
 
-> Abgeleitet aus [GDD.md](../../GDD.md) §6, §7, §12, §13. Das GDD bleibt Single
+> Abgeleitet aus [GDD.md](../../../GDD.md) §6, §7, §12, §13. Das GDD bleibt Single
 > Source of Truth: Stößt die Implementierung auf einen Design-Konflikt, wird
 > **zuerst** das GDD geändert (inkl. Historie), dann dieser Plan, dann Code.
 >

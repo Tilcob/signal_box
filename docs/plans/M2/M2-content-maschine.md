@@ -1,6 +1,6 @@
 # M2 — Implementierungsplan Content-Maschine
 
-> Abgeleitet aus [GDD](../../GDD.md) §8, §12, §13. GDD bleibt Single Source
+> Abgeleitet aus [GDD](../../../GDD.md) §8, §12, §13. GDD bleibt Single Source
 > of Truth.
 >
 > **Rolling-Wave:** Wird bei M2-Start gegen den realen Post-M1-Stand

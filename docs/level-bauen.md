@@ -5,7 +5,7 @@ Dateiformat (mit Metadaten-Schicht, M2 §2.3), den Autorenworkflow und die
 Tests, die grün sein müssen, bevor ein Level „fertig" ist.
 
 > Hintergrund-Entscheidungen zum Format stehen im Content-Maschine-Plan
-> [plans/M2/M2-content-maschine.md](../plans/M2/M2-content-maschine.md) (§2.3).
+> [plans/M2/M2-content-maschine.md](plans/M2/M2-content-maschine.md) (§2.3).
 
 ---
 
@@ -139,7 +139,7 @@ wandert in Sharing-Codes.
 > — die Werkzeuge schreiben in `assets/`. Im Ship-Build
 > (`--no-default-features`) gibt es sie nicht.
 
-Seit dem Content-Maschine-Plan [plans/M2/M2-content-maschine.md](../plans/M2/M2-content-maschine.md)
+Seit dem Content-Maschine-Plan [plans/M2/M2-content-maschine.md](plans/M2/M2-content-maschine.md)
 ist der frühere „Code exportieren → von Hand in eine `.ron` gießen"-Umweg durch
 Werkzeuge ersetzt — zwei Editor-Knöpfe und zwei CLIs. Ausführliche CLI-Referenz
 mit Beispielen: [autoren-tools.md](autoren-tools.md).
@@ -216,7 +216,7 @@ mit Beispielen: [autoren-tools.md](autoren-tools.md).
    überschreiben. Danach die `[TODO]`-Zeilen in `en.ron` übersetzen (das Tool
    listet sie am Ende auf).
 7. **Alles grün?** `cargo test` — siehe [§4](#4-was-grün-sein-muss).
-8. **Tempo notieren** in [plans/M2/content-log.md](../plans/M2/content-log.md)
+8. **Tempo notieren** in [plans/M2/content-log.md](plans/M2/content-log.md)
    (Exit-Kriterium: < 1 Tag/Level).
 
 ### Dev-Knöpfe in der Streckenwahl (nur dev-Build)

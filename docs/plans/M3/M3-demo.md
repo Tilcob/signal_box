@@ -1,6 +1,6 @@
 # M3 — Implementierungsplan Itch Early Demo (Polish + Ship)
 
-> Abgeleitet aus [GDD](../../GDD.md) §9, §11, §13. GDD bleibt Single Source
+> Abgeleitet aus [GDD](../../../GDD.md) §9, §11, §13. GDD bleibt Single Source
 > of Truth.
 >
 > **Re-Scope (2026-06-22):** Erster Schritt von M3 ist eine **Early Demo auf

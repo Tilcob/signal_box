@@ -6,7 +6,7 @@
 
 ## 1. Problem
 
-Der Fahrplan-Editor in [schedule_panel.rs](../../../src/ui/schedule_panel.rs)
+Der Fahrplan-Editor in [schedule_panel.rs](../../../../src/ui/schedule_panel.rs)
 setzt numerische Felder über **Zyklus-Knöpfe**: `BumpDepart` springt in
 10er-Schritten modulo 200, `CycleSpeed` rotiert durch `[60,100,150,240]`,
 `CycleLength` durch `[800,1400,1800]`. Wer einen Soll-Tick von 137 oder eine
@@ -28,7 +28,7 @@ Mengen — da ist Zyklus richtig). Kein Maus-Drag-to-scrub, kein Spinner-Polish
 
 ### 3.1 Wiederverwendbares `numeric_field`-Widget
 `bevy_ui` hat kein Texteingabe-Widget — wir bauen ein minimales, fokussierbares
-Zahlenfeld in [widgets.rs](../../../src/ui/widgets.rs), damit es auch für
+Zahlenfeld in [widgets.rs](../../../../src/ui/widgets.rs), damit es auch für
 künftige Editoren (Pars, Sandbox-Größe) taugt. Ein eigenes Mini-Modul
 `ui/numeric_field.rs` (Modul-pro-Verantwortlichkeit).
 

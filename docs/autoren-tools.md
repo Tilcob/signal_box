@@ -2,7 +2,7 @@
 
 Zwei dev-only Kommandozeilen-Werkzeuge, die die manuellen Nähte beim
 Level-Bauen schließen (Content-Maschine-Plan
-[plans/M2/M2-content-maschine.md](../plans/M2/M2-content-maschine.md)).
+[plans/M2/M2-content-maschine.md](plans/M2/M2-content-maschine.md)).
 Sie sind in den [Autorenworkflow](level-bauen.md#3-der-autorenworkflow-schritt-für-schritt)
 eingebettet — hier steht die ausführliche Referenz mit Beispielen.
 
@@ -185,7 +185,7 @@ Reihenfolge beim Bauen (Details: [level-bauen.md §3](level-bauen.md#3-der-autor
 4. **`par_suggest`** (optional) → Dry-Run/Batch zum Prüfen; Par ist aus 3 schon gesetzt
 5. **`i18n_fill`** → fehlende Text-Keys ergänzen, dann `[TODO]` übersetzen
 6. `cargo test` grün ([§4](level-bauen.md#4-was-grün-sein-muss))
-7. Tempo in [content-log.md](../plans/M2/content-log.md) notieren
+7. Tempo in [content-log.md](plans/M2/content-log.md) notieren
 
 > **Bestehendes Level nachbessern:** in der Streckenwahl `SBX` neben dem Level →
 > editieren → „Speichern" überschreibt die echte `.ron` in place (mit erhaltener
