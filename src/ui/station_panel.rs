@@ -78,51 +78,86 @@ pub(super) fn rebuild_station_panel(
     let font = ui_font.0.clone();
     commands.entity(root).with_children(|panel| {
         panel.spawn(text_bundle(&font, t("stations.title"), 15.0, TEXT_BRIGHT));
-        let row = |panel: &mut ChildSpawnerCommands, prefix: String, label: &str, field: StationField| {
-            panel
-                .spawn(Node {
-                    flex_direction: FlexDirection::Row,
-                    align_items: AlignItems::Center,
+        // One editable row: id prefix + name field.
+        let row = |col: &mut ChildSpawnerCommands, prefix: String, label: &str, field: StationField| {
+            col.spawn(Node {
+                flex_direction: FlexDirection::Row,
+                align_items: AlignItems::Center,
+                ..default()
+            })
+            .with_children(|r| {
+                r.spawn(text_bundle(&font, prefix, 13.0, TEXT_DIM));
+                text_field(r, &font, label, NAME_MAX, field);
+            });
+        };
+        // Three side-by-side columns: sources, sinks, platforms. Each carries
+        // its own header and only its element kind (an empty kind shows just the
+        // header). Wrap so three columns never spill over the console.
+        panel
+            .spawn(Node {
+                flex_direction: FlexDirection::Row,
+                flex_wrap: FlexWrap::Wrap,
+                column_gap: Val::Px(16.0),
+                row_gap: Val::Px(6.0),
+                margin: UiRect::top(Val::Px(4.0)),
+                ..default()
+            })
+            .with_children(|cols| {
+                cols.spawn(Node {
+                    flex_direction: FlexDirection::Column,
                     ..default()
                 })
-                .with_children(|r| {
-                    r.spawn(text_bundle(&font, prefix, 13.0, TEXT_DIM));
-                    text_field(r, &font, label, NAME_MAX, field);
+                .with_children(|c| {
+                    c.spawn(text_bundle(&font, t("stations.sources"), 13.0, TEXT_DIM));
+                    for source in &active.level.sources {
+                        row(
+                            c,
+                            format!("Q{}", source.id.0),
+                            &source.label,
+                            StationField {
+                                kind: StationKind::Source,
+                                id: source.id.0,
+                            },
+                        );
+                    }
                 });
-        };
-        for source in &active.level.sources {
-            row(
-                panel,
-                format!("Q{}", source.id.0),
-                &source.label,
-                StationField {
-                    kind: StationKind::Source,
-                    id: source.id.0,
-                },
-            );
-        }
-        for sink in &active.level.sinks {
-            row(
-                panel,
-                format!("Z{}", sink.id.0),
-                &sink.label,
-                StationField {
-                    kind: StationKind::Sink,
-                    id: sink.id.0,
-                },
-            );
-        }
-        for platform in &active.level.platforms {
-            row(
-                panel,
-                format!("B{}", platform.id.0),
-                &platform.label,
-                StationField {
-                    kind: StationKind::Platform,
-                    id: platform.id.0,
-                },
-            );
-        }
+                cols.spawn(Node {
+                    flex_direction: FlexDirection::Column,
+                    ..default()
+                })
+                .with_children(|c| {
+                    c.spawn(text_bundle(&font, t("stations.sinks"), 13.0, TEXT_DIM));
+                    for sink in &active.level.sinks {
+                        row(
+                            c,
+                            format!("Z{}", sink.id.0),
+                            &sink.label,
+                            StationField {
+                                kind: StationKind::Sink,
+                                id: sink.id.0,
+                            },
+                        );
+                    }
+                });
+                cols.spawn(Node {
+                    flex_direction: FlexDirection::Column,
+                    ..default()
+                })
+                .with_children(|c| {
+                    c.spawn(text_bundle(&font, t("stations.platforms"), 13.0, TEXT_DIM));
+                    for platform in &active.level.platforms {
+                        row(
+                            c,
+                            format!("B{}", platform.id.0),
+                            &platform.label,
+                            StationField {
+                                kind: StationKind::Platform,
+                                id: platform.id.0,
+                            },
+                        );
+                    }
+                });
+            });
     });
 }
 

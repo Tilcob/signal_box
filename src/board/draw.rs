@@ -344,19 +344,21 @@ pub(super) fn draw_stations(commands: &mut Commands, font: &Handle<Font>, level:
         );
     }
     // Freight platforms: a drive-through dock — two gate posts flanking the
-    // track at the connector, so the train passes BETWEEN them (never a dead
-    // end like a sink's buffer stop). Its own palette colour, no text on the
-    // dock itself.
+    // track in the CENTRE of the cell (not at the rim), so the train passes
+    // BETWEEN them (never a dead end like a sink's buffer stop). The anchor
+    // `dir` still names the through-connector for the sim; only the drawing is
+    // centred. Its own palette colour, no text on the dock itself.
     for platform in &level.platforms {
-        let connector = connector_world(platform.cell, platform.dir);
-        let outward = (connector - cell_world(platform.cell)).normalize_or_zero();
-        let perp = outward.perp();
+        let center = cell_world(platform.cell);
+        // Track axis through the cell = centre → anchor connector.
+        let axis = (connector_world(platform.cell, platform.dir) - center).normalize_or_zero();
+        let perp = axis.perp();
         for side in [-1.0_f32, 1.0] {
-            let base = connector + perp * side * 15.0;
+            let base = center + perp * side * 15.0;
             band(
                 commands,
-                base - outward * 9.0,
-                base + outward * 9.0,
+                base - axis * 9.0,
+                base + axis * 9.0,
                 6.0,
                 col_platform(),
                 2.0,
@@ -368,6 +370,6 @@ pub(super) fn draw_stations(commands: &mut Commands, font: &Handle<Font>, level:
         } else {
             platform.label.clone()
         };
-        label(commands, font, connector + outward * 30.0, name, 13.0, col_label(), tag);
+        label(commands, font, center + perp * 26.0, name, 13.0, col_label(), tag);
     }
 }

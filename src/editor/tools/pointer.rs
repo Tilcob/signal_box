@@ -217,11 +217,12 @@ pub(crate) fn pointer(
             commands.trigger(crate::audio::SfxKind::BuildingSound);
         }
         Tool::Platform if active.sandbox => {
-            // A platform usually sits mid-line (interior), where
-            // `auto_station_orientation` declines — the through-direction then
-            // comes from the R/T-cycled `station_dir`.
-            let dir = auto_station_orientation(&active.level, cell)
-                .unwrap_or_else(|| station_dir(editor.variant));
+            // A platform must sit on through track, so its anchor snaps to a
+            // track stub (like a signal): hovering a rail auto-orients it, R/T
+            // cycles between the cell's stubs. No stub → nothing to place on.
+            let Some(dir) = signal_stub(merged, cell, editor.variant) else {
+                return;
+            };
             if !can_place_platform(&active.level, cell, dir) {
                 return;
             }

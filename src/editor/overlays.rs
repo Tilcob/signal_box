@@ -175,32 +175,26 @@ pub(super) fn draw_overlays(
                 }
             }
             Tool::Platform => {
-                // Same orientation rule as placement; a platform usually sits
-                // mid-line, so the R/T-cycled connector drives it.
-                let at = active
-                    .as_ref()
-                    .and_then(|a| auto_station_orientation(&a.level, cell))
-                    .unwrap_or_else(|| station_dir(editor.variant));
-                let connector = board::connector_world(cell, at);
-                // Unlike a source/sink (which you can build track toward), a
-                // platform MUST sit on through track — red the ghost when the
-                // anchor connector carries none, so an off-track drop is no
-                // surprise (the mistake this preview exists to prevent).
-                let ok = active
-                    .as_ref()
-                    .is_none_or(|a| can_place_platform(&a.level, cell, at))
-                    && merged.has_stub(cell, at);
-                let ghost = if ok {
-                    Color::srgba(0.4, 1.0, 0.6, 0.6)
-                } else {
-                    blocked
-                };
-                // Two gate posts flanking the track (mirrors `draw_stations`).
-                let outward = (connector - center).normalize_or_zero();
-                let perp = outward.perp();
-                for side in [-1.0_f32, 1.0] {
-                    let base = connector + perp * side * 15.0;
-                    gizmos.line_2d(base - outward * 9.0, base + outward * 9.0, ghost);
+                // Anchor snaps to a track stub (like a signal): the ghost only
+                // appears on a rail and auto-orients to it; R/T cycles the stubs.
+                if let Some(at) = signal_stub(merged, cell, editor.variant) {
+                    let connector = board::connector_world(cell, at);
+                    let ok = active
+                        .as_ref()
+                        .is_none_or(|a| can_place_platform(&a.level, cell, at));
+                    let ghost = if ok {
+                        Color::srgba(0.4, 1.0, 0.6, 0.6)
+                    } else {
+                        blocked
+                    };
+                    // Drawn centered on the cell (not at the rim), straddling the
+                    // track — matches `draw_stations`.
+                    let axis = (connector - center).normalize_or_zero();
+                    let perp = axis.perp();
+                    for side in [-1.0_f32, 1.0] {
+                        let base = center + perp * side * 15.0;
+                        gizmos.line_2d(base - axis * 9.0, base + axis * 9.0, ghost);
+                    }
                 }
             }
             Tool::Erase => {
