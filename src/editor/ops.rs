@@ -8,8 +8,8 @@
 
 use stellwerk_sim::grid::{Cell, Dir8};
 use stellwerk_sim::layout::{Layout, SignalDef, SwitchDef, TrackPiece};
-use stellwerk_sim::level::{Level, ScheduleEntry, SinkDef, SourceDef};
-use stellwerk_sim::units::{SinkId, SourceId};
+use stellwerk_sim::level::{Level, PlatformDef, ScheduleEntry, SinkDef, SourceDef};
+use stellwerk_sim::units::{PlatformId, SinkId, SourceId};
 
 use crate::state::Editor;
 
@@ -45,6 +45,8 @@ pub enum EditOp {
     RemoveSource(SourceDef),
     PlaceSink(SinkDef),
     RemoveSink(SinkDef),
+    PlacePlatform(PlatformDef),
+    RemovePlatform(PlatformDef),
     // Sandbox-only: flip a cell between buildable and a non-buildable block.
     // Carries the absolute target state, so undo/redo is a plain bool flip.
     SetBuildable {
@@ -60,6 +62,11 @@ pub enum EditOp {
     },
     RenameSink {
         id: SinkId,
+        before: String,
+        after: String,
+    },
+    RenamePlatform {
+        id: PlatformId,
         before: String,
         after: String,
     },
@@ -124,6 +131,8 @@ fn apply(target: &mut EditTarget, op: &EditOp) {
         EditOp::RemoveSource(s) => remove_first(&mut target.level.sources, s),
         EditOp::PlaceSink(s) => target.level.sinks.push(s.clone()),
         EditOp::RemoveSink(s) => remove_first(&mut target.level.sinks, s),
+        EditOp::PlacePlatform(p) => target.level.platforms.push(p.clone()),
+        EditOp::RemovePlatform(p) => remove_first(&mut target.level.platforms, p),
         EditOp::SetBuildable { cell, on } => {
             // buildable is a set; keep it duplicate-free so the bbox-derived
             // block rendering and the sim see one entry per cell.
@@ -143,6 +152,11 @@ fn apply(target: &mut EditTarget, op: &EditOp) {
         EditOp::RenameSink { id, after, .. } => {
             if let Some(s) = target.level.sinks.iter_mut().find(|s| s.id == *id) {
                 s.label = after.clone();
+            }
+        }
+        EditOp::RenamePlatform { id, after, .. } => {
+            if let Some(p) = target.level.platforms.iter_mut().find(|p| p.id == *id) {
+                p.label = after.clone();
             }
         }
         EditOp::ScheduleInsert { row, entry } => {
@@ -195,6 +209,8 @@ fn invert(op: &EditOp) -> EditOp {
         EditOp::RemoveSource(s) => EditOp::PlaceSource(s.clone()),
         EditOp::PlaceSink(s) => EditOp::RemoveSink(s.clone()),
         EditOp::RemoveSink(s) => EditOp::PlaceSink(s.clone()),
+        EditOp::PlacePlatform(p) => EditOp::RemovePlatform(p.clone()),
+        EditOp::RemovePlatform(p) => EditOp::PlacePlatform(p.clone()),
         EditOp::SetBuildable { cell, on } => EditOp::SetBuildable {
             cell: *cell,
             on: !*on,
@@ -205,6 +221,11 @@ fn invert(op: &EditOp) -> EditOp {
             after: before.clone(),
         },
         EditOp::RenameSink { id, before, after } => EditOp::RenameSink {
+            id: *id,
+            before: after.clone(),
+            after: before.clone(),
+        },
+        EditOp::RenamePlatform { id, before, after } => EditOp::RenamePlatform {
             id: *id,
             before: after.clone(),
             after: before.clone(),

@@ -6,7 +6,7 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use stellwerk_sim::layout::{SignalDef, SignalKind, SwitchDef};
-use stellwerk_sim::units::{SinkId, SourceId};
+use stellwerk_sim::units::{PlatformId, SinkId, SourceId};
 
 use super::commit::place_replacing;
 use super::strokes::{apply_block_stroke, apply_erase_stroke};
@@ -16,8 +16,8 @@ use crate::camera::{MainCamera, cursor_world};
 use crate::editor::MergedLayout;
 use crate::editor::ops::{EditOp, Element, do_op};
 use crate::editor::placement::{
-    Placement, auto_station_orientation, auto_switch_orientation, can_place_signal,
-    can_place_station, plan_switch, signal_stub, station_dir, switch_variants,
+    Placement, auto_station_orientation, auto_switch_orientation, can_place_platform,
+    can_place_signal, can_place_station, plan_switch, signal_stub, station_dir, switch_variants,
 };
 use crate::state::{ActiveLevel, Editor, Tool};
 
@@ -216,7 +216,29 @@ pub(crate) fn pointer(
             );
             commands.trigger(crate::audio::SfxKind::BuildingSound);
         }
-        Tool::Source | Tool::Sink => {}
+        Tool::Platform if active.sandbox => {
+            // A platform usually sits mid-line (interior), where
+            // `auto_station_orientation` declines — the through-direction then
+            // comes from the R/T-cycled `station_dir`.
+            let dir = auto_station_orientation(&active.level, cell)
+                .unwrap_or_else(|| station_dir(editor.variant));
+            if !can_place_platform(&active.level, cell, dir) {
+                return;
+            }
+            let id = PlatformId(next_id(active.level.platforms.iter().map(|p| p.id.0)));
+            do_op(
+                &mut editor,
+                &mut active.level,
+                EditOp::PlacePlatform(stellwerk_sim::level::PlatformDef {
+                    id,
+                    cell,
+                    dir,
+                    label: format!("B{}", id.0),
+                }),
+            );
+            commands.trigger(crate::audio::SfxKind::BuildingSound);
+        }
+        Tool::Source | Tool::Sink | Tool::Platform => {}
         // Sandbox case returns early above; outside the sandbox the tool is
         // unreachable (its hotkey is sandbox-gated).
         Tool::Block => {}

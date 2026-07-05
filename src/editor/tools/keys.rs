@@ -42,6 +42,9 @@ pub(crate) fn hotkeys(
     if sandbox && keys.just_pressed(KeyCode::Digit7) {
         bypass.tool = Tool::Sink;
     }
+    if sandbox && keys.just_pressed(KeyCode::Digit8) {
+        bypass.tool = Tool::Platform;
+    }
     // R = rotate left (−45°), T = rotate right (+45°) for every tool. Tracks
     // rotate their whole form through the 8 orientations; switch/signal rotate
     // their variant counter.

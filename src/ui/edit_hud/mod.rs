@@ -282,6 +282,7 @@ pub(crate) fn tool_key(tool: Tool) -> &'static str {
         Tool::Erase => "tool.erase",
         Tool::Source => "tool.source",
         Tool::Sink => "tool.sink",
+        Tool::Platform => "tool.platform",
         Tool::Block => "tool.block",
     }
 }

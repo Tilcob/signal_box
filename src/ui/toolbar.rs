@@ -45,6 +45,8 @@ const SIGGREEN: Color = Color::srgb(0.35, 0.85, 0.50);
 const RED: Color = Color::srgb(0.85, 0.35, 0.30);
 const AMBER: Color = Color::srgb(0.80, 0.60, 0.30);
 const SLATE: Color = Color::srgb(0.32, 0.30, 0.36);
+/// Freight platform dock green — mirrors the board's `col_platform`.
+const DOCK: Color = Color::srgb(0.34, 0.62, 0.45);
 
 pub(super) struct ToolbarPlugin;
 
@@ -113,6 +115,7 @@ fn spawn_toolbar(mut commands: Commands, ui_font: Res<UiFont>, active: Option<Re
                         slot(rail, &font, Tool::Block, "5");
                         slot(rail, &font, Tool::Source, "6");
                         slot(rail, &font, Tool::Sink, "7");
+                        slot(rail, &font, Tool::Platform, "8");
                     }
                     rail.spawn((text_bundle(&font, String::new(), 11.0, TEXT_DIM), RtBadge));
                 });
@@ -217,6 +220,12 @@ fn glyph(g: &mut ChildSpawnerCommands, tool: Tool) {
             bar(g, 11.0, 7.0, 8.0, 8.0, AMBER);
             bar(g, 2.0, 9.0, 7.0, 4.0, AMBER);
         }
+        Tool::Platform => {
+            // A drive-through dock: track between two gate posts.
+            bar(g, 2.0, 9.0, 18.0, 3.0, STEEL); // track through
+            bar(g, 5.0, 3.0, 3.0, 6.0, DOCK); // left post
+            bar(g, 14.0, 3.0, 3.0, 6.0, DOCK); // right post
+        }
         Tool::Block => bar(g, 4.0, 4.0, 14.0, 14.0, SLATE),
         Tool::Select => {
             g.spawn((
@@ -269,7 +278,13 @@ fn toolbar_highlight(editor: Res<Editor>, mut slots: Query<(&ToolSlot, &mut Butt
 fn toolbar_rt_badge(editor: Res<Editor>, mut badges: Query<&mut Text, With<RtBadge>>) {
     let rotatable = matches!(
         editor.tool,
-        Tool::Track | Tool::Switch | Tool::SignalBlock | Tool::SignalChain | Tool::Source | Tool::Sink
+        Tool::Track
+            | Tool::Switch
+            | Tool::SignalBlock
+            | Tool::SignalChain
+            | Tool::Source
+            | Tool::Sink
+            | Tool::Platform
     );
     if let Ok(mut text) = badges.single_mut() {
         set_text(&mut text, if rotatable { "R/T".into() } else { String::new() });

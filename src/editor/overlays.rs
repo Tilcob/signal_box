@@ -9,9 +9,9 @@ use stellwerk_sim::layout::TrackPiece;
 
 use super::Diagnostics;
 use super::placement::{
-    EraseTarget, Placement, auto_station_orientation, can_block_cell, can_place_signal,
-    can_place_station, erase_target, plan_piece, plan_switch, signal_stub, station_dir,
-    switch_variants,
+    EraseTarget, Placement, auto_station_orientation, can_block_cell, can_place_platform,
+    can_place_signal, can_place_station, erase_target, plan_piece, plan_switch, signal_stub,
+    station_dir, switch_variants,
 };
 use crate::board::{self, CELL};
 use crate::camera::{MainCamera, cursor_world};
@@ -174,6 +174,35 @@ pub(super) fn draw_overlays(
                     gizmos.line_2d(end - perp * 13.0, end + perp * 13.0, ghost);
                 }
             }
+            Tool::Platform => {
+                // Same orientation rule as placement; a platform usually sits
+                // mid-line, so the R/T-cycled connector drives it.
+                let at = active
+                    .as_ref()
+                    .and_then(|a| auto_station_orientation(&a.level, cell))
+                    .unwrap_or_else(|| station_dir(editor.variant));
+                let connector = board::connector_world(cell, at);
+                // Unlike a source/sink (which you can build track toward), a
+                // platform MUST sit on through track — red the ghost when the
+                // anchor connector carries none, so an off-track drop is no
+                // surprise (the mistake this preview exists to prevent).
+                let ok = active
+                    .as_ref()
+                    .is_none_or(|a| can_place_platform(&a.level, cell, at))
+                    && merged.has_stub(cell, at);
+                let ghost = if ok {
+                    Color::srgba(0.4, 1.0, 0.6, 0.6)
+                } else {
+                    blocked
+                };
+                // Two gate posts flanking the track (mirrors `draw_stations`).
+                let outward = (connector - center).normalize_or_zero();
+                let perp = outward.perp();
+                for side in [-1.0_f32, 1.0] {
+                    let base = connector + perp * side * 15.0;
+                    gizmos.line_2d(base - outward * 9.0, base + outward * 9.0, ghost);
+                }
+            }
             Tool::Erase => {
                 // Outline the element the next click/drag would erase, so it is
                 // clear WHAT is about to go. Connector picked from the cursor
@@ -240,6 +269,7 @@ fn draw_erase_outline(gizmos: &mut Gizmos, target: &EraseTarget) {
         EraseTarget::Block(cell) => red_cell(gizmos, *cell, red),
         EraseTarget::Source(s) => red_cell(gizmos, s.cell, red),
         EraseTarget::Sink(s) => red_cell(gizmos, s.cell, red),
+        EraseTarget::Platform(p) => red_cell(gizmos, p.cell, red),
     }
 }
 

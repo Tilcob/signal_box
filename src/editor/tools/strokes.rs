@@ -5,7 +5,7 @@
 use bevy::prelude::*;
 use stellwerk_sim::grid::{Cell, Dir8};
 use stellwerk_sim::layout::Layout;
-use stellwerk_sim::level::Level;
+use stellwerk_sim::level::{Level, ScheduleEntry};
 
 use crate::board;
 use crate::editor::ops::{EditOp, Element, do_op};
@@ -76,6 +76,28 @@ fn erase_op(editor: &Editor, active: &ActiveLevel, cell: Cell, at: Dir8) -> Opti
                 .collect();
             ops.reverse();
             ops.push(EditOp::RemoveSink(sink));
+            EditOp::Group(ops)
+        }
+        EraseTarget::Platform(platform) => {
+            // A schedule stop pointing at the removed platform would be a
+            // permanent `UnknownPlatform` error — demote those trains to
+            // passenger (clear the stop) in the same undo group as the removal.
+            let mut ops: Vec<EditOp> = active
+                .level
+                .schedule
+                .iter()
+                .enumerate()
+                .filter(|(_, e)| e.stop.is_some_and(|s| s.platform == platform.id))
+                .map(|(row, e)| EditOp::ScheduleEdit {
+                    row,
+                    before: e.clone(),
+                    after: ScheduleEntry {
+                        stop: None,
+                        ..e.clone()
+                    },
+                })
+                .collect();
+            ops.push(EditOp::RemovePlatform(platform));
             EditOp::Group(ops)
         }
         EraseTarget::Signal(signal) => EditOp::Remove(Element::Signal(signal)),

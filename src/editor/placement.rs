@@ -9,7 +9,7 @@ use std::collections::BTreeSet;
 use std::sync::LazyLock;
 use stellwerk_sim::grid::{Cell, Dir8, Point, pair_len};
 use stellwerk_sim::layout::{Layout, SignalDef, SwitchDef, TrackPiece};
-use stellwerk_sim::level::{Level, SinkDef, SourceDef};
+use stellwerk_sim::level::{Level, PlatformDef, SinkDef, SourceDef};
 
 use super::ops::Element;
 
@@ -105,6 +105,7 @@ pub(super) enum EraseTarget {
     Block(Cell),
     Source(SourceDef),
     Sink(SinkDef),
+    Platform(PlatformDef),
 }
 
 pub(super) fn erase_target(
@@ -123,6 +124,9 @@ pub(super) fn erase_target(
         }
         if let Some(sink) = level.sinks.iter().find(|s| s.cell == cell && s.dir == at) {
             return Some(EraseTarget::Sink(sink.clone()));
+        }
+        if let Some(platform) = level.platforms.iter().find(|p| p.cell == cell && p.dir == at) {
+            return Some(EraseTarget::Platform(platform.clone()));
         }
     }
     if let Some(signal) = layout
@@ -286,9 +290,24 @@ pub(super) fn station_dir(variant: i32) -> Dir8 {
 /// by another station (a connector hosts at most one entry/exit). Like the
 /// other gates this is enforced at the tool, not left for validation.
 pub(super) fn can_place_station(level: &Level, cell: Cell, at: Dir8) -> bool {
-    level.buildable.contains(&cell)
-        && !level.sources.iter().any(|s| s.cell == cell && s.dir == at)
+    level.buildable.contains(&cell) && connector_free(level, cell, at)
+}
+
+/// Sandbox freight platform: same connector rule as a station — a buildable
+/// cell's connector not already hosting a source/sink/platform. Like a station
+/// it has no track requirement at placement (validation flags an off-track
+/// anchor as `PlatformOffTrack`); unlike a station it usually sits mid-line, so
+/// its direction comes from the R/T-cycled `station_dir`, not auto-orientation.
+pub(super) fn can_place_platform(level: &Level, cell: Cell, at: Dir8) -> bool {
+    level.buildable.contains(&cell) && connector_free(level, cell, at)
+}
+
+/// True when no source, sink or platform already anchors on `(cell, at)` — a
+/// connector hosts at most one such element.
+fn connector_free(level: &Level, cell: Cell, at: Dir8) -> bool {
+    !level.sources.iter().any(|s| s.cell == cell && s.dir == at)
         && !level.sinks.iter().any(|s| s.cell == cell && s.dir == at)
+        && !level.platforms.iter().any(|p| p.cell == cell && p.dir == at)
 }
 
 #[cfg(test)]

@@ -2,8 +2,8 @@
 //! editable per-train row editor in the sandbox.
 
 use bevy::prelude::*;
-use stellwerk_sim::level::{Level, ScheduleEntry};
-use stellwerk_sim::units::{Len, SinkId, SourceId, Speed, Tick, TrainClass, TrainId};
+use stellwerk_sim::level::{Level, PlatformStop, ScheduleEntry};
+use stellwerk_sim::units::{Len, PlatformId, SinkId, SourceId, Speed, Tick, TrainClass, TrainId};
 
 use super::numeric_field::{NumericFieldCommit, numeric_field};
 use super::widgets::{TEXT_BRIGHT, TEXT_DIM, small_button, text_bundle};
@@ -21,6 +21,12 @@ const LEN_MIN: i64 = 1;
 const LEN_MAX: i64 = 9_999;
 const SPEED_MIN: i64 = 1;
 const SPEED_MAX: i64 = stellwerk_sim::units::segment_lengths::MAX_SPEED_EXCLUSIVE - 1;
+/// A stop must actually dwell, so its duration is clamped ≥ 1 tick.
+const DWELL_MIN: i64 = 1;
+/// Dwell seeded when a train first gains a freight stop.
+const DEFAULT_DWELL: u64 = 30;
+/// Row label tint for a freight train (has a platform stop).
+const FREIGHT_TINT: Color = Color::srgb(0.45, 0.78, 0.88);
 
 /// Which numeric column of a schedule row a [`NumericField`] edits.
 #[derive(Clone, Copy)]
@@ -29,6 +35,7 @@ enum SchedFieldKind {
     Due,
     Speed,
     Length,
+    Dwell,
 }
 
 /// Marker on a schedule numeric field, mapping commits back to the row/column.
@@ -50,6 +57,8 @@ pub(super) enum SchedAction {
     CycleSource(usize),
     CycleSink(usize),
     CycleClass(usize),
+    /// Cycle the freight stop: Kein Halt → B0 → B1 → … → Kein Halt.
+    CyclePlatform(usize),
 }
 
 pub(super) struct SchedulePanelPlugin;
@@ -140,11 +149,18 @@ pub(super) fn rebuild_schedule_panel(
                     ..default()
                 })
                 .with_children(|r| {
+                    // Freight rows (a platform stop) are tinted so class reads at
+                    // a glance in the timetable, matching the board's teal train.
+                    let train_tint = if entry.stop.is_some() {
+                        FREIGHT_TINT
+                    } else {
+                        TEXT_DIM
+                    };
                     r.spawn(text_bundle(
                         &font,
                         format!("{} {}", t("common.train"), entry.train.0),
                         13.0,
-                        TEXT_DIM,
+                        train_tint,
                     ));
                     small_button(
                         r,
@@ -179,11 +195,42 @@ pub(super) fn rebuild_schedule_panel(
                     field(r, "soll", entry.due.0 as i64, 0, TICK_MAX, SchedFieldKind::Due);
                     field(r, "v", entry.speed.0, SPEED_MIN, SPEED_MAX, SchedFieldKind::Speed);
                     field(r, "L", entry.length.0, LEN_MIN, LEN_MAX, SchedFieldKind::Length);
+                    // Freight stop: cycle the target platform; the dwell field
+                    // only appears once a stop is set.
+                    let stop_label = match entry.stop {
+                        None => "Halt —".to_string(),
+                        Some(s) => format!("Halt B{}", s.platform.0),
+                    };
+                    small_button(r, &font, &stop_label, SchedAction::CyclePlatform(row));
+                    if let Some(s) = entry.stop {
+                        field(r, "dwell", s.dwell.0 as i64, DWELL_MIN, TICK_MAX, SchedFieldKind::Dwell);
+                    }
                     small_button(r, &font, "dup", SchedAction::Duplicate(row));
                     small_button(r, &font, "×", SchedAction::Remove(row));
                 });
         }
     });
+}
+
+/// Cycles a freight stop `Kein Halt → B(ids[0]) → … → Kein Halt`. A fresh stop
+/// is seeded with [`DEFAULT_DWELL`]; moving between platforms keeps the current
+/// dwell. `None` (no stop) when the level defines no platforms.
+fn next_stop(cur: Option<PlatformStop>, ids: &[u32]) -> Option<PlatformStop> {
+    let first = *ids.first()?;
+    match cur {
+        None => Some(PlatformStop {
+            platform: PlatformId(first),
+            dwell: Tick(DEFAULT_DWELL),
+        }),
+        Some(s) => match ids.iter().position(|&v| v == s.platform.0) {
+            Some(i) if i + 1 < ids.len() => Some(PlatformStop {
+                platform: PlatformId(ids[i + 1]),
+                dwell: s.dwell,
+            }),
+            // Past the last platform (or an unknown one) → back to Kein Halt.
+            _ => None,
+        },
+    }
 }
 
 /// Builds a [`EditOp::ScheduleEdit`] for `row`: clones the current entry as
@@ -313,6 +360,10 @@ fn schedule_clicks(
             SchedAction::CycleClass(row) => {
                 edit_row(&active.level, row, |e| e.class = TrainClass((e.class.0 + 1) % 2))
             }
+            SchedAction::CyclePlatform(row) => {
+                let ids: Vec<u32> = active.level.platforms.iter().map(|p| p.id.0).collect();
+                edit_row(&active.level, row, |e| e.stop = next_stop(e.stop, &ids))
+            }
         };
         if let Some(op) = op {
             do_op(&mut editor, &mut active.level, op);
@@ -351,9 +402,49 @@ fn schedule_field_commits(
             SchedFieldKind::Due => e.due = Tick(value as u64),
             SchedFieldKind::Speed => e.speed = Speed(value),
             SchedFieldKind::Length => e.length = Len(value),
+            SchedFieldKind::Dwell => {
+                if let Some(s) = e.stop.as_mut() {
+                    s.dwell = Tick(value.max(DWELL_MIN) as u64);
+                }
+            }
         });
         if let Some(op) = op {
             do_op(&mut editor, level, op);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn stop_cycles_none_through_platforms_back_to_none() {
+        // No platforms → never a stop.
+        assert_eq!(next_stop(None, &[]), None);
+
+        // None → first platform, seeded with the default dwell.
+        let s0 = next_stop(None, &[10, 20]).expect("first platform");
+        assert_eq!(s0.platform, PlatformId(10));
+        assert_eq!(s0.dwell, Tick(DEFAULT_DWELL));
+
+        // Advance to the next platform, keeping the (edited) dwell.
+        let edited = PlatformStop {
+            platform: PlatformId(10),
+            dwell: Tick(55),
+        };
+        let s1 = next_stop(Some(edited), &[10, 20]).expect("second platform");
+        assert_eq!(s1.platform, PlatformId(20));
+        assert_eq!(s1.dwell, Tick(55), "dwell carries across platforms");
+
+        // Past the last platform → back to Kein Halt.
+        assert_eq!(next_stop(Some(s1), &[10, 20]), None);
+
+        // An unknown platform id (level edited underneath) → Kein Halt, no panic.
+        let stale = PlatformStop {
+            platform: PlatformId(99),
+            dwell: Tick(5),
+        };
+        assert_eq!(next_stop(Some(stale), &[10, 20]), None);
     }
 }

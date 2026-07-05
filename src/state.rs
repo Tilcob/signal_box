@@ -106,6 +106,9 @@ pub enum Tool {
     /// Sandbox only: place a source / sink on a connector.
     Source,
     Sink,
+    /// Sandbox only: place a freight platform (drive-through unload stop) on a
+    /// connector.
+    Platform,
     /// Sandbox only: toggle a cell between buildable and a non-buildable block.
     Block,
 }
@@ -114,7 +117,7 @@ impl Tool {
     /// Every variant, for exhaustive iteration (the i18n coverage checker
     /// walks these to assert each tool name resolves in both languages).
     #[cfg(test)]
-    pub const ALL: [Tool; 9] = [
+    pub const ALL: [Tool; 10] = [
         Tool::Select,
         Tool::Track,
         Tool::Switch,
@@ -123,6 +126,7 @@ impl Tool {
         Tool::Erase,
         Tool::Source,
         Tool::Sink,
+        Tool::Platform,
         Tool::Block,
     ];
 }

@@ -10,7 +10,7 @@
 //! changing (see `board::BoardPlugin`).
 
 use bevy::prelude::*;
-use stellwerk_sim::units::{SinkId, SourceId};
+use stellwerk_sim::units::{PlatformId, SinkId, SourceId};
 
 use super::numeric_field::{TextFieldCommit, text_field};
 use super::widgets::{TEXT_BRIGHT, TEXT_DIM, text_bundle};
@@ -31,6 +31,7 @@ pub(super) struct StationPanelRoot;
 enum StationKind {
     Source,
     Sink,
+    Platform,
 }
 
 /// Marker on a station name field, mapping its commit back to the station.
@@ -111,6 +112,17 @@ pub(super) fn rebuild_station_panel(
                 },
             );
         }
+        for platform in &active.level.platforms {
+            row(
+                panel,
+                format!("B{}", platform.id.0),
+                &platform.label,
+                StationField {
+                    kind: StationKind::Platform,
+                    id: platform.id.0,
+                },
+            );
+        }
     });
 }
 
@@ -151,6 +163,17 @@ fn station_field_commits(
                     after,
                 }
             }),
+            StationKind::Platform => {
+                level
+                    .platforms
+                    .iter()
+                    .find(|p| p.id.0 == id)
+                    .map(|p| EditOp::RenamePlatform {
+                        id: PlatformId(id),
+                        before: p.label.clone(),
+                        after,
+                    })
+            }
         };
         if let Some(op) = op {
             do_op(&mut editor, level, op);
