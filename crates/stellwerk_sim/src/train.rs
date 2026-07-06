@@ -17,6 +17,9 @@ pub struct PendingStop {
     pub platform: PlatformId,
     /// Platform arrival edge (center → connector) whose end triggers the dwell.
     pub arrival_edge: EdgeId,
+    /// Total dwell duration (constant, from the schedule) — lets the renderer
+    /// draw the countdown as a fraction. Derivable, so NOT part of the sim hash.
+    pub dwell_total: Tick,
     /// Ticks still to hold before the stop is done.
     pub dwell_remaining: Tick,
     /// Set once the dwell has elapsed; the sink then accepts the train.

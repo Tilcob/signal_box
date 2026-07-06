@@ -68,7 +68,7 @@
             (
                 train: (0),
                 class: (0),
-                length: (400),
+                length: (420),
                 speed: (100),
                 source: (0),
                 sink: (0),
@@ -79,7 +79,7 @@
             (
                 train: (1),
                 class: (0),
-                length: (400),
+                length: (420),
                 speed: (100),
                 source: (0),
                 sink: (0),

@@ -1058,7 +1058,7 @@
             (
                 train: (0),
                 class: (0),
-                length: (1500),
+                length: (1520),
                 speed: (100),
                 source: (0),
                 sink: (0),
@@ -1068,7 +1068,7 @@
             (
                 train: (1),
                 class: (0),
-                length: (2000),
+                length: (1960),
                 speed: (100),
                 source: (1),
                 sink: (1),
@@ -1078,7 +1078,7 @@
             (
                 train: (2),
                 class: (0),
-                length: (2000),
+                length: (1960),
                 speed: (100),
                 source: (2),
                 sink: (2),
@@ -1088,7 +1088,7 @@
             (
                 train: (3),
                 class: (0),
-                length: (2000),
+                length: (1960),
                 speed: (100),
                 source: (3),
                 sink: (3),
@@ -1098,7 +1098,7 @@
             (
                 train: (4),
                 class: (0),
-                length: (2000),
+                length: (1960),
                 speed: (100),
                 source: (4),
                 sink: (4),
@@ -1106,6 +1106,6 @@
                 due: (227),
             ),
         ],
-        par: (throughput: (219), material: 15, lateness: 0),
+        par: (throughput: (220), material: 15, lateness: 0),
     ),
 )

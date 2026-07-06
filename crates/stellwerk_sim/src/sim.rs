@@ -328,6 +328,7 @@ impl Sim {
             let stop = e.stop.map(|s| PendingStop {
                 platform: s.platform,
                 arrival_edge: self.platform_arrival[&s.platform],
+                dwell_total: s.dwell,
                 dwell_remaining: s.dwell,
                 done: false,
             });

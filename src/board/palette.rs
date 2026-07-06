@@ -6,7 +6,7 @@
 
 use bevy::prelude::*;
 use std::sync::LazyLock;
-use stellwerk_sim::units::BlockId;
+use stellwerk_sim::units::{BlockId, TrainClass};
 
 /// Mirrors the camera's `STELLWERK_BLOOM` check (same env contract): when the
 /// HDR/bloom path is active, lit colours pass through raw; otherwise they are
@@ -73,22 +73,42 @@ pub fn col_occupied() -> Color {
 pub fn col_reserved() -> Color {
     lit(1.3, 0.95, 0.20)
 }
-pub fn col_train() -> Color {
-    lit(2.4, 1.9, 1.1)
+/// Wagon body colour per train class (the class read is colour + head SHAPE, so
+/// colour is never the sole carrier — GDD accessibility). Known campaign classes
+/// get fixed hues; any other class id falls back to a golden-angle hue so it is
+/// still distinct. `0` Nahverkehr = blue · `1` Güter = green · `2` Express = orange.
+pub fn col_class_wagon(class: TrainClass) -> Color {
+    match class.0 {
+        0 => lit(0.40, 0.90, 1.90),
+        1 => lit(0.30, 1.40, 0.60),
+        2 => lit(2.10, 1.10, 0.28),
+        n => {
+            let hue = (n as f32 * 137.508).rem_euclid(360.0);
+            Color::hsl(hue, 0.60, 0.50)
+        }
+    }
 }
-pub fn col_head() -> Color {
-    lit(4.0, 3.2, 1.8)
+/// Locomotive colour — the brighter front of [`col_class_wagon`].
+pub fn col_class_loco(class: TrainClass) -> Color {
+    match class.0 {
+        0 => lit(0.70, 1.60, 3.40),
+        1 => lit(0.50, 2.40, 1.00),
+        2 => lit(3.40, 1.80, 0.40),
+        n => {
+            let hue = (n as f32 * 137.508).rem_euclid(360.0);
+            Color::hsl(hue, 0.72, 0.62)
+        }
+    }
 }
-/// Freight train body: a cool teal, clearly not the warm-white passenger train
-/// ([`col_train`]) — the class read is by colour, no text (anti-text principle).
-pub fn col_freight() -> Color {
-    lit(0.9, 1.7, 2.2)
+/// Coupling between cars — darker than any wagon so it reads as a notch/joint.
+pub fn col_coupling() -> Color {
+    Color::srgb(0.09, 0.09, 0.11)
 }
-/// Freight train head lamp — the brighter tip of [`col_freight`].
-pub fn col_freight_head() -> Color {
-    lit(1.6, 3.0, 3.8)
+/// Freight cargo fill inside a gondola wagon — a clear dark grey (bulk material).
+pub fn col_cargo() -> Color {
+    Color::srgb(0.30, 0.30, 0.33)
 }
-/// Shrinking dwell ring drawn at a freight train halted at its platform.
+/// Dwell timer disc drawn on a freight train halted at its platform.
 pub fn col_dwell() -> Color {
     lit(2.6, 2.0, 0.4)
 }

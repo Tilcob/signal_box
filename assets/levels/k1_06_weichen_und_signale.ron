@@ -301,7 +301,7 @@
             (
                 train: (0),
                 class: (0),
-                length: (800),
+                length: (860),
                 speed: (100),
                 source: (0),
                 sink: (0),
@@ -311,7 +311,7 @@
             (
                 train: (1),
                 class: (0),
-                length: (800),
+                length: (860),
                 speed: (100),
                 source: (0),
                 sink: (1),
@@ -321,7 +321,7 @@
             (
                 train: (2),
                 class: (0),
-                length: (800),
+                length: (860),
                 speed: (100),
                 source: (1),
                 sink: (2),

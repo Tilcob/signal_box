@@ -200,7 +200,7 @@
             (
                 train: (0),
                 class: (0),
-                length: (800),
+                length: (860),
                 speed: (100),
                 source: (0),
                 sink: (0),
@@ -210,7 +210,7 @@
             (
                 train: (1),
                 class: (0),
-                length: (800),
+                length: (860),
                 speed: (130),
                 source: (1),
                 sink: (1),
@@ -218,6 +218,6 @@
                 due: (71),
             ),
         ],
-        par: (throughput: (64), material: 6, lateness: 0),
+        par: (throughput: (65), material: 6, lateness: 0),
     ),
 )

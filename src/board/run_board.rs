@@ -42,6 +42,52 @@ pub(super) struct BlockBand {
 const PULSE_SECS: f32 = 0.45;
 const PULSE_BOOST: f32 = 0.6;
 
+// Train body layout, all in LE (1000 LE = one cell). A train is a locomotive
+// plus N wagons, with a coupling between every unit: Loco · [coupling · Wagon]×N.
+// The sim only sees `length` = LOCO_LEN + N·SLOT.
+const LOCO_LEN: f32 = 200.0;
+const WAGON_LEN: f32 = 200.0;
+const COUPLING_LEN: f32 = 20.0;
+const SLOT: f32 = WAGON_LEN + COUPLING_LEN;
+// Band widths (px) — the loco a tick wider than a wagon, the coupling thinner.
+const LOCO_W: f32 = 11.0;
+const WAGON_W: f32 = 9.0;
+const COUPLING_W: f32 = 6.0;
+const CARGO_W: f32 = 5.0;
+/// LE trimmed off each end of a freight wagon for the inset cargo fill.
+const CARGO_INSET: f32 = 25.0;
+
+/// Draws the body sub-interval `[d0, d1]` (LE from the head) as one or more
+/// bands. `segs` is the body polyline head-first: `(head-near point, tail-near
+/// point, segment length LE)`. Clips the interval per segment, so a slice may
+/// span several track edges/curves.
+fn body_slice(
+    commands: &mut Commands,
+    segs: &[(Vec2, Vec2, f32)],
+    d0: f32,
+    d1: f32,
+    width: f32,
+    color: Color,
+    z: f32,
+) {
+    let mut cursor = 0.0;
+    for &(head_pt, tail_pt, len) in segs {
+        let (seg_start, seg_end) = (cursor, cursor + len);
+        cursor = seg_end;
+        if len <= 0.0 {
+            continue;
+        }
+        let lo = d0.max(seg_start);
+        let hi = d1.min(seg_end);
+        if hi > lo {
+            let a = head_pt.lerp(tail_pt, (lo - seg_start) / len);
+            let b = head_pt.lerp(tail_pt, (hi - seg_start) / len);
+            let ent = band(commands, a, b, width, color, z, Tag::Live);
+            commands.entity(ent).insert(TrainGfx);
+        }
+    }
+}
+
 /// Scales a colour's linear channels up by `k` — a transient brightening for
 /// the route-formation pulse. Works with bloom on (more bloom) or off
 /// (the palette is already tonemapped into gamut).
@@ -245,6 +291,7 @@ pub(super) fn redraw_trains(
     ui_font: Res<UiFont>,
     bodies: Query<Entity, With<TrainGfx>>,
     mut labels: Query<(Entity, &TrainLabel, &mut Transform)>,
+    mut gizmos: Gizmos,
     ctl: Option<Res<RunCtl>>,
 ) {
     let Some(ctl) = ctl else {
@@ -260,45 +307,101 @@ pub(super) fn redraw_trains(
         commands.entity(e).despawn();
     }
     let mut buf = Vec::new();
+    let mut segs: Vec<(Vec2, Vec2, f32)> = Vec::new();
     for train in sim.trains() {
-        // Freight reads by colour (teal), passenger stays warm white — no text.
-        let freight = train.stop.is_some();
-        let (body_col, head_col) = if freight {
-            (col_freight(), col_freight_head())
-        } else {
-            (col_train(), col_head())
-        };
+        let class = train.class;
+        let loco_col = col_class_loco(class);
+        // Body polyline head-first: `hi` is the head-near end of each edge (the
+        // train travels from→to, head toward `to`).
         train.occupied_into(graph, &mut buf);
+        segs.clear();
         for &(edge, lo, hi) in &buf {
             let data = graph.edge(edge);
-            let a = point_world(graph.node(data.from).point);
-            let b = point_world(graph.node(data.to).point);
+            let wf = point_world(graph.node(data.from).point);
+            let wt = point_world(graph.node(data.to).point);
             let len = data.len.0 as f32;
-            let entity = band(
-                &mut commands,
-                a.lerp(b, lo.0 as f32 / len),
-                a.lerp(b, hi.0 as f32 / len),
-                9.0,
-                body_col,
-                10.0,
-                Tag::Live,
-            );
-            commands.entity(entity).insert(TrainGfx);
+            if len <= 0.0 {
+                continue;
+            }
+            let head_pt = wf.lerp(wt, hi.0 as f32 / len);
+            let tail_pt = wf.lerp(wt, lo.0 as f32 / len);
+            segs.push((head_pt, tail_pt, (hi.0 - lo.0) as f32));
         }
+        // Loco (bright front), then each wagon behind its darker coupling. A slice
+        // past the tail draws nothing, so a partial last wagon clips cleanly.
+        body_slice(&mut commands, &segs, 0.0, LOCO_LEN, LOCO_W, loco_col, 10.1);
+        let wagon_col = col_class_wagon(class);
+        let wagons = (((train.length.0 - LOCO_LEN as i64).max(0)) as f32 / SLOT).round() as usize;
+        for i in 0..wagons {
+            let base = LOCO_LEN + i as f32 * SLOT;
+            body_slice(&mut commands, &segs, base, base + COUPLING_LEN, COUPLING_W, col_coupling(), 10.0);
+            body_slice(&mut commands, &segs, base + COUPLING_LEN, base + SLOT, WAGON_W, wagon_col, 10.0);
+            // Freight (class 1): inset grey cargo → open gondola look.
+            if class.0 == 1 {
+                body_slice(
+                    &mut commands,
+                    &segs,
+                    base + COUPLING_LEN + CARGO_INSET,
+                    base + SLOT - CARGO_INSET,
+                    CARGO_W,
+                    col_cargo(),
+                    10.3,
+                );
+            }
+        }
+        // Loco head marker (class silhouette) at the interpolated head — the
+        // second, colour-blind-safe class cue. 0 square · 1 diamond · 2 chevron.
         let head = ctl.interpolated_head(train.id);
-        let lamp_e = lamp(&mut commands, head, 13.0, head_col, false, 11.0, Tag::Live);
-        commands.entity(lamp_e).insert(TrainGfx);
+        match class.0 {
+            1 => {
+                let e = lamp(&mut commands, head, 13.0, loco_col, true, 11.0, Tag::Live);
+                commands.entity(e).insert(TrainGfx);
+            }
+            2 => {
+                let d = graph.edge(train.head_edge());
+                let dir = (point_world(graph.node(d.to).point)
+                    - point_world(graph.node(d.from).point))
+                .normalize_or_zero();
+                let perp = dir.perp();
+                let back = head - dir * 9.0;
+                for e in [
+                    band(&mut commands, head, back + perp * 7.2, 3.0, loco_col, 11.0, Tag::Live),
+                    band(&mut commands, head, back - perp * 7.2, 3.0, loco_col, 11.0, Tag::Live),
+                ] {
+                    commands.entity(e).insert(TrainGfx);
+                }
+            }
+            _ => {
+                let e = lamp(&mut commands, head, 13.0, loco_col, false, 11.0, Tag::Live);
+                commands.entity(e).insert(TrainGfx);
+            }
+        }
 
-        // Dwell indicator: while a freight train is held at its platform, a ring
-        // that shrinks as the stop counts down (visual, anti-text).
+        // Dwell timer: while a freight train unloads at its platform, a yellow
+        // disc sits on the head and empties clockwise from 12 o'clock as the stop
+        // counts down; the eaten wedge is transparent (reveals the board). Drawn
+        // as a gizmo fan of radii — renders on top, no per-frame sprite churn.
+        // ponytail: steps per tick (10 Hz); smooth via the tick fraction if it
+        // ever looks choppy.
         if let Some(stop) = train.stop
             && !stop.done
+            && stop.dwell_total.0 > 0
             && train.head_edge() == stop.arrival_edge
             && train.head_dist == graph.edge(stop.arrival_edge).len
         {
-            let r = 16.0 + (stop.dwell_remaining.0 as f32).min(40.0) * 0.6;
-            let ring = lamp(&mut commands, head, r, col_dwell(), false, 10.5, Tag::Live);
-            commands.entity(ring).insert(TrainGfx);
+            use std::f32::consts::{FRAC_PI_2, TAU};
+            let f = stop.dwell_remaining.0 as f32 / stop.dwell_total.0 as f32;
+            const R: f32 = 11.0;
+            // Remaining sector: starts where the (clockwise) eaten wedge ends and
+            // sweeps clockwise back to 12 o'clock.
+            let start = FRAC_PI_2 - (1.0 - f) * TAU;
+            let sweep = f * TAU;
+            let segs = ((128.0 * f).ceil() as usize).max(2);
+            let col = col_dwell();
+            for k in 0..=segs {
+                let a = start - (k as f32 / segs as f32) * sweep;
+                gizmos.line_2d(head, head + Vec2::from_angle(a) * R, col);
+            }
         }
     }
 

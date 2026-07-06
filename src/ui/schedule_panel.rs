@@ -19,8 +19,6 @@ use crate::state::{ActiveLevel, Editor, GameState, TimetableHovered};
 // ticks are non-negative, lengths positive, and speed must stay below the
 // shortest edge (anti-tunneling, `MAX_SPEED_EXCLUSIVE`).
 const TICK_MAX: i64 = 99_999;
-const LEN_MIN: i64 = 1;
-const LEN_MAX: i64 = 9_999;
 const SPEED_MIN: i64 = 1;
 const SPEED_MAX: i64 = stellwerk_sim::units::segment_lengths::MAX_SPEED_EXCLUSIVE - 1;
 /// A stop must actually dwell, so its duration is clamped ≥ 1 tick.
@@ -29,6 +27,22 @@ const DWELL_MIN: i64 = 1;
 const DEFAULT_DWELL: u64 = 30;
 /// Row label tint for a freight train (has a platform stop).
 const FREIGHT_TINT: Color = Color::srgb(0.45, 0.78, 0.88);
+
+// Trains are authored as a wagon COUNT, not a raw LE length: a train is a
+// locomotive (200 LE) plus N wagons of 200 LE each with a 20 LE coupling before
+// every wagon, so `length = 200 + 220·N`. The renderer (`board::run_board`) uses
+// the same 200/220 split.
+const WAGON_MIN: i64 = 1;
+const WAGON_MAX: i64 = 20;
+
+/// Wagon count for a stored LE length (rounded; the loco is not a wagon).
+fn length_to_wagons(length_le: i64) -> i64 {
+    (((length_le - 200) as f32 / 220.0).round() as i64).clamp(WAGON_MIN, WAGON_MAX)
+}
+/// LE length for a wagon count.
+fn wagons_to_length(n: i64) -> i64 {
+    200 + 220 * n.clamp(WAGON_MIN, WAGON_MAX)
+}
 
 /// Which numeric column of a schedule row a [`NumericField`] edits.
 #[derive(Clone, Copy)]
@@ -189,7 +203,7 @@ pub(super) fn rebuild_schedule_panel(
                             t("schedule.speed"),
                             entry.speed.0,
                             t("schedule.length"),
-                            entry.length.0,
+                            length_to_wagons(entry.length.0),
                         ),
                         13.0,
                         TEXT_DIM,
@@ -258,7 +272,15 @@ pub(super) fn rebuild_schedule_panel(
                     field(r, "ab", entry.depart.0 as i64, 0, TICK_MAX, SchedFieldKind::Depart);
                     field(r, "soll", entry.due.0 as i64, 0, TICK_MAX, SchedFieldKind::Due);
                     field(r, "v", entry.speed.0, SPEED_MIN, SPEED_MAX, SchedFieldKind::Speed);
-                    field(r, "L", entry.length.0, LEN_MIN, LEN_MAX, SchedFieldKind::Length);
+                    // Length is chosen as a wagon COUNT; converted to LE on commit.
+                    field(
+                        r,
+                        "Wg",
+                        length_to_wagons(entry.length.0),
+                        WAGON_MIN,
+                        WAGON_MAX,
+                        SchedFieldKind::Length,
+                    );
                     // Freight stop: cycle the target platform; the dwell field
                     // only appears once a stop is set.
                     let stop_label = match entry.stop {
@@ -466,7 +488,7 @@ fn schedule_field_commits(
             SchedFieldKind::Depart => e.depart = Tick(value as u64),
             SchedFieldKind::Due => e.due = Tick(value as u64),
             SchedFieldKind::Speed => e.speed = Speed(value),
-            SchedFieldKind::Length => e.length = Len(value),
+            SchedFieldKind::Length => e.length = Len(wagons_to_length(value)),
             SchedFieldKind::Dwell => {
                 if let Some(s) = e.stop.as_mut() {
                     s.dwell = Tick(value.max(DWELL_MIN) as u64);
