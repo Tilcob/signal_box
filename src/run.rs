@@ -40,6 +40,18 @@ impl RunCtl {
         let prev = self.heads_prev.get(&id).copied().unwrap_or(curr);
         prev.lerp(curr, self.acc.clamp(0.0, 1.0))
     }
+
+    /// How far (world px) the drawn head should sit *behind* the current-tick
+    /// head, to be walked back ALONG the path by the renderer. It is the same
+    /// sub-tick lag as [`Self::interpolated_head`], but as an arc-length so the
+    /// body follows the rail through a bend instead of being rigidly translated
+    /// across the corner chord (the old source of the curve jitter). Zero for a
+    /// stopped train (`prev == curr`), so a halted train never creeps.
+    pub fn head_lag_px(&self, id: TrainId) -> f32 {
+        let curr = self.heads_curr.get(&id).copied().unwrap_or_default();
+        let prev = self.heads_prev.get(&id).copied().unwrap_or(curr);
+        (1.0 - self.acc.clamp(0.0, 1.0)) * prev.distance(curr)
+    }
 }
 
 fn head_world(graph: &TrackGraph, train: &Train) -> Vec2 {
@@ -174,6 +186,24 @@ fn tick(
         ctl.heads_prev = std::mem::take(&mut ctl.heads_curr);
         let events: Vec<SimEvent> = ctl.sim.step().to_vec();
         ctl.heads_curr = heads(&ctl.sim);
+        // Seed a just-spawned train's *previous* head at its source point
+        // (head_dist 0 on the entry edge = the board-edge connector, the "tunnel
+        // mouth"). Without this it has no prev this tick, interpolation collapses
+        // to prev = curr, and a whole tick-worth of body pops in at once. Seeded,
+        // the first frame glides it out of the mouth — and since the sim already
+        // grows the body from the source, it emerges cleanly from length zero.
+        let seeds: Vec<(TrainId, Vec2)> = {
+            let graph = ctl.sim.graph();
+            ctl.sim
+                .trains()
+                .iter()
+                .filter(|t| !ctl.heads_prev.contains_key(&t.id))
+                .map(|t| (t.id, point_world(graph.node(graph.edge(t.head_edge()).from).point)))
+                .collect()
+        };
+        for (id, mouth) in seeds {
+            ctl.heads_prev.insert(id, mouth);
+        }
         for event in events {
             match event {
                 SimEvent::TrainSpawned(_) => {

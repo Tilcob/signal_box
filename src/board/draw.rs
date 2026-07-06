@@ -14,7 +14,9 @@ use stellwerk_sim::units::BlockId;
 /// validate, in which case bands fall back to their flat colour.
 pub(super) type BlockColors = BTreeMap<(Cell, Dir8), BlockId>;
 
-use super::geometry::{CELL, blocked_cells, cell_world, connector_world, platform_dock};
+use super::geometry::{
+    CELL, FILLET_INSET, FILLET_STEPS, blocked_cells, cell_world, connector_world, platform_dock,
+};
 use super::palette::*;
 use crate::i18n::{dir_label, sink_label, source_label};
 
@@ -166,24 +168,34 @@ pub(super) fn draw_layout(
     };
     for piece in &layout.pieces {
         let center = cell_world(piece.cell);
-        band(
-            commands,
-            connector_world(piece.cell, piece.a),
-            center,
-            7.0,
-            band_color(piece.cell, piece.a),
-            2.0,
-            tag,
-        );
-        band(
-            commands,
-            connector_world(piece.cell, piece.b),
-            center,
-            7.0,
-            band_color(piece.cell, piece.b),
-            2.0,
-            tag,
-        );
+        let ca = connector_world(piece.cell, piece.a);
+        let cb = connector_world(piece.cell, piece.b);
+        let col_a = band_color(piece.cell, piece.a);
+        let col_b = band_color(piece.cell, piece.b);
+        // Fillet a bend so the edit board matches the filleted run rail (and the
+        // train sweeping it). Straight/degenerate pieces keep their two legs.
+        let bend = ((ca - center).try_normalize())
+            .zip((cb - center).try_normalize())
+            .filter(|(da, db)| da.dot(*db) > -0.99);
+        let Some((da, db)) = bend else {
+            band(commands, ca, center, 7.0, col_a, 2.0, tag);
+            band(commands, cb, center, 7.0, col_b, 2.0, tag);
+            continue;
+        };
+        let d = FILLET_INSET.min(center.distance(ca) * 0.5).min(center.distance(cb) * 0.5);
+        let (ta, tb) = (center + da * d, center + db * d);
+        band(commands, ca, ta, 7.0, col_a, 2.0, tag);
+        band(commands, cb, tb, 7.0, col_b, 2.0, tag);
+        // Corner arc ta → centre(control) → tb; recolour at the midpoint chord.
+        let mut prev = ta;
+        for s in 1..=FILLET_STEPS {
+            let t = s as f32 / FILLET_STEPS as f32;
+            let mt = 1.0 - t;
+            let p = ta * (mt * mt) + center * (2.0 * mt * t) + tb * (t * t);
+            let col = if t <= 0.5 { col_a } else { col_b };
+            band(commands, prev, p, 7.0, col, 2.0, tag);
+            prev = p;
+        }
     }
     for switch in &layout.switches {
         let center = cell_world(switch.cell);

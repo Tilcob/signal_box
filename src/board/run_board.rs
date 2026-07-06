@@ -14,13 +14,13 @@
 use bevy::prelude::*;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use stellwerk_sim::Sim;
-use stellwerk_sim::graph::{Next, TrackGraph};
+use stellwerk_sim::graph::{Next, NodeKind, TrackGraph};
 use stellwerk_sim::grid::{Cell, Dir8, Point};
 use stellwerk_sim::layout::SignalKind;
-use stellwerk_sim::units::{BlockId, EdgeId, TrainId};
+use stellwerk_sim::units::{BlockId, EdgeId, NodeId, TrainId};
 
 use super::draw::{Tag, band, draw_blocks, draw_stations, lamp, label, signal_arrow, signal_pos};
-use super::geometry::{CELL, cell_world, point_world};
+use super::geometry::{CELL, FILLET_INSET, FILLET_STEPS, cell_world, fillet_polyline, point_world};
 use super::palette::*;
 use crate::font::UiFont;
 use crate::run::RunCtl;
@@ -57,21 +57,24 @@ const CARGO_W: f32 = 5.0;
 /// LE trimmed off each end of a freight wagon for the inset cargo fill.
 const CARGO_INSET: f32 = 25.0;
 
+/// A train's drawable body polyline, head-first: `segs` is `(head-near point,
+/// tail-near point, segment length LE)`; `max_d` caps drawing at the real tail.
+/// The strand is padded past the tail (fillet math + lag slide room), but a
+/// slice must never spill onto that pad — otherwise a still-emerging (just-
+/// spawned) train draws its full length onto the fake extension instead of
+/// growing in.
+struct Body<'a> {
+    segs: &'a [(Vec2, Vec2, f32)],
+    max_d: f32,
+}
+
 /// Draws the body sub-interval `[d0, d1]` (LE from the head) as one or more
-/// bands. `segs` is the body polyline head-first: `(head-near point, tail-near
-/// point, segment length LE)`. Clips the interval per segment, so a slice may
-/// span several track edges/curves.
-fn body_slice(
-    commands: &mut Commands,
-    segs: &[(Vec2, Vec2, f32)],
-    d0: f32,
-    d1: f32,
-    width: f32,
-    color: Color,
-    z: f32,
-) {
+/// bands, clipping the interval per segment (so a slice may span several track
+/// edges/curves) and capping at [`Body::max_d`].
+fn body_slice(commands: &mut Commands, body: &Body, d0: f32, d1: f32, width: f32, color: Color, z: f32) {
+    let d1 = d1.min(body.max_d);
     let mut cursor = 0.0;
-    for &(head_pt, tail_pt, len) in segs {
+    for &(head_pt, tail_pt, len) in body.segs {
         let (seg_start, seg_end) = (cursor, cursor + len);
         cursor = seg_end;
         if len <= 0.0 {
@@ -86,6 +89,23 @@ fn body_slice(
             commands.entity(ent).insert(TrainGfx);
         }
     }
+}
+
+/// World point at arc-length `s` (LE) along the head-first body polyline,
+/// clamped to the strand's ends. Lets the head marker / label ride the same
+/// on-path interpolated position the body is drawn from.
+fn point_at(segs: &[(Vec2, Vec2, f32)], s: f32) -> Vec2 {
+    let mut cursor = 0.0;
+    for &(a, b, len) in segs {
+        if len <= 0.0 {
+            continue;
+        }
+        if s <= cursor + len {
+            return a.lerp(b, ((s - cursor) / len).clamp(0.0, 1.0));
+        }
+        cursor += len;
+    }
+    segs.last().map_or(Vec2::ZERO, |&(_, b, _)| b)
 }
 
 /// Scales a colour's linear channels up by `k` — a transient brightening for
@@ -173,27 +193,102 @@ pub(super) fn spawn_run_board_static(
     }
     draw_stations(&mut commands, &font, &active.level, Tag::Live);
 
-    // One band per canonical edge, tagged with its block for live recolouring.
-    for (i, edge) in graph.edges.iter().enumerate() {
-        if edge.opposite.0 < i as u32 {
-            continue; // canonical direction only
-        }
-        let block = graph.blocks.block_of(EdgeId(i as u32));
+    // Bands, tagged with their block for live recolouring. A plain piece bend
+    // (a non-switch Centre node with exactly two legs) is filleted: both legs
+    // are pulled back to tangent points and the corner bridged by short chords,
+    // so the rail — and the train riding it — sweeps the turn instead of
+    // snapping around a hard elbow. Switch/crossing centres (≠2 legs) and
+    // straight pass-throughs keep their full-length legs. Every stub and chord
+    // still carries `BlockBand`, so live recolour is unaffected.
+    let spawn_band = |commands: &mut Commands, a: Vec2, b: Vec2, block: BlockId| {
         let (color, width) = band_style(block, &occupied, &reserved);
-        let entity = band(
-            &mut commands,
-            point_world(graph.node(edge.from).point),
-            point_world(graph.node(edge.to).point),
-            width,
-            color,
-            2.0,
-            Tag::Live,
-        );
+        let entity = band(commands, a, b, width, color, 2.0, Tag::Live);
         commands.entity(entity).insert(BlockBand {
             block,
             reserved_was: reserved.contains(&block),
             pulse: 0.0,
         });
+    };
+
+    /// A plain-piece bend to round: its centre `c` and the two tangent points
+    /// (`ta` on `a_node`'s leg, `tb` on `b_node`'s leg), with the shared block.
+    struct Corner {
+        c: Vec2,
+        ta: Vec2,
+        tb: Vec2,
+        a_node: u32,
+        b_node: u32,
+        block: BlockId,
+    }
+    // Centre node -> its incident legs as (connector node, canonical edge).
+    let mut center_legs: BTreeMap<u32, Vec<(u32, u32)>> = BTreeMap::new();
+    for (i, edge) in graph.edges.iter().enumerate() {
+        if matches!(graph.node(edge.from).kind, NodeKind::Center { .. }) {
+            let canon = (i as u32).min(edge.opposite.0);
+            center_legs.entry(edge.from.0).or_default().push((edge.to.0, canon));
+        }
+    }
+    let mut corners: BTreeMap<u32, Corner> = BTreeMap::new();
+    for (&center, legs) in &center_legs {
+        if legs.len() != 2 {
+            continue; // switch, flat crossing or stub — leave the elbow alone
+        }
+        if matches!(graph.node(NodeId(center)).kind, NodeKind::Center { switch: Some(_) }) {
+            continue;
+        }
+        let c = point_world(graph.node(NodeId(center)).point);
+        let pa = point_world(graph.node(NodeId(legs[0].0)).point);
+        let pb = point_world(graph.node(NodeId(legs[1].0)).point);
+        let (Some(da), Some(db)) = ((pa - c).try_normalize(), (pb - c).try_normalize()) else {
+            continue;
+        };
+        if da.dot(db) <= -0.99 {
+            continue; // straight pass-through — nothing to round
+        }
+        // One symmetric pullback for both legs (matches `fillet_polyline`, so
+        // the train body stays concentric with the rail through the bend).
+        let d = FILLET_INSET.min(c.distance(pa) * 0.5).min(c.distance(pb) * 0.5);
+        corners.insert(
+            center,
+            Corner {
+                c,
+                ta: c + da * d,
+                tb: c + db * d,
+                a_node: legs[0].0,
+                b_node: legs[1].0,
+                block: graph.blocks.block_of(EdgeId(legs[0].1)),
+            },
+        );
+    }
+    // Legs: connector → centre, shortened to the tangent point at a filleted bend.
+    for (i, edge) in graph.edges.iter().enumerate() {
+        if edge.opposite.0 < i as u32 {
+            continue; // canonical direction only
+        }
+        let block = graph.blocks.block_of(EdgeId(i as u32));
+        let (center_id, conn_id) = if matches!(graph.node(edge.from).kind, NodeKind::Center { .. }) {
+            (edge.from.0, edge.to.0)
+        } else {
+            (edge.to.0, edge.from.0)
+        };
+        let conn_px = point_world(graph.node(NodeId(conn_id)).point);
+        let end = match corners.get(&center_id) {
+            Some(cor) if conn_id == cor.a_node => cor.ta,
+            Some(cor) if conn_id == cor.b_node => cor.tb,
+            _ => point_world(graph.node(NodeId(center_id)).point),
+        };
+        spawn_band(&mut commands, conn_px, end, block);
+    }
+    // Corner arcs: a Bézier ta → centre(control) → tb, tessellated into chords.
+    for cor in corners.values() {
+        let mut prev = cor.ta;
+        for s in 1..=FILLET_STEPS {
+            let t = s as f32 / FILLET_STEPS as f32;
+            let mt = 1.0 - t;
+            let p = cor.ta * (mt * mt) + cor.c * (2.0 * mt * t) + cor.tb * (t * t);
+            spawn_band(&mut commands, prev, p, cor.block);
+            prev = p;
+        }
     }
 
     // Signal lamps: resolve each signal's protected block ONCE, here.
@@ -308,6 +403,9 @@ pub(super) fn redraw_trains(
     }
     let mut buf = Vec::new();
     let mut segs: Vec<(Vec2, Vec2, f32)> = Vec::new();
+    // On-path interpolated head per train, shared with the label pass below so
+    // the number rides the same smoothed position as the body.
+    let mut heads_on_path: BTreeMap<TrainId, Vec2> = BTreeMap::new();
     for train in sim.trains() {
         let class = train.class;
         let loco_col = col_class_loco(class);
@@ -327,31 +425,83 @@ pub(super) fn redraw_trains(
             let tail_pt = wf.lerp(wt, lo.0 as f32 / len);
             segs.push((head_pt, tail_pt, (hi.0 - lo.0) as f32));
         }
-        // Put the body on the same interpolated clock as the head marker: `segs`
-        // are raw per-tick positions (they jump in 10 Hz steps), the head glides
-        // via `interpolated_head`. Shift the whole strand so its front sits at the
-        // interpolated head — otherwise the wagons jitter against the gliding head.
-        if let Some(&(head_tick, _, _)) = segs.first() {
-            let shift = ctl.interpolated_head(train.id) - head_tick;
-            for s in &mut segs {
-                s.0 += shift;
-                s.1 += shift;
-            }
+        // Interpolate the head ALONG the path, not by a straight world-space
+        // lerp. The sim advances in 10 Hz steps; between ticks the train is drawn
+        // a sub-tick `lag` behind its current-tick head. The old code slid the
+        // whole strand by that world vector — on a bend the offset pointed across
+        // the corner chord and its direction swung each tick, which is exactly
+        // the curve jitter. Instead we keep the body on its own polyline and just
+        // start drawing `off` LE into it, so the train always rides the rail.
+        // LE↔px is uniform across the frozen unit table (HALF_DIAGONAL =
+        // round(HALF_CARDINAL·√2)), so one representative segment fixes the scale.
+        let Some(px_per_le) = segs
+            .iter()
+            .find(|s| s.2 > 0.0)
+            .map(|s| s.0.distance(s.1) / s.2)
+            .filter(|k| *k > 0.0)
+        else {
+            continue; // nothing drawable this frame
+        };
+        let lag_px = ctl.head_lag_px(train.id);
+        // Real emerged length (before padding) — the drawn body is capped here so
+        // a just-spawned train grows in from the source instead of popping its
+        // full length onto the tail pad.
+        let occupied_le: f32 = segs.iter().map(|s| s.2).sum();
+        // Round the body's corners so a train sweeps a bend concentric with the
+        // filleted rail. Pad BOTH ends to a full leg first: the occupied span
+        // ends mid-edge, and a short end-leg would clamp the fillet radius tighter
+        // than the rail's full-leg fillet — the body would then bulge OUTSIDE the
+        // rail on the bend nearest the head/tail. The pad is collinear with the
+        // end edge (drawn nowhere, feeds only the corner math); the real body is
+        // drawn from `off`. This also gives the tail room to slide for the lag.
+        // LE↔px is uniform across the frozen unit table, so one segment fixes it.
+        const PAD: f32 = 2.0 * FILLET_INSET + 6.0;
+        let head_dir = segs.first().and_then(|&(a, b, _)| (a - b).try_normalize());
+        let tail_dir = segs.last().and_then(|&(a, b, _)| (b - a).try_normalize());
+        let mut pts = Vec::with_capacity(segs.len() + 3);
+        if let Some(hd) = head_dir {
+            pts.push(segs[0].0 + hd * PAD);
         }
+        pts.push(segs[0].0);
+        pts.extend(segs.iter().map(|s| s.1));
+        if let (Some(td), Some(&(_, last, _))) = (tail_dir, segs.last()) {
+            pts.push(last + td * PAD);
+        }
+        let rounded = fillet_polyline(&pts, FILLET_INSET, FILLET_STEPS);
+        segs.clear();
+        for w in rounded.windows(2) {
+            segs.push((w[0], w[1], w[0].distance(w[1]) / px_per_le));
+        }
+        // Draw from the real head: skip the leading pad, then the sub-tick lag.
+        let head_pad_le = head_dir.map_or(0.0, |_| PAD) / px_per_le;
+        let off = head_pad_le + lag_px / px_per_le;
+        // Cap every slice at the tail. A fully-on-board train may spill the last
+        // `lag` onto the tail pad (its interpolated tail sits there — the slide
+        // that keeps the tail gliding, not popping, each tick). A train still
+        // growing in has its tail pinned at the source, so we clamp at the REAL
+        // tail instead — otherwise the body slides onto the pad *past* the source
+        // (off the board, below "Start") and the emergence pops. Trains vanish
+        // whole at a sink (no gradual exit), so `occupied < length` ⇒ spawning.
+        let max_d = if occupied_le + 0.5 >= train.length.0 as f32 {
+            off + occupied_le
+        } else {
+            head_pad_le + occupied_le
+        };
+        let body = Body { segs: &segs, max_d };
         // Loco (bright front), then each wagon behind its darker coupling. A slice
         // past the tail draws nothing, so a partial last wagon clips cleanly.
-        body_slice(&mut commands, &segs, 0.0, LOCO_LEN, LOCO_W, loco_col, 10.1);
+        body_slice(&mut commands, &body, off, off + LOCO_LEN, LOCO_W, loco_col, 10.1);
         let wagon_col = col_class_wagon(class);
         let wagons = (((train.length.0 - LOCO_LEN as i64).max(0)) as f32 / SLOT).round() as usize;
         for i in 0..wagons {
-            let base = LOCO_LEN + i as f32 * SLOT;
-            body_slice(&mut commands, &segs, base, base + COUPLING_LEN, COUPLING_W, col_coupling(), 10.0);
-            body_slice(&mut commands, &segs, base + COUPLING_LEN, base + SLOT, WAGON_W, wagon_col, 10.0);
+            let base = off + LOCO_LEN + i as f32 * SLOT;
+            body_slice(&mut commands, &body, base, base + COUPLING_LEN, COUPLING_W, col_coupling(), 10.0);
+            body_slice(&mut commands, &body, base + COUPLING_LEN, base + SLOT, WAGON_W, wagon_col, 10.0);
             // Freight (class 1): inset grey cargo → open gondola look.
             if class.0 == 1 {
                 body_slice(
                     &mut commands,
-                    &segs,
+                    &body,
                     base + COUPLING_LEN + CARGO_INSET,
                     base + SLOT - CARGO_INSET,
                     CARGO_W,
@@ -360,21 +510,29 @@ pub(super) fn redraw_trains(
                 );
             }
         }
-        // Loco head marker (class silhouette) at the interpolated head — the
-        // second, colour-blind-safe class cue. 0 square · 1 diamond · 2 chevron.
-        let head = ctl.interpolated_head(train.id);
-        match class.0 {
-            1 => {
-                let e = lamp(&mut commands, head, 13.0, loco_col, true, 11.0, Tag::Live);
-                commands.entity(e).insert(TrainGfx);
-            }
-            2 => {
+        // Loco head marker (class silhouette) at the on-path interpolated head —
+        // the second, colour-blind-safe class cue. 0 square · 1 diamond · 2 chevron.
+        // Oriented to the LOCAL travel direction (the body's tangent at the head),
+        // so the marker follows the rail through a bend instead of sitting square
+        // to the screen. Falls back to the head-edge direction if the tangent is
+        // degenerate (e.g. a just-spawned zero-length body).
+        let head = point_at(&segs, off);
+        heads_on_path.insert(train.id, head);
+        let heading = {
+            let tangent = (head - point_at(&segs, off + 24.0)).normalize_or_zero();
+            if tangent == Vec2::ZERO {
                 let d = graph.edge(train.head_edge());
-                let dir = (point_world(graph.node(d.to).point)
-                    - point_world(graph.node(d.from).point))
-                .normalize_or_zero();
-                let perp = dir.perp();
-                let back = head - dir * 9.0;
+                (point_world(graph.node(d.to).point) - point_world(graph.node(d.from).point))
+                    .normalize_or_zero()
+            } else {
+                tangent
+            }
+        };
+        let angle = heading.to_angle();
+        match class.0 {
+            2 => {
+                let perp = heading.perp();
+                let back = head - heading * 9.0;
                 for e in [
                     band(&mut commands, head, back + perp * 7.2, 3.0, loco_col, 11.0, Tag::Live),
                     band(&mut commands, head, back - perp * 7.2, 3.0, loco_col, 11.0, Tag::Live),
@@ -382,9 +540,16 @@ pub(super) fn redraw_trains(
                     commands.entity(e).insert(TrainGfx);
                 }
             }
-            _ => {
-                let e = lamp(&mut commands, head, 13.0, loco_col, false, 11.0, Tag::Live);
-                commands.entity(e).insert(TrainGfx);
+            c => {
+                // Square (0) or diamond (1): a diamond is the square turned 45°.
+                let spin = angle + if c == 1 { std::f32::consts::FRAC_PI_4 } else { 0.0 };
+                let mut e = commands.spawn((
+                    Sprite::from_color(loco_col, Vec2::splat(13.0)),
+                    Transform::from_translation(head.extend(11.0))
+                        .with_rotation(Quat::from_rotation_z(spin)),
+                ));
+                Tag::Live.apply(&mut e);
+                e.insert(TrainGfx);
             }
         }
 
@@ -435,7 +600,11 @@ pub(super) fn redraw_trains(
         } else if off.y < 0.0 {
             off = -off;
         }
-        let pos = ctl.interpolated_head(train.id) + off;
+        let head = heads_on_path
+            .get(&train.id)
+            .copied()
+            .unwrap_or_else(|| ctl.interpolated_head(train.id));
+        let pos = head + off;
         // z above the body bands (10) and head lamp (11) so the number stays on
         // top of the train.
         const LABEL_Z: f32 = 12.0;

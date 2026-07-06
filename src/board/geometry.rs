@@ -5,8 +5,54 @@ use stellwerk_sim::grid::{Cell, Dir8, Point};
 
 pub const CELL: f32 = 96.0;
 
+/// Corner-fillet tuning, shared by the rail renderer and the train body so a
+/// train sweeps *on* the rounded rail rather than cutting beside a hard elbow.
+/// `FILLET_INSET` is how far (px) each bend is pulled back along both legs;
+/// `FILLET_STEPS` is how many chords the corner arc is tessellated into.
+pub const FILLET_INSET: f32 = CELL * 0.26;
+pub const FILLET_STEPS: usize = 8;
+
 pub fn point_world(p: Point) -> Vec2 {
     Vec2::new(p.x as f32, p.y as f32) * (CELL / 2.0)
+}
+
+/// Rounds the interior corners of a polyline into short quadratic-Bézier
+/// fillets, so a track bend reads as a smooth curve instead of a hard elbow.
+/// Each corner vertex is pulled back by `inset` px along both legs (clamped to
+/// half the shorter adjacent leg, so short segments never over-round) and
+/// bridged by `steps` chords through a Bézier tangent to both legs. Corners
+/// flatter than ~8° and the two endpoints pass through unchanged. Returns a
+/// copy of `pts` when there is nothing to round.
+pub fn fillet_polyline(pts: &[Vec2], inset: f32, steps: usize) -> Vec<Vec2> {
+    if pts.len() < 3 || inset <= 0.0 || steps == 0 {
+        return pts.to_vec();
+    }
+    let mut out = Vec::with_capacity(pts.len() + (pts.len() - 2) * steps);
+    out.push(pts[0]);
+    for i in 1..pts.len() - 1 {
+        let (a, v, b) = (pts[i - 1], pts[i], pts[i + 1]);
+        let (Some(u), Some(w)) = ((a - v).try_normalize(), (b - v).try_normalize()) else {
+            out.push(v);
+            continue;
+        };
+        // Near-collinear (a straight pass-through, e.g. a shared connector):
+        // keep the vertex, draw no arc.
+        if u.dot(w) <= -0.99 {
+            out.push(v);
+            continue;
+        }
+        let d = inset.min((v - a).length() * 0.5).min((b - v).length() * 0.5);
+        let (ta, tb) = (v + u * d, v + w * d);
+        out.push(ta);
+        for s in 1..steps {
+            let t = s as f32 / steps as f32;
+            let mt = 1.0 - t;
+            out.push(ta * (mt * mt) + v * (2.0 * mt * t) + tb * (t * t));
+        }
+        out.push(tb);
+    }
+    out.push(pts[pts.len() - 1]);
+    out
 }
 
 pub fn cell_world(c: Cell) -> Vec2 {
