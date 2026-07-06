@@ -412,10 +412,21 @@ pub(super) fn redraw_trains(
     let mut existing: HashMap<TrainId, Entity> =
         labels.iter().map(|(e, l, _)| (l.0, e)).collect();
     for train in sim.trains() {
-        let pos = ctl.interpolated_head(train.id) + Vec2::new(0.0, 20.0);
-        // z above the body bands (10) and head lamp (11) so the number is always
-        // on top of the train — a downward train's +20 offset lands on its own
-        // trailing body, which at the label's old z (6) hid the number behind it.
+        // Offset the number to the SIDE of the track (perpendicular to travel),
+        // biased upward — so it never lands on the body, which runs along the
+        // travel axis (a downward train used to have it sitting in its wagons).
+        let d = graph.edge(train.head_edge());
+        let dir = (point_world(graph.node(d.to).point) - point_world(graph.node(d.from).point))
+            .normalize_or_zero();
+        let mut off = dir.perp() * 22.0;
+        if off == Vec2::ZERO {
+            off = Vec2::new(0.0, 22.0);
+        } else if off.y < 0.0 {
+            off = -off;
+        }
+        let pos = ctl.interpolated_head(train.id) + off;
+        // z above the body bands (10) and head lamp (11) so the number stays on
+        // top of the train.
         const LABEL_Z: f32 = 12.0;
         if let Some(e) = existing.remove(&train.id) {
             if let Ok((_, _, mut tf)) = labels.get_mut(e) {
