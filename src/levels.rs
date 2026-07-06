@@ -316,12 +316,11 @@ pub const SANDBOX_DEFAULT_W: u32 = 12;
 pub const SANDBOX_DEFAULT_H: u32 = 7;
 /// Lower bound: anything smaller cannot hold a real run (source + track + sink).
 pub const SANDBOX_MIN: u32 = 3;
-/// Upper bound, tied to the level-code budget: the largest empty
-/// area must still encode to a Level-Code under the compression threshold
-/// (~1500 chars). At ~2 bytes/cell (postcard) plus base64's 4/3
-/// expansion, a square `SANDBOX_MAX`×`SANDBOX_MAX` area (~484 cells) lands near
-/// 1300 chars. Guarded by `largest_empty_sandbox_fits_code_budget`.
-pub const SANDBOX_MAX: u32 = 22;
+/// Absolute upper bound for a sandbox edge (chosen for big authored levels).
+/// A full `SANDBOX_MAX`×`SANDBOX_MAX` area (2500 cells) still round-trips through
+/// a sharing code — the code just gets long (~10k chars). Guarded by
+/// `largest_empty_sandbox_roundtrips`.
+pub const SANDBOX_MAX: u32 = 50;
 
 /// An empty sandbox area of size `w`×`h`, **centered on (0,0)**:
 /// the start camera sits at (0,0), so every size lands in view. `w`/`h` are
@@ -544,18 +543,22 @@ mod tests {
         assert_eq!(lvl.buildable.len() as u32, SANDBOX_MIN * SANDBOX_MAX);
     }
 
-    /// Guards `SANDBOX_MAX` against the level-code budget: the
-    /// largest empty area must still encode under the ~1500-char compression
-    /// threshold. If this breaks, shrink `SANDBOX_MAX` / the presets.
+    /// The largest sandbox must still survive a full code round-trip (the real
+    /// invariant now that 50×50 is the absolute limit — the code is just long).
+    /// The loose size bound is a regression guard, not a budget.
     #[test]
-    fn largest_empty_sandbox_fits_code_budget() {
+    fn largest_empty_sandbox_roundtrips() {
         let level = empty_sandbox(SANDBOX_MAX, SANDBOX_MAX);
-        let code = stellwerk_codes::encode(&stellwerk_codes::Payload::Level { level });
+        let payload = stellwerk_codes::Payload::Level {
+            level: level.clone(),
+        };
+        let code = stellwerk_codes::encode(&payload);
         assert!(
-            code.len() < 1500,
+            code.len() < 20_000,
             "largest empty sandbox code is {} chars",
             code.len()
         );
+        assert_eq!(stellwerk_codes::decode(&code), Ok(payload));
     }
 
     #[test]

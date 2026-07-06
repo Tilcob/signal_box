@@ -9,8 +9,16 @@ use bevy::input::mouse::{MouseMotion, MouseScrollUnit, MouseWheel};
 use bevy::post_process::bloom::Bloom;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
+use stellwerk_sim::Level;
+use stellwerk_sim::grid::Cell;
 
-use crate::state::FocusedField;
+use crate::board::{self, CELL};
+use crate::state::{ActiveLevel, FocusedField, TimetableHovered};
+
+/// Zoom clamp. The lower bound is deliberately small so the biggest levels
+/// (up to 50×50) fit on screen after the auto-fit.
+const MIN_ZOOM: f32 = 0.1;
+const MAX_ZOOM: f32 = 4.0;
 
 #[derive(Component)]
 pub struct MainCamera;
@@ -25,7 +33,7 @@ impl Plugin for CameraPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(Zoom(1.0))
             .add_systems(Startup, spawn_camera)
-            .add_systems(Update, (pan, zoom));
+            .add_systems(Update, (pan, zoom, fit_camera_to_level));
     }
 }
 
@@ -103,16 +111,17 @@ fn zoom(
     mut wheel: MessageReader<MouseWheel>,
     keys: Res<ButtonInput<KeyCode>>,
     hovered: Res<crate::console::ConsoleHovered>,
+    timetable: Res<TimetableHovered>,
     focus: Res<FocusedField>,
     mut zoom: ResMut<Zoom>,
     mut cameras: Query<&mut Projection, With<MainCamera>>,
 ) {
-    // The console scrolls on the same wheel events; while the pointer is over it
-    // the board must not zoom. Ctrl+wheel is reserved for cycling the track curve
-    // form (`editor::tools::cycle_track_form`). In both cases consume the events
-    // so they don't backlog into a late zoom.
+    // The console AND the scrollable timetable scroll on the same wheel events;
+    // while the pointer is over either, the board must not zoom. Ctrl+wheel is
+    // reserved for cycling the track curve form (`editor::tools::cycle_track_form`).
+    // In every case consume the events so they don't backlog into a late zoom.
     let ctrl = keys.pressed(KeyCode::ControlLeft) || keys.pressed(KeyCode::ControlRight);
-    if hovered.0 || ctrl {
+    if hovered.0 || timetable.0 || ctrl {
         wheel.read().count();
         return;
     }
@@ -131,12 +140,75 @@ fn zoom(
     if steps == 0.0 || focus.0.is_some() {
         return;
     }
-    zoom.0 = (zoom.0 * 1.15f32.powf(steps)).clamp(0.25, 4.0);
+    zoom.0 = (zoom.0 * 1.15f32.powf(steps)).clamp(MIN_ZOOM, MAX_ZOOM);
     if let Ok(mut projection) = cameras.single_mut()
         && let Projection::Orthographic(ortho) = &mut *projection
     {
         ortho.scale = 1.0 / zoom.0;
     }
+}
+
+/// Cell bounding box over everything a level draws (buildable, fixed track,
+/// stations, platforms). `None` for an empty level.
+fn level_bounds(level: &Level) -> Option<(Cell, Cell)> {
+    let mut cells = level
+        .buildable
+        .iter()
+        .copied()
+        .chain(level.fixed.pieces.iter().map(|p| p.cell))
+        .chain(level.sources.iter().map(|s| s.cell))
+        .chain(level.sinks.iter().map(|s| s.cell))
+        .chain(level.platforms.iter().map(|p| p.cell));
+    let first = cells.next()?;
+    let (mut min, mut max) = (first, first);
+    for c in cells {
+        min.x = min.x.min(c.x);
+        min.y = min.y.min(c.y);
+        max.x = max.x.max(c.x);
+        max.y = max.y.max(c.y);
+    }
+    Some((min, max))
+}
+
+/// On loading a NEW level, frame its whole extent — big levels otherwise open
+/// zoomed into the middle. Keyed on the level id via a `Local`, so it fires
+/// once per level and never fights the player's later manual pan/zoom (which
+/// also mutate the camera but leave the id unchanged).
+fn fit_camera_to_level(
+    mut last: Local<Option<String>>,
+    active: Option<Res<ActiveLevel>>,
+    windows: Query<&Window, With<PrimaryWindow>>,
+    mut zoom: ResMut<Zoom>,
+    mut cameras: Query<(&mut Transform, &mut Projection), With<MainCamera>>,
+) {
+    let Some(active) = active else { return };
+    if last.as_deref() == Some(active.id.as_str()) {
+        return;
+    }
+    let Ok(window) = windows.single() else { return };
+    let (vw, vh) = (window.width(), window.height());
+    if vw < 1.0 || vh < 1.0 {
+        return; // window not sized yet — try again next frame (id not stored)
+    }
+    let Some((min, max)) = level_bounds(&active.level) else {
+        return;
+    };
+    let (lo, hi) = (board::cell_world(min), board::cell_world(max));
+    let center = (lo + hi) / 2.0;
+    // Span in world px, including the outer cells' own width/height.
+    let span = (hi - lo).abs() + Vec2::splat(CELL);
+    // Fit into ~82% of the window; the HUD panels hug the edges.
+    let fit = (vw * 0.82 / span.x).min(vh * 0.82 / span.y);
+    let z = fit.clamp(MIN_ZOOM, MAX_ZOOM);
+    zoom.0 = z;
+    if let Ok((mut tf, mut projection)) = cameras.single_mut() {
+        tf.translation.x = center.x;
+        tf.translation.y = center.y;
+        if let Projection::Orthographic(ortho) = &mut *projection {
+            ortho.scale = 1.0 / z;
+        }
+    }
+    *last = Some(active.id.clone());
 }
 
 /// Cursor position in world coordinates, if over the window.

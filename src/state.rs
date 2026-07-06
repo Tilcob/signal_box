@@ -138,6 +138,12 @@ impl Tool {
 #[derive(Resource, Default)]
 pub struct FocusedField(pub Option<Entity>);
 
+/// True while the pointer is over the scrollable timetable region — the input
+/// gate that lets the wheel scroll the timetable instead of zooming the board
+/// (mirrors `console::ConsoleHovered`). Read by `camera::zoom`.
+#[derive(Resource, Default)]
+pub struct TimetableHovered(pub bool);
+
 /// Run condition: no numeric field is focused. Gates the systems that read raw
 /// keyboard/mouse so they don't fight a field being typed into.
 pub fn no_field_focused(focus: Res<FocusedField>) -> bool {

@@ -1,7 +1,9 @@
 //! Timetable panel (bottom left): read-only rows in campaign levels, an
 //! editable per-train row editor in the sandbox.
 
+use bevy::input::mouse::{MouseScrollUnit, MouseWheel};
 use bevy::prelude::*;
+use bevy::ui::ScrollPosition;
 use stellwerk_sim::level::{Level, PlatformStop, ScheduleEntry};
 use stellwerk_sim::units::{Len, PlatformId, SinkId, SourceId, Speed, Tick, TrainClass, TrainId};
 
@@ -11,7 +13,7 @@ use crate::console::ConsoleLog;
 use crate::editor::{EditOp, do_op};
 use crate::font::UiFont;
 use crate::i18n::{sink_label, source_label, t};
-use crate::state::{ActiveLevel, Editor, GameState};
+use crate::state::{ActiveLevel, Editor, GameState, TimetableHovered};
 
 // Editor-edge clamps for the numeric fields. Not balance — just "no nonsense":
 // ticks are non-negative, lengths positive, and speed must stay below the
@@ -49,6 +51,14 @@ struct SchedField {
 #[derive(Component)]
 pub(super) struct SchedulePanelRoot;
 
+/// The scrollable region holding the timetable rows (title stays fixed above).
+/// Marks the node whose hover gates the wheel and whose `ScrollPosition` moves.
+#[derive(Component)]
+struct ScheduleScroll;
+
+/// Logical pixels scrolled per wheel line (≈ two rows).
+const SCROLL_STEP: f32 = 40.0;
+
 #[derive(Component, Clone, Copy)]
 pub(super) enum SchedAction {
     Add,
@@ -65,15 +75,54 @@ pub(super) struct SchedulePanelPlugin;
 
 impl Plugin for SchedulePanelPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
-            Update,
-            (
-                rebuild_schedule_panel.run_if(resource_exists_and_changed::<ActiveLevel>),
-                schedule_clicks,
-                schedule_field_commits,
+        app.init_resource::<TimetableHovered>()
+            .add_systems(
+                Update,
+                (
+                    rebuild_schedule_panel.run_if(resource_exists_and_changed::<ActiveLevel>),
+                    schedule_clicks,
+                    schedule_field_commits,
+                )
+                    .run_if(in_state(GameState::Edit)),
             )
-                .run_if(in_state(GameState::Edit)),
-        );
+            // Ungated so the hover flag resets to false once the panel is gone
+            // (leaving Edit), or the board would stay un-zoomable.
+            .add_systems(Update, (timetable_hover, timetable_scroll));
+    }
+}
+
+/// Mirror the scroll region's hover into [`TimetableHovered`] (the wheel/zoom
+/// gate), like the console's `console_hover`.
+fn timetable_hover(
+    region: Query<&Interaction, With<ScheduleScroll>>,
+    mut hovered: ResMut<TimetableHovered>,
+) {
+    let over = region.iter().any(|i| !matches!(i, Interaction::None));
+    if hovered.0 != over {
+        hovered.0 = over;
+    }
+}
+
+/// Wheel-scroll the timetable while hovered (mirrors `console_scroll`). Bevy
+/// clamps an out-of-range `ScrollPosition` on the next layout pass.
+fn timetable_scroll(
+    mut wheel: MessageReader<MouseWheel>,
+    hovered: Res<TimetableHovered>,
+    mut region: Query<&mut ScrollPosition, With<ScheduleScroll>>,
+) {
+    let delta: f32 = wheel
+        .read()
+        .map(|e| match e.unit {
+            MouseScrollUnit::Line => e.y,
+            MouseScrollUnit::Pixel => e.y / 100.0,
+        })
+        .sum();
+    if !hovered.0 || delta == 0.0 {
+        return;
+    }
+    for mut pos in &mut region {
+        // Wheel up (delta > 0) scrolls toward the top → smaller y offset.
+        pos.0.y = (pos.0.y - delta * SCROLL_STEP).max(0.0);
     }
 }
 
@@ -105,9 +154,24 @@ pub(super) fn rebuild_schedule_panel(
     };
     commands.entity(root).with_children(|panel| {
         panel.spawn(text_bundle(&font, t("schedule.title"), 15.0, TEXT_BRIGHT));
+        // Rows live in a scroll region: a long timetable wheel-scrolls like the
+        // console (see `timetable_scroll`); the title above stays fixed.
+        panel
+            .spawn((
+                Node {
+                    flex_direction: FlexDirection::Column,
+                    max_height: Val::Vh(42.0),
+                    overflow: Overflow::scroll_y(),
+                    ..default()
+                },
+                ScrollPosition::default(),
+                Interaction::default(),
+                ScheduleScroll,
+            ))
+            .with_children(|list| {
         if !sandbox {
             for entry in &level.schedule {
-                panel.spawn((
+                list.spawn((
                     text_bundle(
                         &font,
                         format!(
@@ -139,7 +203,7 @@ pub(super) fn rebuild_schedule_panel(
             return;
         }
         for (row, entry) in level.schedule.iter().enumerate() {
-            panel
+            list
                 .spawn(Node {
                     flex_direction: FlexDirection::Row,
                     align_items: AlignItems::Center,
@@ -209,6 +273,7 @@ pub(super) fn rebuild_schedule_panel(
                     small_button(r, &font, "×", SchedAction::Remove(row));
                 });
         }
+            });
     });
 }
 
