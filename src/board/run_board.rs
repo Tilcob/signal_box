@@ -327,6 +327,17 @@ pub(super) fn redraw_trains(
             let tail_pt = wf.lerp(wt, lo.0 as f32 / len);
             segs.push((head_pt, tail_pt, (hi.0 - lo.0) as f32));
         }
+        // Put the body on the same interpolated clock as the head marker: `segs`
+        // are raw per-tick positions (they jump in 10 Hz steps), the head glides
+        // via `interpolated_head`. Shift the whole strand so its front sits at the
+        // interpolated head — otherwise the wagons jitter against the gliding head.
+        if let Some(&(head_tick, _, _)) = segs.first() {
+            let shift = ctl.interpolated_head(train.id) - head_tick;
+            for s in &mut segs {
+                s.0 += shift;
+                s.1 += shift;
+            }
+        }
         // Loco (bright front), then each wagon behind its darker coupling. A slice
         // past the tail draws nothing, so a partial last wagon clips cleanly.
         body_slice(&mut commands, &segs, 0.0, LOCO_LEN, LOCO_W, loco_col, 10.1);
