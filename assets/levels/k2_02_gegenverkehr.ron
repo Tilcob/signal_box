@@ -1,0 +1,899 @@
+(
+    meta: (
+        schema_version: 1,
+        chapter: 2,
+        order: 20,
+        optional_hard: true,
+        briefing: "Zehn Züge teilen sich eine eingleisige Strecke — fünf nach rechts, fünf nach links, dazu zwei Güterzüge mit Halt an den Bahnhöfen. Begegnen können sich zwei Züge nur an den Ausweichgleisen: Leiten Sie den Verkehr so, dass immer ein Zug wartet, während der andere passiert, und sichern Sie die Einfahrten mit Signalen. Ohne Schutz endet schon die erste Begegnung im Zusammenstoß oder Stillstand.",
+    ),
+    sim: (
+        name: "2.2 Gegenverkehr",
+        buildable: [
+            (
+                x: -12,
+                y: -3,
+            ),
+            (
+                x: -12,
+                y: -2,
+            ),
+            (
+                x: -12,
+                y: -1,
+            ),
+            (
+                x: -12,
+                y: 0,
+            ),
+            (
+                x: -12,
+                y: 1,
+            ),
+            (
+                x: -12,
+                y: 2,
+            ),
+            (
+                x: -12,
+                y: 3,
+            ),
+            (
+                x: -11,
+                y: -3,
+            ),
+            (
+                x: -11,
+                y: -2,
+            ),
+            (
+                x: -11,
+                y: -1,
+            ),
+            (
+                x: -11,
+                y: 0,
+            ),
+            (
+                x: -11,
+                y: 1,
+            ),
+            (
+                x: -11,
+                y: 2,
+            ),
+            (
+                x: -11,
+                y: 3,
+            ),
+            (
+                x: -10,
+                y: -3,
+            ),
+            (
+                x: -10,
+                y: -2,
+            ),
+            (
+                x: -10,
+                y: -1,
+            ),
+            (
+                x: -10,
+                y: 0,
+            ),
+            (
+                x: -10,
+                y: 1,
+            ),
+            (
+                x: -10,
+                y: 2,
+            ),
+            (
+                x: -10,
+                y: 3,
+            ),
+            (
+                x: -9,
+                y: -3,
+            ),
+            (
+                x: -9,
+                y: -2,
+            ),
+            (
+                x: -9,
+                y: -1,
+            ),
+            (
+                x: -9,
+                y: 0,
+            ),
+            (
+                x: -9,
+                y: 1,
+            ),
+            (
+                x: -9,
+                y: 2,
+            ),
+            (
+                x: -9,
+                y: 3,
+            ),
+            (
+                x: -8,
+                y: -3,
+            ),
+            (
+                x: -8,
+                y: -2,
+            ),
+            (
+                x: -8,
+                y: -1,
+            ),
+            (
+                x: -8,
+                y: 0,
+            ),
+            (
+                x: -8,
+                y: 1,
+            ),
+            (
+                x: -8,
+                y: 2,
+            ),
+            (
+                x: -8,
+                y: 3,
+            ),
+            (
+                x: -7,
+                y: -3,
+            ),
+            (
+                x: -7,
+                y: -2,
+            ),
+            (
+                x: -7,
+                y: -1,
+            ),
+            (
+                x: -7,
+                y: 0,
+            ),
+            (
+                x: -7,
+                y: 1,
+            ),
+            (
+                x: -7,
+                y: 2,
+            ),
+            (
+                x: -7,
+                y: 3,
+            ),
+            (
+                x: -6,
+                y: -3,
+            ),
+            (
+                x: -6,
+                y: -2,
+            ),
+            (
+                x: -6,
+                y: -1,
+            ),
+            (
+                x: -6,
+                y: 0,
+            ),
+            (
+                x: -6,
+                y: 1,
+            ),
+            (
+                x: -6,
+                y: 2,
+            ),
+            (
+                x: -6,
+                y: 3,
+            ),
+            (
+                x: -5,
+                y: -3,
+            ),
+            (
+                x: -5,
+                y: -2,
+            ),
+            (
+                x: -5,
+                y: -1,
+            ),
+            (
+                x: -5,
+                y: 0,
+            ),
+            (
+                x: -5,
+                y: 1,
+            ),
+            (
+                x: -5,
+                y: 2,
+            ),
+            (
+                x: -5,
+                y: 3,
+            ),
+            (
+                x: -4,
+                y: -3,
+            ),
+            (
+                x: -4,
+                y: -2,
+            ),
+            (
+                x: -4,
+                y: -1,
+            ),
+            (
+                x: -4,
+                y: 0,
+            ),
+            (
+                x: -4,
+                y: 1,
+            ),
+            (
+                x: -4,
+                y: 2,
+            ),
+            (
+                x: -4,
+                y: 3,
+            ),
+            (
+                x: -3,
+                y: 0,
+            ),
+            (
+                x: -2,
+                y: -3,
+            ),
+            (
+                x: -2,
+                y: -2,
+            ),
+            (
+                x: -2,
+                y: -1,
+            ),
+            (
+                x: -2,
+                y: 0,
+            ),
+            (
+                x: -2,
+                y: 1,
+            ),
+            (
+                x: -2,
+                y: 2,
+            ),
+            (
+                x: -2,
+                y: 3,
+            ),
+            (
+                x: -1,
+                y: -3,
+            ),
+            (
+                x: -1,
+                y: -2,
+            ),
+            (
+                x: -1,
+                y: -1,
+            ),
+            (
+                x: -1,
+                y: 0,
+            ),
+            (
+                x: -1,
+                y: 1,
+            ),
+            (
+                x: -1,
+                y: 2,
+            ),
+            (
+                x: -1,
+                y: 3,
+            ),
+            (
+                x: 0,
+                y: -3,
+            ),
+            (
+                x: 0,
+                y: -2,
+            ),
+            (
+                x: 0,
+                y: -1,
+            ),
+            (
+                x: 0,
+                y: 0,
+            ),
+            (
+                x: 0,
+                y: 1,
+            ),
+            (
+                x: 0,
+                y: 2,
+            ),
+            (
+                x: 0,
+                y: 3,
+            ),
+            (
+                x: 1,
+                y: -3,
+            ),
+            (
+                x: 1,
+                y: -2,
+            ),
+            (
+                x: 1,
+                y: -1,
+            ),
+            (
+                x: 1,
+                y: 0,
+            ),
+            (
+                x: 1,
+                y: 1,
+            ),
+            (
+                x: 1,
+                y: 2,
+            ),
+            (
+                x: 1,
+                y: 3,
+            ),
+            (
+                x: 2,
+                y: -3,
+            ),
+            (
+                x: 2,
+                y: -2,
+            ),
+            (
+                x: 2,
+                y: -1,
+            ),
+            (
+                x: 2,
+                y: 0,
+            ),
+            (
+                x: 2,
+                y: 1,
+            ),
+            (
+                x: 2,
+                y: 2,
+            ),
+            (
+                x: 2,
+                y: 3,
+            ),
+            (
+                x: 3,
+                y: -3,
+            ),
+            (
+                x: 3,
+                y: -2,
+            ),
+            (
+                x: 3,
+                y: -1,
+            ),
+            (
+                x: 3,
+                y: 0,
+            ),
+            (
+                x: 3,
+                y: 1,
+            ),
+            (
+                x: 3,
+                y: 2,
+            ),
+            (
+                x: 3,
+                y: 3,
+            ),
+            (
+                x: 4,
+                y: -3,
+            ),
+            (
+                x: 4,
+                y: -2,
+            ),
+            (
+                x: 4,
+                y: -1,
+            ),
+            (
+                x: 4,
+                y: 0,
+            ),
+            (
+                x: 4,
+                y: 1,
+            ),
+            (
+                x: 4,
+                y: 2,
+            ),
+            (
+                x: 4,
+                y: 3,
+            ),
+            (
+                x: 5,
+                y: 0,
+            ),
+            (
+                x: 6,
+                y: -3,
+            ),
+            (
+                x: 6,
+                y: -2,
+            ),
+            (
+                x: 6,
+                y: -1,
+            ),
+            (
+                x: 6,
+                y: 0,
+            ),
+            (
+                x: 6,
+                y: 1,
+            ),
+            (
+                x: 6,
+                y: 2,
+            ),
+            (
+                x: 6,
+                y: 3,
+            ),
+            (
+                x: 7,
+                y: -3,
+            ),
+            (
+                x: 7,
+                y: -2,
+            ),
+            (
+                x: 7,
+                y: -1,
+            ),
+            (
+                x: 7,
+                y: 0,
+            ),
+            (
+                x: 7,
+                y: 1,
+            ),
+            (
+                x: 7,
+                y: 2,
+            ),
+            (
+                x: 7,
+                y: 3,
+            ),
+            (
+                x: 8,
+                y: -3,
+            ),
+            (
+                x: 8,
+                y: -2,
+            ),
+            (
+                x: 8,
+                y: -1,
+            ),
+            (
+                x: 8,
+                y: 0,
+            ),
+            (
+                x: 8,
+                y: 1,
+            ),
+            (
+                x: 8,
+                y: 2,
+            ),
+            (
+                x: 8,
+                y: 3,
+            ),
+            (
+                x: 9,
+                y: -3,
+            ),
+            (
+                x: 9,
+                y: -2,
+            ),
+            (
+                x: 9,
+                y: -1,
+            ),
+            (
+                x: 9,
+                y: 0,
+            ),
+            (
+                x: 9,
+                y: 1,
+            ),
+            (
+                x: 9,
+                y: 2,
+            ),
+            (
+                x: 9,
+                y: 3,
+            ),
+            (
+                x: 10,
+                y: -3,
+            ),
+            (
+                x: 10,
+                y: -2,
+            ),
+            (
+                x: 10,
+                y: -1,
+            ),
+            (
+                x: 10,
+                y: 0,
+            ),
+            (
+                x: 10,
+                y: 1,
+            ),
+            (
+                x: 10,
+                y: 2,
+            ),
+            (
+                x: 10,
+                y: 3,
+            ),
+            (
+                x: 11,
+                y: -3,
+            ),
+            (
+                x: 11,
+                y: -2,
+            ),
+            (
+                x: 11,
+                y: -1,
+            ),
+            (
+                x: 11,
+                y: 0,
+            ),
+            (
+                x: 11,
+                y: 1,
+            ),
+            (
+                x: 11,
+                y: 2,
+            ),
+            (
+                x: 11,
+                y: 3,
+            ),
+            (
+                x: 12,
+                y: -3,
+            ),
+            (
+                x: 12,
+                y: -2,
+            ),
+            (
+                x: 12,
+                y: -1,
+            ),
+            (
+                x: 12,
+                y: 0,
+            ),
+            (
+                x: 12,
+                y: 1,
+            ),
+            (
+                x: 12,
+                y: 2,
+            ),
+            (
+                x: 12,
+                y: 3,
+            ),
+        ],
+        fixed: (
+            pieces: [
+                (
+                    cell: (
+                        x: -12,
+                        y: 0,
+                    ),
+                    a: W,
+                    b: E,
+                ),
+                (
+                    cell: (
+                        x: -12,
+                        y: -2,
+                    ),
+                    a: W,
+                    b: E,
+                ),
+                (
+                    cell: (
+                        x: 12,
+                        y: 2,
+                    ),
+                    a: W,
+                    b: E,
+                ),
+                (
+                    cell: (
+                        x: -6,
+                        y: 1,
+                    ),
+                    a: W,
+                    b: E,
+                ),
+                (
+                    cell: (
+                        x: 12,
+                        y: 0,
+                    ),
+                    a: W,
+                    b: E,
+                ),
+                (
+                    cell: (
+                        x: 8,
+                        y: -1,
+                    ),
+                    a: W,
+                    b: E,
+                ),
+            ],
+            switches: [],
+            signals: [],
+        ),
+        sources: [
+            (
+                id: (0),
+                cell: (
+                    x: -12,
+                    y: 0,
+                ),
+                dir: W,
+                label: "Start 1",
+            ),
+            (
+                id: (1),
+                cell: (
+                    x: 12,
+                    y: 0,
+                ),
+                dir: E,
+                label: "Start 2",
+            ),
+        ],
+        sinks: [
+            (
+                id: (0),
+                cell: (
+                    x: -12,
+                    y: -2,
+                ),
+                dir: W,
+                label: "Ziel 2",
+            ),
+            (
+                id: (1),
+                cell: (
+                    x: 12,
+                    y: 2,
+                ),
+                dir: E,
+                label: "Ziel 1",
+            ),
+        ],
+        platforms: [
+            (
+                id: (0),
+                cell: (
+                    x: -6,
+                    y: 1,
+                ),
+                dir: E,
+                label: "Bahnhof 1",
+            ),
+            (
+                id: (1),
+                cell: (
+                    x: 8,
+                    y: -1,
+                ),
+                dir: W,
+                label: "Bahnhof 2",
+            ),
+        ],
+        schedule: [
+            (
+                train: (0),
+                class: (0),
+                length: (800),
+                speed: (100),
+                source: (0),
+                sink: (1),
+                depart: (60),
+                due: (382),
+                stop: None,
+            ),
+            (
+                train: (1),
+                class: (0),
+                length: (800),
+                speed: (100),
+                source: (0),
+                sink: (1),
+                depart: (125),
+                due: (440),
+                stop: None,
+            ),
+            (
+                train: (2),
+                class: (1),
+                length: (800),
+                speed: (80),
+                source: (0),
+                sink: (1),
+                depart: (150),
+                due: (703),
+                stop: Some((
+                    platform: (0),
+                    dwell: (50),
+                )),
+            ),
+            (
+                train: (3),
+                class: (0),
+                length: (800),
+                speed: (100),
+                source: (0),
+                sink: (1),
+                depart: (175),
+                due: (500),
+                stop: None,
+            ),
+            (
+                train: (4),
+                class: (0),
+                length: (800),
+                speed: (100),
+                source: (0),
+                sink: (1),
+                depart: (200),
+                due: (562),
+                stop: None,
+            ),
+            (
+                train: (5),
+                class: (0),
+                length: (800),
+                speed: (100),
+                source: (1),
+                sink: (0),
+                depart: (0),
+                due: (557),
+                stop: None,
+            ),
+            (
+                train: (6),
+                class: (0),
+                length: (800),
+                speed: (100),
+                source: (1),
+                sink: (0),
+                depart: (25),
+                due: (688),
+                stop: None,
+            ),
+            (
+                train: (7),
+                class: (1),
+                length: (800),
+                speed: (80),
+                source: (1),
+                sink: (0),
+                depart: (50),
+                due: (1117),
+                stop: Some((
+                    platform: (1),
+                    dwell: (35),
+                )),
+            ),
+            (
+                train: (8),
+                class: (0),
+                length: (800),
+                speed: (100),
+                source: (1),
+                sink: (0),
+                depart: (75),
+                due: (816),
+                stop: None,
+            ),
+            (
+                train: (9),
+                class: (0),
+                length: (800),
+                speed: (100),
+                source: (1),
+                sink: (0),
+                depart: (100),
+                due: (946),
+                stop: None,
+            ),
+        ],
+        par: (throughput: (1020), material: 87, lateness: 0),
+    ),
+)
