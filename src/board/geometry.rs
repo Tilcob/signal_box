@@ -23,7 +23,16 @@ pub fn point_world(p: Point) -> Vec2 {
 /// bridged by `steps` chords through a Bézier tangent to both legs. Corners
 /// flatter than ~8° and the two endpoints pass through unchanged. Returns a
 /// copy of `pts` when there is nothing to round.
-pub fn fillet_polyline(pts: &[Vec2], inset: f32, steps: usize) -> Vec<Vec2> {
+///
+/// `roundable`, when `Some`, is a per-vertex mask parallel to `pts`: only
+/// vertices whose entry is `true` are filleted, the rest keep their hard
+/// corner. The rail rounds only 2-leg, non-switch centre nodes (see
+/// `run_board::spawn_run_board_static`); passing the same predicate here as a
+/// mask keeps the drawn train body concentric with the rail through an S-curve
+/// instead of rounding the connector/switch elbows the rail leaves sharp.
+/// `None` rounds every eligible corner. A mask shorter than `pts` treats the
+/// missing tail as roundable.
+pub fn fillet_polyline(pts: &[Vec2], roundable: Option<&[bool]>, inset: f32, steps: usize) -> Vec<Vec2> {
     if pts.len() < 3 || inset <= 0.0 || steps == 0 {
         return pts.to_vec();
     }
@@ -31,6 +40,12 @@ pub fn fillet_polyline(pts: &[Vec2], inset: f32, steps: usize) -> Vec<Vec2> {
     out.push(pts[0]);
     for i in 1..pts.len() - 1 {
         let (a, v, b) = (pts[i - 1], pts[i], pts[i + 1]);
+        // Masked off (a connector/switch elbow the rail keeps sharp): keep the
+        // hard corner so the body does not cut inside the rail there.
+        if !roundable.is_none_or(|m| m.get(i).copied().unwrap_or(true)) {
+            out.push(v);
+            continue;
+        }
         let (Some(u), Some(w)) = ((a - v).try_normalize(), (b - v).try_normalize()) else {
             out.push(v);
             continue;

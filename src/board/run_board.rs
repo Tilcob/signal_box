@@ -403,6 +403,10 @@ pub(super) fn redraw_trains(
     }
     let mut buf = Vec::new();
     let mut segs: Vec<(Vec2, Vec2, f32)> = Vec::new();
+    // Parallel to `segs`: is each segment's tail node a rail-filleted bend (a
+    // 2-leg, non-switch centre)? Drives the body fillet mask so the train rounds
+    // exactly the corners the rail rounds and stays on the track through a bend.
+    let mut tail_bend: Vec<bool> = Vec::new();
     // On-path interpolated head per train, shared with the label pass below so
     // the number rides the same smoothed position as the body.
     let mut heads_on_path: BTreeMap<TrainId, Vec2> = BTreeMap::new();
@@ -413,6 +417,7 @@ pub(super) fn redraw_trains(
         // train travels from→to, head toward `to`).
         train.occupied_into(graph, &mut buf);
         segs.clear();
+        tail_bend.clear();
         for &(edge, lo, hi) in &buf {
             let data = graph.edge(edge);
             let wf = point_world(graph.node(data.from).point);
@@ -424,6 +429,10 @@ pub(super) fn redraw_trains(
             let head_pt = wf.lerp(wt, hi.0 as f32 / len);
             let tail_pt = wf.lerp(wt, lo.0 as f32 / len);
             segs.push((head_pt, tail_pt, (hi.0 - lo.0) as f32));
+            // The tail-side node (`from`, head travels toward `to`) is the shared
+            // vertex with the next edge back. Round it only where the rail does:
+            // a non-switch centre. Connector and switch elbows stay sharp.
+            tail_bend.push(matches!(graph.node(data.from).kind, NodeKind::Center { switch: None }));
         }
         // Interpolate the head ALONG the path, not by a straight world-space
         // lerp. The sim advances in 10 Hz steps; between ticks the train is drawn
@@ -459,15 +468,25 @@ pub(super) fn redraw_trains(
         let head_dir = segs.first().and_then(|&(a, b, _)| (a - b).try_normalize());
         let tail_dir = segs.last().and_then(|&(a, b, _)| (b - a).try_normalize());
         let mut pts = Vec::with_capacity(segs.len() + 3);
+        // `mask` runs parallel to `pts`: only rail-filleted centre vertices are
+        // rounded (see `tail_bend`). The pads and the head point are collinear
+        // fillers, never real bends, so they are masked off.
+        let mut mask = Vec::with_capacity(segs.len() + 3);
         if let Some(hd) = head_dir {
             pts.push(segs[0].0 + hd * PAD);
+            mask.push(false);
         }
         pts.push(segs[0].0);
-        pts.extend(segs.iter().map(|s| s.1));
+        mask.push(false);
+        for (s, &bend) in segs.iter().zip(&tail_bend) {
+            pts.push(s.1);
+            mask.push(bend);
+        }
         if let (Some(td), Some(&(_, last, _))) = (tail_dir, segs.last()) {
             pts.push(last + td * PAD);
+            mask.push(false);
         }
-        let rounded = fillet_polyline(&pts, FILLET_INSET, FILLET_STEPS);
+        let rounded = fillet_polyline(&pts, Some(&mask), FILLET_INSET, FILLET_STEPS);
         segs.clear();
         for w in rounded.windows(2) {
             segs.push((w[0], w[1], w[0].distance(w[1]) / px_per_le));
